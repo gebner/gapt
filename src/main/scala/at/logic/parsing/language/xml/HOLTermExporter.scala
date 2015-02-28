@@ -6,7 +6,7 @@
 package at.logic.parsing.language.xml
 
 import at.logic.language.hol._
-import at.logic.language.lambda.{Abs, Var, Const}
+import at.logic.language.lambda.{ Abs, Var, Const }
 import at.logic.parsing.ExportingException
 import at.logic.language.lambda.types.{ FunctionType, Ti, ->, To }
 
@@ -21,7 +21,7 @@ trait HOLTermExporter {
         { exportList( c :: args ) }
       </variableatomformula>
     case Const( a, Ti ) =>
-        <constant symbol={ a.toString }/>
+      <constant symbol={ a.toString }/>
     //defined sets need to be matched before general functions
     case Function( Const( a, FunctionType( To, ls ) ), args, rtype ) if ( ls.last == Ti ) =>
       <definedset definition={ a } symbol={ a }>

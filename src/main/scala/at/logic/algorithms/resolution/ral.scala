@@ -9,7 +9,7 @@ import at.logic.calculi.lksk.{ LabelledFormulaOccurrence, LabelledSequent }
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.language.fol.{ FOLExpression, FOLFormula }
 import at.logic.language.hol._
-import at.logic.language.lambda.{Substitution, Var, LambdaExpression}
+import at.logic.language.lambda.{ Substitution, Var, LambdaExpression }
 
 case class RalException[V <: LabelledSequent]( val message: String, val rp: List[RobinsonResolutionProof], val ralp: List[RalResolutionProof[V]], val exp: List[HOLExpression] ) extends Exception( message );
 

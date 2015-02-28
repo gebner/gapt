@@ -54,7 +54,7 @@ object Match {
   def apply( s: HOLExpression, t: HOLExpression ): Option[Substitution] =
     ( s, t ) match {
       case ( App( s_1, s_2 ), App( t_1, t_2 ) )               => merge( apply( s_1, t_1 ), apply( s_2, t_2 ) )
-      case ( v: Var, _ ) if !getVars( t ).contains( v )          => Some( Substitution( v, t ) )
+      case ( v: Var, _ ) if !getVars( t ).contains( v )       => Some( Substitution( v, t ) )
       case ( v1 @ Var( _, _ ), v2 @ Var( _, _ ) ) if v1 == v2 => Some( Substitution() )
       case ( v1 @ Var( _, _ ), v2 @ Var( _, _ ) ) if v1 != v2 => {
         None
@@ -83,7 +83,7 @@ object Match {
     case App( t_1, t_2 ) => getVars( t_1 ) ++ getVars( t_2 )
     case v: Var          => ( Set[Var]() ) + v
     case Abs( _, sub )   => getVars( sub )
-    case _                  => Set[Var]()
+    case _               => Set[Var]()
   }
 }
 

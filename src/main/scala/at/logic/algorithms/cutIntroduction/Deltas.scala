@@ -90,14 +90,14 @@ object Deltas {
           // If all heads are the same
           if ( terms.forall( t => t match {
             case FOLFunction( h1, _ ) if h1 == h => true
-            case _                            => false
+            case _                               => false
           } ) ) {
             // call delta recursively for every argument of every term
 
             // Compute a list of list of arguments
             val allargs = terms.foldRight( List[List[FOLTerm]]() )( ( t, acc ) => t match {
               case FOLFunction( x, args ) => args :: acc
-              case _                   => throw new DeltaTableException( "ERROR: Mal-formed terms list." )
+              case _                      => throw new DeltaTableException( "ERROR: Mal-formed terms list." )
             } )
 
             // The list above is a list of lists of arguments. Assume that each list

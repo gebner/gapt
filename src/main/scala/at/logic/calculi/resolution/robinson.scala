@@ -8,7 +8,7 @@ package at.logic.calculi.resolution
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.hol.HOLFormula
-import at.logic.language.fol.{rename => renameFOL, _}
+import at.logic.language.fol.{ rename => renameFOL, _ }
 import at.logic.language.lambda._
 import at.logic.utils.ds.acyclicGraphs._
 import at.logic.calculi.lk.base._
@@ -20,8 +20,8 @@ import at.logic.calculi.lksk.UnaryLKskProof
 
 package robinson {
 
-import at.logic.language.hol.Equation
-import at.logic.utils.logging.Logger
+  import at.logic.language.hol.Equation
+  import at.logic.utils.logging.Logger
 
   /* creates new formula occurrences where sub is applied to each element x in the given set and which has x as an ancestor
  * additional_context  may add additional ancestors, needed e.g. for factoring */
@@ -447,9 +447,8 @@ import at.logic.utils.logging.Logger
 
     def tex( p: ResolutionProof[Clause], ids: Map[Clause, Int], edges: List[List[Int]] ): ( String, List[List[Int]] ) = {
       def f( l: Seq[FormulaOccurrence] ): String = lst2string( ( x: FormulaOccurrence ) => escapeTex(
-// FIXME:        x.formula.toPrettyString
-      x.formula.toString
-      ), ",", l.toList )
+        // FIXME:        x.formula.toPrettyString
+        x.formula.toString ), ",", l.toList )
 
       p match {
         case Resolution( clause, p1, p2, occ1, occ2, subst ) =>

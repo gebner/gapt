@@ -1,6 +1,6 @@
 package at.logic.algorithms.resolution
 
-import at.logic.language.fol.{FOLAtom, FOLFormula}
+import at.logic.language.fol.{ FOLAtom, FOLFormula }
 import at.logic.language.hol._
 import at.logic.language.lambda._
 import at.logic.calculi.resolution.FClause
@@ -95,13 +95,13 @@ class TseitinCNF {
    */
   def getAtomSymbols( f: FOLFormula ): List[SymbolA] = f match {
     case FOLAtom( h, args ) => List( h )
-    case Neg( f2 )       => getAtomSymbols( f2 )
-    case And( f1, f2 )   => getAtomSymbols( f1 ) ::: getAtomSymbols( f2 )
-    case Or( f1, f2 )    => getAtomSymbols( f1 ) ::: getAtomSymbols( f2 )
-    case Imp( f1, f2 )   => getAtomSymbols( f1 ) ::: getAtomSymbols( f2 )
-    case ExVar( _, f2 )  => getAtomSymbols( f2 )
-    case AllVar( _, f2 ) => getAtomSymbols( f2 )
-    case _                => throw new IllegalArgumentException( "unknown head of formula: " + f.toString )
+    case Neg( f2 )          => getAtomSymbols( f2 )
+    case And( f1, f2 )      => getAtomSymbols( f1 ) ::: getAtomSymbols( f2 )
+    case Or( f1, f2 )       => getAtomSymbols( f1 ) ::: getAtomSymbols( f2 )
+    case Imp( f1, f2 )      => getAtomSymbols( f1 ) ::: getAtomSymbols( f2 )
+    case ExVar( _, f2 )     => getAtomSymbols( f2 )
+    case AllVar( _, f2 )    => getAtomSymbols( f2 )
+    case _                  => throw new IllegalArgumentException( "unknown head of formula: " + f.toString )
   }
 
   def transform( f: FOLFormula ): List[FClause] = {

@@ -1,7 +1,7 @@
 package at.logic.calculi.expansionTrees
 
 import at.logic.language.hol.{ Atom => AtomHOL, And => AndHOL, Or => OrHOL, Imp => ImpHOL, Neg => NegHOL, AllVar => AllVarHOL, ExVar => ExVarHOL, _ }
-import at.logic.language.lambda.{Substitution, Const, Var}
+import at.logic.language.lambda.{ Substitution, Const, Var }
 import at.logic.utils.ds.trees._
 import at.logic.language.hol.logicSymbols._
 import at.logic.calculi.lk.base._

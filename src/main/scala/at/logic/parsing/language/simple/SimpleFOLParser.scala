@@ -7,7 +7,7 @@
 
 package at.logic.parsing.language.simple
 
-import at.logic.language.lambda.{Const, Var}
+import at.logic.language.lambda.{ Const, Var }
 
 import scala.util.parsing.combinator._
 import scala.util.matching.Regex

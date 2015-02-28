@@ -166,10 +166,10 @@ class TPTPHOLExporter {
       case AllVar( x, t )   => addparens( "![" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
       case ExVar( x, t )    => addparens( "?[" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
       case Equation( x, y ) => addparens( thf_formula( x, vmap, cmap ) + " = " + thf_formula( y, vmap, cmap ), !outermost )
-      case Abs( x, t )   => addparens( "^[" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
-      case App( s, t )   => addparens( thf_formula( s, vmap, cmap ) + " @ " + thf_formula( t, vmap, cmap ), !outermost )
-      case Var( _, _ )   => vmap( f.asInstanceOf[Var] )
-      case Const( _, _ ) => cmap( f.asInstanceOf[Const] )
+      case Abs( x, t )      => addparens( "^[" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
+      case App( s, t )      => addparens( thf_formula( s, vmap, cmap ) + " @ " + thf_formula( t, vmap, cmap ), !outermost )
+      case Var( _, _ )      => vmap( f.asInstanceOf[Var] )
+      case Const( _, _ )    => cmap( f.asInstanceOf[Const] )
       case _                => throw new Exception( "TPTP export does not support outermost connective of " + f )
     }
   }

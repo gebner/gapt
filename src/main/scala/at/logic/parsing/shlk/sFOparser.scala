@@ -1,6 +1,6 @@
 package at.logic.parsing.shlk_parsing
 
-import at.logic.language.lambda.{Const, Var, Abs, App}
+import at.logic.language.lambda.{ Const, Var, Abs, App }
 
 import scala.util.parsing.combinator._
 import scala.util.matching.Regex

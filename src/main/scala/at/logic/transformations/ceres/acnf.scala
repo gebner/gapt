@@ -11,7 +11,7 @@ import at.logic.calculi.resolution.Clause
 import at.logic.calculi.resolution.robinson._
 import at.logic.calculi.slk._
 import at.logic.language.hol._
-import at.logic.language.lambda.{Substitution, Abs, Const, Var}
+import at.logic.language.lambda.{ Substitution, Abs, Const, Var }
 import at.logic.language.lambda.types._
 import at.logic.language.schema.{ SchemaExpression, IntVar, fo2Var, foConst, unfoldSFormula, indexedFOVar, Succ, sTerm, IntZero, SchemaFormula, toIntegerTerm }
 import at.logic.transformations.ceres.UnfoldProjectionTerm._
@@ -196,7 +196,7 @@ object renameVar {
       case Imp( form1, form2 ) => Imp( apply( form1, pair ), apply( form2, pair ) )
       case And( form1, form2 ) => And( apply( form1, pair ), apply( form2, pair ) )
       case Or( form1, form2 )  => Or( apply( form1, pair ), apply( form2, pair ) )
-        
+
       case _                   => exp
     }
   }

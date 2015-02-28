@@ -85,12 +85,12 @@ class TermSet( terms: Map[FOLFormula, List[List[FOLTerm]]] ) {
 
   def getFormula( t: FOLTerm ) = t match {
     case FOLFunction( symbol, _ ) => formulaFunction( symbol.toString )
-    case _                     => throw new TermsExtractionException( "Term is not a function: " + t )
+    case _                        => throw new TermsExtractionException( "Term is not a function: " + t )
   }
 
   def getTermTuple( t: FOLTerm ) = t match {
     case FOLFunction( _, tuple ) => tuple
-    case _                    => throw new TermsExtractionException( "Term is not a function: " + t )
+    case _                       => throw new TermsExtractionException( "Term is not a function: " + t )
   }
 
   object TupleFunction {

@@ -55,7 +55,7 @@ object getTypeInformation {
     case App( a, b ) =>
       mapValues( map, a ); mapValues( map, b )
     case Abs( _, b ) => mapValues( map, b )
-    case _              => ()
+    case _           => ()
   }
 }
 

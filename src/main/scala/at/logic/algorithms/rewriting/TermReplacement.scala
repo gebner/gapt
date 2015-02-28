@@ -32,7 +32,7 @@ object TermReplacement extends Logger {
 
   def rename_fsequent( fs: FSequent, what: LambdaExpression, by: LambdaExpression ): FSequent =
     FSequent( fs.antecedent.map( apply( what, by, _ ) ),
-      fs.succedent.map( apply( what, by, _ ) ))
+      fs.succedent.map( apply( what, by, _ ) ) )
 
   def rename_fsequent( fs: FSequent, m: Map[LambdaExpression, LambdaExpression] ): FSequent =
     FSequent( fs.antecedent.map( apply( _, m ) ),
@@ -49,10 +49,10 @@ object TermReplacement extends Logger {
         case App( s, t ) =>
           val s_ = rename_term( s, what, by )
           val t_ = rename_term( t, what, by )
-          App(s_, t_)
+          App( s_, t_ )
         case Abs( x, t ) =>
           val t_ = rename_term( t, what, by )
-          Abs(x, t_)
+          Abs( x, t_ )
       }
   }
 }

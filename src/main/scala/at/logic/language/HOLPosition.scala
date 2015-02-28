@@ -1,6 +1,6 @@
 package at.logic.language.hol
 
-import at.logic.language.lambda.{Abs, App, LambdaPosition}
+import at.logic.language.lambda.{ Abs, App, LambdaPosition }
 
 object HOLPosition {
 

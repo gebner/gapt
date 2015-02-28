@@ -110,11 +110,11 @@ object VeriTExporter {
       }
     // FOLFunctions should have arguments.
     case FOLFunction( fun, args ) => "(" + toSMTString( fun ) + " " + args.foldRight( "" )( ( t, acc ) => toSMTFormat( t ) + " " + acc ) + ")"
-    case And( f1, f2 )         => "(and " + toSMTFormat( f1 ) + " " + toSMTFormat( f2 ) + ")"
-    case Or( f1, f2 )          => "(or " + toSMTFormat( f1 ) + " " + toSMTFormat( f2 ) + ")"
-    case Imp( f1, f2 )         => "(=> " + toSMTFormat( f1 ) + " " + toSMTFormat( f2 ) + ")"
-    case Neg( f1 )             => "(not " + toSMTFormat( f1 ) + ")"
-    case _                     => throw new Exception( "Undefined formula for SMT: " + f )
+    case And( f1, f2 )            => "(and " + toSMTFormat( f1 ) + " " + toSMTFormat( f2 ) + ")"
+    case Or( f1, f2 )             => "(or " + toSMTFormat( f1 ) + " " + toSMTFormat( f2 ) + ")"
+    case Imp( f1, f2 )            => "(=> " + toSMTFormat( f1 ) + " " + toSMTFormat( f2 ) + ")"
+    case Neg( f1 )                => "(not " + toSMTFormat( f1 ) + ")"
+    case _                        => throw new Exception( "Undefined formula for SMT: " + f )
   }
 
   // Note: not an exhaustive list

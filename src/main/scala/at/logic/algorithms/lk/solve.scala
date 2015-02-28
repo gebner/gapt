@@ -7,7 +7,7 @@ import at.logic.calculi.lk.base._
 import at.logic.calculi.slk._
 import at.logic.language.lambda._
 import at.logic.language.hol._
-import at.logic.language.schema.{ SchemaExpression, SchemaFormula, BigAnd, BigOr, IntVar, Pred}
+import at.logic.language.schema.{ SchemaExpression, SchemaFormula, BigAnd, BigOr, IntVar, Pred }
 import at.logic.provers.Prover
 
 /**

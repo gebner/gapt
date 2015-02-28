@@ -2,7 +2,7 @@ package at.logic.algorithms.shlk
 
 import at.logic.calculi.slk._
 import at.logic.language.hol._
-import at.logic.language.lambda.{Abs, Const, Var}
+import at.logic.language.lambda.{ Abs, Const, Var }
 import at.logic.language.schema._
 import at.logic.calculi.occurrences._
 import at.logic.calculi.lk._
@@ -550,8 +550,8 @@ object genterm {
       case leq( l, r )                           => leq( apply( n, l, t ), apply( n, r, t ) )
       case Atom( x, y ) if isIndexSort( y.head ) => Atom( x, List( y.head ) ++ y.map( x => apply( n, x, t ) ) )
       case Atom( x, y )                          => Atom( x, y.map( x => apply( n, x, t ) ) )
-      case Function( head, l, Tindex )              => t
-      case Var( name, Tindex ) if name == "k" => t
+      case Function( head, l, Tindex )           => t
+      case Var( name, Tindex ) if name == "k"    => t
       case Function( head, l, Ti ) => p match {
         case Function( headi, li, Ti ) //if head.name == headi.name && l.length == li.length &&
         if head == headi && l.length == li.length &&
@@ -565,14 +565,14 @@ object genterm {
       }
       case Var( head, Ti ) => p match {
         case Var( head2, Ti ) if head2 == head => Const( "!" + n + "!", Ti )
-        case _                                       => p
+        case _                                 => p
       }
       case Const( head, tt ) => p match {
         case Const( head2, t2 ) if tt == t2 && head2 == head => Const( "!" + n + "!", Ti )
         case _ => p
       }
       case Abs( x, tt ) => p match { case Abs( x2, t2 ) if x == x2 && equalterms( tt, t2 ) => apply( n, t2, t ) }
-      case _                  => throw new Exception( "ERROR in unfolding missing formula !\n" + t.toString + "\n" )
+      case _            => throw new Exception( "ERROR in unfolding missing formula !\n" + t.toString + "\n" )
 
     }
   }
@@ -727,7 +727,7 @@ object cloneMyTerm {
   def apply( term: SchemaExpression, IN: SchemaExpression, OUT: SchemaExpression ): SchemaExpression = {
     term match {
       case Function( head, l, Tindex ) if getName( head ) == "schS" => Function( head, l )
-      case Var( n, Tindex ) if n == "k"                       => Var( n, Tindex )
+      case Var( n, Tindex ) if n == "k"                             => Var( n, Tindex )
       case Function( n, l, Tindex )                                 => Function( n, l.map( x => apply( x, IN, OUT ) ) )
       case Function( n, l, Ti ) => IN match {
         case Function( ni, li, Ti ) if n == ni && l.length == li.length && l.zip( li ).foldLeft( true, true )( ( b, pair ) => if ( equalterms( pair._1, pair._2 ) && b._2 ) b else ( b._1, false ) )._1 => OUT
@@ -741,14 +741,14 @@ object cloneMyTerm {
       }
       case Var( n, t ) if t == Ti | t == Tindex -> Ti => IN match {
         case Var( ni, ti ) if t == ti && ni == n => OUT
-        case _                                         => Var( n, t )
+        case _                                   => Var( n, t )
       }
       case Const( n, t ) => IN match {
         case Const( ni, ti ) if t == ti && ni == n => OUT
-        case _ => Const( n, t )
+        case _                                     => Const( n, t )
       }
       case Abs( x, t ) => Abs( x, apply( t, IN, OUT ) )
-      case _                 => throw new Exception( "ERROR in unfolding missing formula !\n" + term.toString + "\n" )
+      case _           => throw new Exception( "ERROR in unfolding missing formula !\n" + term.toString + "\n" )
 
     }
   }
@@ -817,7 +817,7 @@ object equalterms {
       }
       case Var( "k", Tindex ) => term2 match {
         case Var( "k", Tindex ) => true
-        case _                        => false
+        case _                  => false
       }
       case Function( n, l, Tindex ) => term2 match {
         case Function( n2, l2, Tindex ) if n == n2 && l.length == l2.length =>
@@ -831,18 +831,18 @@ object equalterms {
       }
       case Var( n, ->( Tindex, Ti ) ) => term2 match {
         case Var( n2, ->( Tindex, Ti ) ) if n2 == n => true
-        case _ => false
+        case _                                      => false
       }
       case Var( n, Ti ) => term2 match {
         case Var( n2, Ti ) if n2 == n => true
-        case _                              => false
+        case _                        => false
       }
       case Const( n, t ) => term2 match {
         case Const( n2, t2 ) if t == t2 && n2 == n => true
-        case _ => false
+        case _                                     => false
       }
       case Abs( x, t ) => term2 match { case Abs( x2, t2 ) if x == x2 => apply( t, t2 ) }
-      case _                 => throw new Exception( "ERROR in unfolding missing formula !\n" + term.toString + "\n" )
+      case _           => throw new Exception( "ERROR in unfolding missing formula !\n" + term.toString + "\n" )
 
     }
   }

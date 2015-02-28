@@ -8,7 +8,7 @@ import at.logic.algorithms.lk._
 import at.logic.calculi.slk._
 import at.logic.calculi.lk.base.{ Sequent, LKProof }
 import at.logic.calculi.lk._
-import at.logic.language.lambda.{Abs, Var, Const}
+import at.logic.language.lambda.{ Abs, Var, Const }
 import scala.util.parsing.combinator._
 import scala.util.matching.Regex
 import at.logic.language.schema._

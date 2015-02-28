@@ -1,7 +1,7 @@
 
 package at.logic.parsing.ivy
 
-import at.logic.language.lambda.{Var, Const, Substitution}
+import at.logic.language.lambda.{ Var, Const, Substitution }
 import at.logic.parsing.lisp.{ List => LispList, Atom => LispAtom, Cons => LispCons, SExpression, SExpressionParser }
 import at.logic.language.hol.HOLFormula
 import at.logic.language.fol._
@@ -365,8 +365,8 @@ object IvyParser extends Logger {
 
         val nclause = Clause( Nil, List( parent_proof.root.occurrences( 0 ).factory.createFormulaOccurrence( fclause.succedent( 0 ), Nil ) ) )
         val const: Const = r match {
-          case f : Const => f
-          case _                 => throw new Exception( "Expecting right hand side of new_symbol equation to be the introduced symbol!" )
+          case f: Const => f
+          case _        => throw new Exception( "Expecting right hand side of new_symbol equation to be the introduced symbol!" )
         }
 
         val inference = NewSymbol( id, clause, nclause.succedent( 0 ), const, l, nclause, parent_proof )
@@ -506,7 +506,7 @@ object IvyParser extends Logger {
         case Neg( formula ) =>
           formula match {
             case FOLAtom( _, _ ) => neg = formula :: neg
-            case _            => throw new Exception( "Error parsing clause: negative Literal " + formula + " is not an atom!" )
+            case _               => throw new Exception( "Error parsing clause: negative Literal " + formula + " is not an atom!" )
           }
         case FOLAtom( _, _ ) =>
           pos = c :: pos

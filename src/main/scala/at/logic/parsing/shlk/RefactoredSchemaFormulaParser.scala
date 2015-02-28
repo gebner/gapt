@@ -1,7 +1,7 @@
 package at.logic.parsing.shlk
 
 import at.logic.language.hol._
-import at.logic.language.lambda.{Abs, Const, Var}
+import at.logic.language.lambda.{ Abs, Const, Var }
 import at.logic.language.lambda.types.{ To, FunctionType, Tindex }
 import at.logic.language.schema._
 import at.logic.parsing.language.HOLParser

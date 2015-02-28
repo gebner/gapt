@@ -15,7 +15,7 @@ import at.logic.calculi.resolution._
 import at.logic.calculi.resolution.robinson.{ InitialClause, RobinsonResolutionProof }
 import at.logic.language.fol._
 import at.logic.language.hol._
-import at.logic.language.lambda.{Substitution, Const, Var, freeVariables}
+import at.logic.language.lambda.{ Substitution, Const, Var, freeVariables }
 import at.logic.parsing.ivy.IvyParser
 import at.logic.parsing.ivy.IvyParser.{ IvyStyleVariables, PrologStyleVariables, LadrStyleVariables }
 import at.logic.parsing.ivy.conversion.IvyToRobinson

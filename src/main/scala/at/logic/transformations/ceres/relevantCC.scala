@@ -7,7 +7,7 @@ import at.logic.calculi.lk._
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.calculi.slk._
 import at.logic.language.fol.Utils
-import at.logic.language.lambda.{Substitution, Var}
+import at.logic.language.lambda.{ Substitution, Var }
 import at.logic.language.schema.{ SchemaFormula, IndexedPredicate, IntVar, IntZero, IntegerTerm, Succ }
 import at.logic.utils.ds.Multisets
 import at.logic.utils.ds.Multisets.Multiset

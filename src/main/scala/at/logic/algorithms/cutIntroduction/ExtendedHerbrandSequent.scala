@@ -14,7 +14,7 @@ import at.logic.calculi.lk.base._
 import at.logic.language.fol._
 import at.logic.algorithms.resolution._
 import at.logic.calculi.resolution.FClause
-import at.logic.language.hol.{containsQuantifier, ExVar, AllVar}
+import at.logic.language.hol.{ containsQuantifier, ExVar, AllVar }
 import at.logic.language.lambda.freeVariables
 import scala.collection.immutable.Stack
 import at.logic.algorithms.cutIntroduction.MinimizeSolution.MyFClause

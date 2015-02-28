@@ -1,7 +1,7 @@
 package at.logic.parsing.ivy.conversion
 
 import at.logic.language.hol.Equation
-import at.logic.language.lambda.{Const, Substitution}
+import at.logic.language.lambda.{ Const, Substitution }
 import at.logic.parsing.ivy.{ InitialClause => IInitialClause, Instantiate => IInstantiate, Resolution => IResolution, Paramodulation => IParamodulation, Propositional => IPropositional, NewSymbol, IvyResolutionProof, Flip }
 import at.logic.calculi.resolution.robinson.{ InitialClause => RInitialClause, Resolution => RResolution, Factor => RFactor, Variant => RVariant, Paramodulation => RParamodulation, RobinsonResolutionProof }
 import at.logic.language.fol._

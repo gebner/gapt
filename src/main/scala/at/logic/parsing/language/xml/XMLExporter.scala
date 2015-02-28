@@ -1,6 +1,6 @@
 package at.logic.parsing.language.xml
 
-import at.logic.language.lambda.{Abs, Var, Const}
+import at.logic.language.lambda.{ Abs, Var, Const }
 
 import scala.xml._
 import dtd._
@@ -161,7 +161,7 @@ object XMLExporter {
 
   private def decompose( a: HOLExpression, vars: List[Var] ): ( HOLExpression, List[Var] ) = a match {
     case Abs( v, f ) => decompose( f, v :: vars )
-    case _              => ( a, vars )
+    case _           => ( a, vars )
   }
 
   private def decompose( a: Abs ): ( HOLExpression, List[Var] ) = decompose( a, Nil )

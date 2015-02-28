@@ -98,12 +98,12 @@ object fixDerivation extends at.logic.utils.logging.Logger {
     val init = InitialClause( from.antecedent.map( _.asInstanceOf[FOLFormula] ), from.succedent.map( _.asInstanceOf[FOLFormula] ) )
     val s_neg = neg_map.keySet.foldLeft( init )( ( p, f ) => f match {
       case Equation( _, _ ) if neg_map( f ) != f => applySymm( p, f, false )
-      case _                                        => p
+      case _                                     => p
     } )
 
     pos_map.keySet.foldLeft( s_neg )( ( p, f ) => f match {
       case Equation( _, _ ) if pos_map( f ) != f => applySymm( p, f, true )
-      case _                                        => p
+      case _                                     => p
     } )
   }
 
@@ -144,7 +144,7 @@ object fixDerivation extends at.logic.utils.logging.Logger {
   private def isReflexivity( c: FClause ) =
     c.pos.exists( a => a match {
       case Equation( x, y ) if x == y => true
-      case _                             => false
+      case _                          => false
     } )
 
   private def isTautology( c: FClause ) = c.pos.exists( a => c.neg.exists( b => a == b ) )

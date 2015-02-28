@@ -12,7 +12,7 @@ import at.logic.algorithms.cutIntroduction.Deltas._
 import at.logic.language.hol.Neg
 import at.logic.language.hol.logicSymbols._
 import at.logic.language.hol.replacements.getAtPosition
-import at.logic.language.lambda.{Var, Substitution}
+import at.logic.language.lambda.{ Var, Substitution }
 import at.logic.provers.maxsat.MaxSATSolver.MaxSATSolver
 import at.logic.utils.dssupport.ListSupport
 import at.logic.utils.logging.Stopwatch
@@ -556,8 +556,8 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
   private def pretty( exp: FOLExpression ): ( String, String, Int ) = {
 
     val s: ( String, String, Int ) = exp match {
-      case null                                   => ( "null", "null", -2 )
-      case FOLVar( x )                            => ( x.toString(), x.toString(), 0 )
+      case null                                      => ( "null", "null", -2 )
+      case FOLVar( x )                               => ( x.toString(), x.toString(), 0 )
       case atom @ FOLAtom( x, args ) if args.isEmpty => ( pA( atom.asInstanceOf[FOLFormula] ), x.toString, 0 ) //(PrettyPrinter(args(0)),PrettyPrinter(args(0)),0)
       case FOLAtom( x, args )                        => ( x.toString() + "(" + ListSupport.lst2string( PrettyPrinter, ", ", args ) + ")", x.toString(), 0 )
       case FOLFunction( x, args ) => {
@@ -613,12 +613,12 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
    */
   def printExpression( exp: FOLExpression ): String = {
     exp match {
-      case And( a, b )         => printExpression( a ) + " \\land " + printExpression( b )
-      case Or( a, b )          => printExpression( a ) + " \\lor " + printExpression( b )
-      case Neg( e )            => "\\neg " + printExpression( e )
-      case Imp( a, b )         => printExpression( a ) + " \\to " + printExpression( b )
-      case FOLVar( x )         => x.toString
-      case FOLConst( x )       => x.toString //pA(FOLConst(x))
+      case And( a, b )            => printExpression( a ) + " \\land " + printExpression( b )
+      case Or( a, b )             => printExpression( a ) + " \\lor " + printExpression( b )
+      case Neg( e )               => "\\neg " + printExpression( e )
+      case Imp( a, b )            => printExpression( a ) + " \\to " + printExpression( b )
+      case FOLVar( x )            => x.toString
+      case FOLConst( x )          => x.toString //pA(FOLConst(x))
       case FOLFunction( f, l )    => f + "(" + ListSupport.lst2string( printExpression, ",", l ) + ")"
       //case FOLAtom(a,l) => a+"("+l.foldLeft("")((acc:String,x:FOLExpression) => printExpression(x) + ", " + acc ).dropRight(2)+")"
       case atom @ FOLAtom( a, l ) => pA( atom.asInstanceOf[FOLFormula] ) //l.foldLeft("")((acc:String,x:FOLExpression) => printExpression(x) + ", " + acc ).dropRight(2)

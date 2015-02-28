@@ -7,7 +7,7 @@ package at.logic.parsing.language.arithmetic
 
 import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols._
-import at.logic.language.lambda.{Var, Const}
+import at.logic.language.lambda.{ Var, Const }
 import at.logic.language.lambda.symbols.SymbolA
 import at.logic.language.schema.{ BigAnd, BigOr, SchemaFormula }
 import at.logic.language.schema.logicSymbols.BiggerThanSymbol

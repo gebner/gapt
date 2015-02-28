@@ -14,10 +14,10 @@ import at.logic.calculi.occurrences.{ defaultFormulaOccurrenceFactory, FormulaOc
 import at.logic.calculi.slk._
 import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols._
-import at.logic.language.lambda.{Var, App, Substitution, Const}
+import at.logic.language.lambda.{ Var, App, Substitution, Const }
 import at.logic.language.lambda.types._
 import at.logic.language.lambda.symbols.SymbolA
-import at.logic.language.schema.{  SchemaFormula, BiggerThan, IntZero, IntVar, IntegerTerm, IndexedPredicate, Succ, BigAnd, BigOr, Pred }
+import at.logic.language.schema.{ SchemaFormula, BiggerThan, IntZero, IntVar, IntegerTerm, IndexedPredicate, Succ, BigAnd, BigOr, Pred }
 import at.logic.utils.ds.Multisets.Multiset
 import at.logic.utils.ds.Multisets._
 import at.logic.utils.ds.trees._

@@ -9,7 +9,7 @@ import at.logic.calculi.lk.base._
 import at.logic.calculi.lk._
 import at.logic.algorithms.matching.NaiveIncompleteMatchingAlgorithm
 import at.logic.algorithms.lk.{ solve, AtomicExpansion, applySubstitution }
-import at.logic.language.lambda.{freeVariables, Const, Substitution, Var}
+import at.logic.language.lambda.{ freeVariables, Const, Substitution, Var }
 import at.logic.calculi.lk.EquationVerifier._
 import at.logic.language.lambda.BetaReduction._
 import at.logic.utils.logging.Logger

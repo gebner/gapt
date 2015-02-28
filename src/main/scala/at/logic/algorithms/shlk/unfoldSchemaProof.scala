@@ -3,7 +3,7 @@
 package at.logic.algorithms.shlk
 
 import at.logic.language.hol._
-import at.logic.language.lambda.{Const, Var, Substitution}
+import at.logic.language.lambda.{ Const, Var, Substitution }
 import at.logic.language.schema._
 import at.logic.calculi.occurrences._
 import at.logic.calculi.slk._
@@ -263,8 +263,8 @@ object StepMinusOne {
     case Neg( l )                        => Neg( minusOne( l, k ).asInstanceOf[SchemaFormula] )
     case Imp( l, r )                     => Imp( minusOne( l, k ).asInstanceOf[SchemaFormula], minusOne( r, k ).asInstanceOf[SchemaFormula] )
     case AllVar( v, f )                  => AllVar( v, minusOne( f, k ).asInstanceOf[SchemaFormula] )
-    case Atom( name: Var, args )   => Atom( name, args.map( x => minusOne( x, k ) ) )
-    case Atom( name: Const, args ) => Atom( name, args.map( x => minusOne( x, k ) ) )
+    case Atom( name: Var, args )         => Atom( name, args.map( x => minusOne( x, k ) ) )
+    case Atom( name: Const, args )       => Atom( name, args.map( x => minusOne( x, k ) ) )
     case ifo: indexedFOVar               => indexedFOVar( ifo.name, minusOne( ifo.index, k ).asInstanceOf[IntegerTerm] )
     case indexedOmegaVar( name, index )  => indexedOmegaVar( name, minusOne( index, k ).asInstanceOf[IntegerTerm] )
     case sTerm( name, i, args ) => {

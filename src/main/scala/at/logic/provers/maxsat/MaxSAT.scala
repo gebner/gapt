@@ -5,7 +5,7 @@ import java.io._
 import at.logic.algorithms.resolution.{ CNFp, TseitinCNF }
 import at.logic.calculi.resolution._
 import at.logic.language.fol._
-import at.logic.language.hol.{And, Or, Imp, Neg}
+import at.logic.language.hol.{ And, Or, Imp, Neg }
 import at.logic.provers.maxsat.MaxSATSolver.MaxSATSolver
 import at.logic.utils.logging.Stopwatch
 
@@ -20,11 +20,11 @@ trait Interpretation {
 
   // Interpret an arbitrary formula.
   def interpret( f: FOLFormula ): Boolean = f match {
-    case And( f1, f2 ) => interpret( f1 ) && interpret( f2 )
-    case Or( f1, f2 )  => interpret( f1 ) || interpret( f2 )
-    case Imp( f1, f2 ) => !interpret( f1 ) || interpret( f2 )
-    case Neg( f1 )     => !interpret( f1 )
-    case FOLAtom( _, _ )  => interpretAtom( f )
+    case And( f1, f2 )   => interpret( f1 ) && interpret( f2 )
+    case Or( f1, f2 )    => interpret( f1 ) || interpret( f2 )
+    case Imp( f1, f2 )   => !interpret( f1 ) || interpret( f2 )
+    case Neg( f1 )       => !interpret( f1 )
+    case FOLAtom( _, _ ) => interpretAtom( f )
   }
 
 }

@@ -14,7 +14,7 @@ import scala.collection.immutable.HashMap
 import at.logic.language.hol.HOLFormula
 import at.logic.language.hol
 import scala.collection.mutable
-import at.logic.language.lambda.{Var, freeVariables, LambdaExpression}
+import at.logic.language.lambda.{ Var, freeVariables, LambdaExpression }
 
 object TPTPFOLExporter extends at.logic.utils.logging.Logger {
   // FIXME: this should not be here!
@@ -68,11 +68,11 @@ object TPTPFOLExporter extends at.logic.utils.logging.Logger {
   // the parsing of clauses (i.e. they assume associativity of |
   // and dislike parentheses), we only export clauses at the moment.
   def tptp( f: FOLFormula )( implicit s_map: Map[Var, String] ): String = f match {
-    case FOLAtom( x, args ) => handleAtom( x, args )
-    case Or( x, y )      => tptp( x ) + " | " + tptp( y )
-    case Neg( x )        => "~" + tptp( x )
-    case FOLConst( c )       => single_quote( c.toString )
-    case x: Var           => s_map( x )
+    case FOLAtom( x, args )     => handleAtom( x, args )
+    case Or( x, y )             => tptp( x ) + " | " + tptp( y )
+    case Neg( x )               => "~" + tptp( x )
+    case FOLConst( c )          => single_quote( c.toString )
+    case x: Var                 => s_map( x )
     case FOLFunction( x, args ) => handleAtom( x, args )
   }
 
@@ -83,10 +83,10 @@ object TPTPFOLExporter extends at.logic.utils.logging.Logger {
   // Exports a full formula in TPTP format.
   def tptpFormula( f: FOLFormula )( implicit s_map: Map[Var, String] ): String = f match {
     case FOLAtom( x, args ) => handleAtom( x, args )
-    case Or( x, y )      => "( " + tptpFormula( x ) + " | " + tptpFormula( y ) + " )"
-    case Neg( x )        => "( ~" + tptpFormula( x ) + ")"
-    case And( x, y )     => "( " + tptpFormula( x ) + " & " + tptpFormula( y ) + " )"
-    case Imp( x, y )     => "( " + tptpFormula( x ) + " => " + tptpFormula( y ) + " )"
+    case Or( x, y )         => "( " + tptpFormula( x ) + " | " + tptpFormula( y ) + " )"
+    case Neg( x )           => "( ~" + tptpFormula( x ) + ")"
+    case And( x, y )        => "( " + tptpFormula( x ) + " & " + tptpFormula( y ) + " )"
+    case Imp( x, y )        => "( " + tptpFormula( x ) + " => " + tptpFormula( y ) + " )"
     case AllVar( v, f ) => {
       val new_map = addToMap( v )
       "(! [" + tptp( v )( new_map ) + "] : " + tptpFormula( f )( new_map ) + ")"

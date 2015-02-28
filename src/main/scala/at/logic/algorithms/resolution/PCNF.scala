@@ -66,7 +66,7 @@ object PCNF {
             // check for reflexivity
             a.pos.find( f => f match {
               case Equation( a, b ) if a == b => true
-              case _ => false
+              case _                          => false
             } ) match {
               case Some( f ) => ( Axiom( List(), List( f ) ), f.asInstanceOf[HOLFormula], false )
               case _         => throw new ResolutionException( "Clause [" + a.toString + "] is not reflexivity and not contained in CNF(-s) [\n" + cnf.mkString( ";\n" ) + "\n]", Nil, a :: cnf.toList )
@@ -176,7 +176,7 @@ object PCNF {
       val s2 = computeSub( b1, b2 )
       Substitution( s1.map ++ s2.map )
     case ( Abs( v1, a1 ), Abs( v2, a2 ) ) => Substitution( computeSub( a1, a2 ).map - v1 )
-    case _                                      => throw new Exception()
+    case _                                => throw new Exception()
   }
 
   def containsSubsequent( set: List[FClause], fc: FClause ): Boolean = {

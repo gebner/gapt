@@ -7,9 +7,9 @@ package at.logic.algorithms.subsumption
 
 import at.logic.algorithms.matching._
 import at.logic.language.hol._
-import at.logic.language.fol.{rename => renameFOL, _}
+import at.logic.language.fol.{ rename => renameFOL, _ }
 import at.logic.calculi.lk.base.FSequent
-import at.logic.language.lambda.{rename => renameHOL, _}
+import at.logic.language.lambda.{ rename => renameHOL, _ }
 import at.logic.utils.dssupport.ListSupport.remove_doubles
 
 // TODO: find a smart way (without reaching out to the lambda layer!!) to not duplicate this code.
@@ -65,9 +65,9 @@ object StillmanSubsumptionAlgorithmHOL extends SubsumptionAlgorithm {
 }
 
 object StillmanSubsumptionAlgorithmFOL extends SubsumptionAlgorithm {
-//  val matchAlg = FOLMatchingAlgorithm  FIXME
+  //  val matchAlg = FOLMatchingAlgorithm  FIXME
   val matchAlg = NaiveIncompleteMatchingAlgorithm
-  
+
   def subsumes( s1: FSequent, s2: FSequent ): Boolean = subsumes_by( s1, s2 ).nonEmpty
 
   def subsumes_by( s1: FSequent, s2: FSequent ): Option[Substitution] = {

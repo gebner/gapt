@@ -75,14 +75,14 @@ object NameReplacement {
     case Atom( x: Const, args )        => Atom( rename_symbols( x, map ).asInstanceOf[Const], args.map( a => rename_symbols( a, map ) ) )
     case Function( x: Var, args, _ )   => Function( x, args.map( a => rename_symbols( a, map ) ) )
     case Function( x: Const, args, _ ) => Function( rename_symbols( x, map ).asInstanceOf[Const], args.map( a => rename_symbols( a, map ) ) )
-    case And( x, y )                      => And( rename_symbols( x, map ), rename_symbols( y, map ) )
-    case Equation( x, y )                 => Equation( rename_symbols( x, map ), rename_symbols( y, map ) )
-    case Or( x, y )                       => Or( rename_symbols( x, map ), rename_symbols( y, map ) )
-    case Imp( x, y )                      => Imp( rename_symbols( x, map ), rename_symbols( y, map ) )
-    case Neg( x )                         => Neg( rename_symbols( x, map ) )
+    case And( x, y )                   => And( rename_symbols( x, map ), rename_symbols( y, map ) )
+    case Equation( x, y )              => Equation( rename_symbols( x, map ), rename_symbols( y, map ) )
+    case Or( x, y )                    => Or( rename_symbols( x, map ), rename_symbols( y, map ) )
+    case Imp( x, y )                   => Imp( rename_symbols( x, map ), rename_symbols( y, map ) )
+    case Neg( x )                      => Neg( rename_symbols( x, map ) )
     // Variables are not renamed
-    case ExVar( x, f )                    => ExVar( x, rename_symbols( f, map ) )
-    case AllVar( x, f )                   => AllVar( x, rename_symbols( f, map ) )
+    case ExVar( x, f )                 => ExVar( x, rename_symbols( f, map ) )
+    case AllVar( x, f )                => AllVar( x, rename_symbols( f, map ) )
   }
 
   def rename_fsequent( fs: FSequent, map: SymbolMap ) =

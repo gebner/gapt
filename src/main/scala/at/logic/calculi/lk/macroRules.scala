@@ -7,7 +7,7 @@ package at.logic.calculi.lk
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.hol._
-import at.logic.language.fol.{instantiateAll, FOLVar, FOLTerm, FOLFormula}
+import at.logic.language.fol.{ instantiateAll, FOLVar, FOLTerm, FOLFormula }
 import at.logic.language.lambda.Var
 import at.logic.language.lambda.symbols._
 import at.logic.language.hol.logicSymbols._

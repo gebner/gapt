@@ -6,5 +6,5 @@ import at.logic.language.lambda.LambdaExpression
 package object hol {
   type HOLFormula = LambdaExpression
   type HOLExpression = LambdaExpression
-  
+
 }

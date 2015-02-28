@@ -3,7 +3,7 @@ package at.logic.calculi.slk
 import at.logic.calculi.lk.base.{ LKRuleCreationException, LKProof }
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.language.hol.And
-import at.logic.language.lambda.{Abs, App}
+import at.logic.language.lambda.{ Abs, App }
 
 import scala.App
 

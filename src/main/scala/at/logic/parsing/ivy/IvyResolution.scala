@@ -2,7 +2,7 @@ package at.logic.parsing.ivy
 
 import at.logic.calculi.proofs.{ BinaryRuleTypeA, UnaryRuleTypeA, NullaryRuleTypeA }
 import at.logic.calculi.proofs.{ NullaryAGraphProof, UnaryAGraphProof, BinaryAGraphProof, AGraphProof }
-import at.logic.language.lambda.{Substitution, Const}
+import at.logic.language.lambda.{ Substitution, Const }
 import at.logic.utils.ds.acyclicGraphs.{ LeafAGraph, UnaryAGraph, BinaryAGraph }
 import at.logic.parsing.lisp.SExpression
 import at.logic.language.fol.{ FOLConst, FOLTerm }

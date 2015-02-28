@@ -20,7 +20,7 @@ import at.logic.language.hol._
 import at.logic.language.lambda.BetaReduction._
 import ImplicitStandardStrategy._
 import at.logic.language.hol.skolemSymbols.TypeSynonyms.SkolemSymbol
-import at.logic.language.lambda.{Var, Substitution}
+import at.logic.language.lambda.{ Var, Substitution }
 import at.logic.language.lambda.types._
 import at.logic.utils.ds.acyclicGraphs._
 import at.logic.utils.ds.trees.LeafTree

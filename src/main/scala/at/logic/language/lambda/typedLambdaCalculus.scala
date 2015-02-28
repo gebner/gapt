@@ -45,27 +45,27 @@ abstract class LambdaExpression {
   import at.logic.language.hol._
   import at.logic.language.fol._
   override def toString: String = this match {
-    case AllVar(Var(name, Ti), sub) => s"$ForallSymbol$name. $sub"
-    case AllVar(Var(name, ty), sub) => s"$ForallSymbol$name:$ty. $sub"
-    case ExVar(Var(name, Ti), sub) => s"$ExistsSymbol$name. $sub"
-    case ExVar(Var(name, ty), sub) => s"$ExistsSymbol$name:$ty. $sub"
-    case And(x,y) => s"($x $AndSymbol $y)"
-    case Or(x,y) => s"($x $OrSymbol $y)"
-    case Imp(x,y) => s"($x $ImpSymbol $y)"
-    case Neg(x) => s"$NegSymbol$x"
-    case BottomC => s"$BottomSymbol"
-    case TopC => s"$TopSymbol"
+    case AllVar( Var( name, Ti ), sub ) => s"$ForallSymbol$name. $sub"
+    case AllVar( Var( name, ty ), sub ) => s"$ForallSymbol$name:$ty. $sub"
+    case ExVar( Var( name, Ti ), sub )  => s"$ExistsSymbol$name. $sub"
+    case ExVar( Var( name, ty ), sub )  => s"$ExistsSymbol$name:$ty. $sub"
+    case And( x, y )                    => s"($x $AndSymbol $y)"
+    case Or( x, y )                     => s"($x $OrSymbol $y)"
+    case Imp( x, y )                    => s"($x $ImpSymbol $y)"
+    case Neg( x )                       => s"$NegSymbol$x"
+    case BottomC                        => s"$BottomSymbol"
+    case TopC                           => s"$TopSymbol"
 
-    case Equation(x, y) => s"$x = $y"
-    case FOLFunction(name, Nil) => s"$name"
-    case FOLAtom(name, Nil) => s"$name"
-    case FOLFunction(name, args) => s"$name(${args.mkString(", ")})"
-    case FOLAtom(name, args) => s"$name(${args.mkString(", ")})"
+    case Equation( x, y )               => s"$x = $y"
+    case FOLFunction( name, Nil )       => s"$name"
+    case FOLAtom( name, Nil )           => s"$name"
+    case FOLFunction( name, args )      => s"$name(${args.mkString( ", " )})"
+    case FOLAtom( name, args )          => s"$name(${args.mkString( ", " )})"
 
-    case Var(name, ty) => name
-    case Const(name, ty) => name
-    case Abs(Var(name, ty), sub) => s"λ$name:$ty. $sub"
-    case App(x, y) => s"($x $y)"
+    case Var( name, ty )                => name
+    case Const( name, ty )              => name
+    case Abs( Var( name, ty ), sub )    => s"λ$name:$ty. $sub"
+    case App( x, y )                    => s"($x $y)"
   }
 
 }
@@ -97,7 +97,7 @@ class Var( val sym: SymbolA, val exptype: TA ) extends LambdaExpression {
   }
 
   // Printing
-//  override def toString() = "Var(" + name + "," + exptype + ")"
+  //  override def toString() = "Var(" + name + "," + exptype + ")"
 
   /* hash code needs to be equal modulo alpha equality. ignoring the variable name might reduce the efficency of HashMap,
      but it fulfills the contract that : x equals y implies x.hashCode == y.hashCode
@@ -139,7 +139,7 @@ class Const( val sym: SymbolA, val exptype: TA ) extends LambdaExpression {
   }
 
   // Printing
-//  override def toString() = "Const(" + name + "," + exptype + ")"
+  //  override def toString() = "Const(" + name + "," + exptype + ")"
 
   override def hashCode() = ( 41 * name.hashCode ) + exptype.hashCode
 
@@ -193,7 +193,7 @@ class App( val function: LambdaExpression, val arg: LambdaExpression ) extends L
   }
 
   // Printing
-//  override def toString() = "App(" + function + "," + arg + ")"
+  //  override def toString() = "App(" + function + "," + arg + ")"
 
   override def hashCode() = ( 41 * function.hashCode ) + arg.hashCode
 
@@ -252,7 +252,7 @@ class Abs( val variable: Var, val term: LambdaExpression ) extends LambdaExpress
   }
 
   // Printing
-//  override def toString() = "Abs(" + variable + "," + term + ")"
+  //  override def toString() = "Abs(" + variable + "," + term + ")"
 
   /* hash code needs to be equal modulo alpha equality. ignoring the variable name might reduce the efficency of HashMap,
      but it fulfills the contract that : x equals y implies x.hashCode == y.hashCode
@@ -270,7 +270,7 @@ class Abs( val variable: Var, val term: LambdaExpression ) extends LambdaExpress
     else None
 }
 object Abs {
-  def apply( v: Var, t: LambdaExpression ) = new Abs(v, t)
+  def apply( v: Var, t: LambdaExpression ) = new Abs( v, t )
   def apply( variables: List[Var], expression: LambdaExpression ): LambdaExpression = variables match {
     case Nil     => expression
     case x :: ls => Abs( x, apply( ls, expression ) )

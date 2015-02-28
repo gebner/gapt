@@ -13,7 +13,7 @@ import at.logic.calculi.lk.base.{ LKProof, Sequent, PrincipalFormulas }
 import scala.collection.immutable.HashSet
 import at.logic.language.lambda.types._
 import at.logic.language.lambda.symbols._
-import at.logic.language.lambda.{Var, rename, freeVariables}
+import at.logic.language.lambda.{ Var, rename, freeVariables }
 import at.logic.calculi.lksk.{
   ExistsSkLeftRule,
   ForallSkRightRule,

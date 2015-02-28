@@ -173,7 +173,7 @@ object BigAnd {
     App( BigAndC, iter :: init :: end :: Nil ).asInstanceOf[SchemaFormula]
 
   def unapply( expression: SchemaExpression ) = expression match {
-    case App( App( App( BigAndC, Abs( v : IntVar, formula ) ), init: IntegerTerm ), end: IntegerTerm ) =>
+    case App( App( App( BigAndC, Abs( v: IntVar, formula ) ), init: IntegerTerm ), end: IntegerTerm ) =>
       Some( v, formula, init, end )
     case _ => None
   }
@@ -197,7 +197,7 @@ object BiggerThan {
   def apply( l: IntegerTerm, r: IntegerTerm ) = App( App( BiggerThanC, l ), r )
   def unapply( e: SchemaExpression ) = e match {
     case App( App( BiggerThanC, l ), r ) => Some( ( l, r ) )
-    case _ => None
+    case _                               => None
   }
 }
 
@@ -205,7 +205,7 @@ object Succ {
   def apply( t: SchemaExpression ): SchemaExpression = App( SuccC, t )
   def unapply( p: SchemaExpression ) = p match {
     case App( SuccC, t: IntegerTerm ) => Some( t )
-    case _                                  => None
+    case _                            => None
   }
 }
 
@@ -216,7 +216,6 @@ object Pred {
   }
 }
 
-
 object lessThan {
   def apply( left: SchemaExpression, right: SchemaExpression ) = {
     require( left.exptype == right.exptype )
@@ -225,7 +224,7 @@ object lessThan {
 
   def unapply( expression: SchemaExpression ) = expression match {
     case App( App( LessThanC( _ ), left ), right ) => Some( left, right )
-    case _ => None
+    case _                                         => None
   }
 }
 
@@ -237,7 +236,7 @@ object leq {
 
   def unapply( expression: SchemaExpression ) = expression match {
     case App( App( LeqC( _ ), left ), right ) => Some( left, right )
-    case _ => None
+    case _                                    => None
   }
 }
 
@@ -259,7 +258,7 @@ object foTerm {
   }
 
   def unapply( s: SchemaExpression ) = s match {
-    case App(function, arg) if arg.exptype == Ti && function.exptype == ->( Ti, Ti ) => Some( function.asInstanceOf[SchemaExpression], arg.asInstanceOf[SchemaExpression] )
+    case App( function, arg ) if arg.exptype == Ti && function.exptype == ->( Ti, Ti ) => Some( function.asInstanceOf[SchemaExpression], arg.asInstanceOf[SchemaExpression] )
     case _ => None
   }
 }
@@ -310,20 +309,20 @@ object sIndTerm {
 //within atoms and satoms. Terms within terms are not located within the set.
 object SchemaSubTerms {
   def apply( f: HOLExpression ): Seq[HOLExpression] = f match {
-    case Var( _, _ ) => List( f )
-    case Atom( _, args )   => args.map( a => apply( a.asInstanceOf[SchemaExpression] ) ).flatten
+    case Var( _, _ )     => List( f )
+    case Atom( _, args ) => args.map( a => apply( a.asInstanceOf[SchemaExpression] ) ).flatten
     case Function( _, args, _ ) => {
       List( f ).toSeq
     }
-    case And( x, y )       => ( apply( x.asInstanceOf[SchemaExpression] ) ++ apply( y.asInstanceOf[HOLExpression] ) )
-    case Or( x, y )        => ( apply( x.asInstanceOf[SchemaExpression] ) ++ apply( y.asInstanceOf[HOLExpression] ) )
-    case Imp( x, y )       => ( apply( x.asInstanceOf[SchemaExpression] ) ++ apply( y.asInstanceOf[HOLExpression] ) )
-    case Neg( x )          => apply( x.asInstanceOf[SchemaExpression] )
-    case ExVar( x, _ )        => apply( x.asInstanceOf[SchemaExpression] )
-    case AllVar( x, _ )       => apply( x.asInstanceOf[SchemaExpression] )
+    case And( x, y )    => ( apply( x.asInstanceOf[SchemaExpression] ) ++ apply( y.asInstanceOf[HOLExpression] ) )
+    case Or( x, y )     => ( apply( x.asInstanceOf[SchemaExpression] ) ++ apply( y.asInstanceOf[HOLExpression] ) )
+    case Imp( x, y )    => ( apply( x.asInstanceOf[SchemaExpression] ) ++ apply( y.asInstanceOf[HOLExpression] ) )
+    case Neg( x )       => apply( x.asInstanceOf[SchemaExpression] )
+    case ExVar( x, _ )  => apply( x.asInstanceOf[SchemaExpression] )
+    case AllVar( x, _ ) => apply( x.asInstanceOf[SchemaExpression] )
 
-    case Abs( _, x ) => apply( x.asInstanceOf[SchemaExpression] )
-    case App( x, y ) => List( f ).toSeq
+    case Abs( _, x )    => apply( x.asInstanceOf[SchemaExpression] )
+    case App( x, y )    => List( f ).toSeq
   }
 }
 
@@ -378,7 +377,7 @@ object sims {
 
   def unapply( expression: SchemaExpression ) = expression match {
     case App( App( SimsC( _ ), left ), right ) => Some( left.asInstanceOf[SchemaExpression], right.asInstanceOf[SchemaExpression] )
-    case _ => None
+    case _                                     => None
   }
 }
 

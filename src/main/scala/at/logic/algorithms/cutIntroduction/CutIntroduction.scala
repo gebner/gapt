@@ -13,7 +13,7 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base._
 import at.logic.language.fol._
 import at.logic.language.hol._
-import at.logic.language.lambda.{freeVariables, Substitution}
+import at.logic.language.lambda.{ freeVariables, Substitution }
 import at.logic.provers.basicProver._
 import at.logic.provers.eqProver._
 import at.logic.provers.Prover

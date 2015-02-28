@@ -40,14 +40,14 @@ object FOLUnificationAlgorithm extends UnificationAlgorithm {
   }
 
   def getVars( f: FOLExpression ): List[Var] = f match {
-    case ( FOLConst( c ) )   => Nil
-    case FOLVar( x )         => f.asInstanceOf[Var] :: Nil
+    case ( FOLConst( c ) )      => Nil
+    case FOLVar( x )            => f.asInstanceOf[Var] :: Nil
     case FOLFunction( _, args ) => args.flatMap( a => getVars( a ) )
     case FOLAtom( _, args )     => args.flatMap( a => getVars( a ) )
-    case Neg( f )            => getVars( f )
-    case And( l, r )         => getVars( l ) ++ getVars( r )
-    case Or( l, r )          => getVars( l ) ++ getVars( r )
-    case Imp( l, r )         => getVars( l ) ++ getVars( r )
+    case Neg( f )               => getVars( f )
+    case And( l, r )            => getVars( l ) ++ getVars( r )
+    case Or( l, r )             => getVars( l ) ++ getVars( r )
+    case Imp( l, r )            => getVars( l ) ++ getVars( r )
   }
 
   def unifySetOfTuples( s1: List[( FOLExpression, FOLExpression )], s2: List[( FOLExpression, FOLExpression )] ): Option[( List[( FOLExpression, FOLExpression )], List[( FOLExpression, FOLExpression )] )] =

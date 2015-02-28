@@ -5,8 +5,8 @@
 
 package at.logic.language.schema
 
-import at.logic.language.hol.{Atom, AllVar, ExVar, Imp}
-import at.logic.language.lambda.{freeVariables => freeVariablesHOL, Substitution, Var, Const}
+import at.logic.language.hol.{ Atom, AllVar, ExVar, Imp }
+import at.logic.language.lambda.{ freeVariables => freeVariablesHOL, Substitution, Var, Const }
 
 object freeVariables {
   def apply( e: SchemaExpression ): List[Var] = freeVariablesHOL( e ).asInstanceOf[List[Var]]
@@ -30,10 +30,10 @@ object unfoldSFormula {
   def apply( f: SchemaFormula ): SchemaFormula = f match {
     case Atom( name: Var, args )   => Atom( name, args.map( t => unfoldSTerm( t ) ) )
     case Atom( name: Const, args ) => Atom( name, args.map( t => unfoldSTerm( t ) ) )
-    case Imp( f1, f2 )                   => Imp( unfoldSFormula( f1 ), unfoldSFormula( f2 ) )
-    case ExVar( v, f )                   => ExVar( v, unfoldSFormula( f ) )
-    case AllVar( v, f )                  => AllVar( v, unfoldSFormula( f ) )
-    case _                               => f
+    case Imp( f1, f2 )             => Imp( unfoldSFormula( f1 ), unfoldSFormula( f2 ) )
+    case ExVar( v, f )             => ExVar( v, unfoldSFormula( f ) )
+    case AllVar( v, f )            => AllVar( v, unfoldSFormula( f ) )
+    case _                         => f
   }
 }
 

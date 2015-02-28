@@ -3,7 +3,7 @@
 package at.logic.transformations.skolemization.lksk
 
 import at.logic.calculi.lk.base.{ FSequent, LKProof, Sequent }
-import at.logic.language.lambda.{Const, Var, Substitution}
+import at.logic.language.lambda.{ Const, Var, Substitution }
 import at.logic.utils.logging.Logger
 import scala.collection.mutable.{ Map, HashMap }
 import at.logic.calculi.lksk._

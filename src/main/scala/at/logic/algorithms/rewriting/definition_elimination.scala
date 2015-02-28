@@ -40,14 +40,14 @@ class DefinitionElimination extends at.logic.utils.logging.Logger {
 
   def replaceAll_in( dmap: DefinitionsMap, e: HOLExpression ): HOLExpression = {
     e match {
-      case Const( _, _ ) => try_to_match( dmap, e )
-      case Var( _, _ )   => try_to_match( dmap, e )
-      case Neg( s )         => Neg( replaceAll_in( dmap, s ) )
-      case And( s, t )      => And( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) )
-      case Or( s, t )       => Or( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) )
-      case Imp( s, t )      => Imp( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) )
-      case AllVar( x, t )   => AllVar( x, replaceAll_in( dmap, t ) )
-      case ExVar( x, t )    => ExVar( x, replaceAll_in( dmap, t ) )
+      case Const( _, _ )  => try_to_match( dmap, e )
+      case Var( _, _ )    => try_to_match( dmap, e )
+      case Neg( s )       => Neg( replaceAll_in( dmap, s ) )
+      case And( s, t )    => And( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) )
+      case Or( s, t )     => Or( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) )
+      case Imp( s, t )    => Imp( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) )
+      case AllVar( x, t ) => AllVar( x, replaceAll_in( dmap, t ) )
+      case ExVar( x, t )  => ExVar( x, replaceAll_in( dmap, t ) )
       case App( s, t ) =>
         val fullmatch = try_to_match( dmap, e )
         if ( fullmatch == e )

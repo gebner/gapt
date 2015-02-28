@@ -34,21 +34,21 @@ class HOLOrdering extends Ordering[HOLExpression] {
         case x => x
       }
 
-    case ( Var( _, _ ), _ )                => -1
+    case ( Var( _, _ ), _ )             => -1
 
     case ( Const( _, _ ), Var( _, _ ) ) => 1
-    case ( Const( _, _ ), _ )              => -1
+    case ( Const( _, _ ), _ )           => -1
 
     case ( App( _, _ ), Var( _, _ ) )   => 1
     case ( App( _, _ ), Const( _, _ ) ) => 1
-    case ( App( _, _ ), _ )                => -1
+    case ( App( _, _ ), _ )             => -1
 
     case ( Abs( _, _ ), Var( _, _ ) )   => 1
     case ( Abs( _, _ ), Const( _, _ ) ) => 1
     case ( Abs( _, _ ), App( _, _ ) )   => 1
-    case ( Abs( _, _ ), _ )                => -1
+    case ( Abs( _, _ ), _ )             => -1
 
-    case _                                    => throw new Exception( "Unhandled comparision of hol epxressions: " + x + " ? " + y )
+    case _                              => throw new Exception( "Unhandled comparision of hol epxressions: " + x + " ? " + y )
   }
 }
 

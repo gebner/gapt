@@ -6,7 +6,7 @@
 package at.logic.transformations.ceres.clauseSets
 
 import at.logic.algorithms.subsumption.StillmanSubsumptionAlgorithmHOL
-import at.logic.language.lambda.{App, Const}
+import at.logic.language.lambda.{ App, Const }
 import at.logic.transformations.ceres.struct._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.lksk._

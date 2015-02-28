@@ -743,7 +743,7 @@ object deleteEquationalTautologies {
     f match {
       case Atom( c: Const, List( x, y ) ) => c.sym == "=" && x == y
       case Atom( c: Var, List( x, y ) )   => c.sym == "=" && x == y
-      case _                                 => false
+      case _                              => false
     } ) )
 
   /* FIXME: depends on EequalityA which is not adapted to the new lambda calculus
@@ -1062,8 +1062,8 @@ object ntape {
     } )
     val cmap = Map[String, TA]( ( "q_{1}", Ti -> To ), ( "q_{2}", Ti -> To ) )
 
-//    val folaxs = holaxioms.flatMap( _.formulas ).filter( _.factory != HOLFactory )
-//    require( folaxs.isEmpty, "HOL Conversion didn't work on " + folaxs )
+    //    val folaxs = holaxioms.flatMap( _.formulas ).filter( _.factory != HOLFactory )
+    //    require( folaxs.isEmpty, "HOL Conversion didn't work on " + folaxs )
     val raxioms = axioms.map( x => changeTypeIn( x, cmap ) )
 
     ( lkp, raxioms )

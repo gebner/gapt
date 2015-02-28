@@ -5,7 +5,7 @@ package at.logic.transformations.skolemization
 import at.logic.algorithms.fol.hol2fol.convertHolToFol
 import at.logic.language.lambda.BetaReduction._
 import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
-import at.logic.language.lambda.{Substitution, Const, Var}
+import at.logic.language.lambda.{ Substitution, Const, Var }
 import scala.collection.immutable.{ HashMap, HashSet }
 import scala.collection.immutable.Stream.Empty
 import at.logic.calculi.occurrences._
@@ -312,8 +312,8 @@ object skolemize extends Logger {
 
   def handleStrongQuantRule( proof: LKProof, p: LKProof, a: FormulaOccurrence, m: FormulaOccurrence, v: Var,
                              constructor: ( LKProof, FormulaOccurrence, HOLFormula, Var ) => LKProof )( implicit symbol_map: Map[FormulaOccurrence, Stream[SymbolA]],
-                                                                                                           inst_map: Map[FormulaOccurrence, List[HOLExpression]],
-                                                                                                           cut_ancs: Set[FormulaOccurrence] ) = {
+                                                                                                        inst_map: Map[FormulaOccurrence, List[HOLExpression]],
+                                                                                                        cut_ancs: Set[FormulaOccurrence] ) = {
     //println("\nentering strong quant rule for "+proof.root.toStringSimple)
     if ( !cut_ancs.contains( m ) ) {
       val sym_stream = symbol_map( m )

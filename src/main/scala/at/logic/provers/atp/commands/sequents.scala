@@ -6,8 +6,8 @@ import at.logic.algorithms.matching.FOLMatchingAlgorithm
 import at.logic.algorithms.subsumption.{ StillmanSubsumptionAlgorithmFOL, SubsumptionAlgorithm }
 import at.logic.calculi.lk.base.{ FSequent, Sequent }
 import at.logic.calculi.resolution.{ ResolutionProof, Clause }
-import at.logic.language.hol.{Equation, HOLFormula, HOLExpression, subTerms}
-import at.logic.language.lambda.{Substitution, Var}
+import at.logic.language.hol.{ Equation, HOLFormula, HOLExpression, subTerms }
+import at.logic.language.lambda.{ Substitution, Var }
 import at.logic.provers.atp.commands.base.{ ResultCommand, DataCommand }
 import at.logic.provers.atp.Definitions._
 import at.logic.utils.ds.{ Add, Remove, PublishingBufferEvent, PublishingBuffer }

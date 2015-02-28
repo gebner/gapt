@@ -10,7 +10,7 @@ import at.logic.calculi.slk._
 import at.logic.language.fol.Utils.{ removeDoubles, removeDoubles3 }
 import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols.LogicalSymbolA
-import at.logic.language.lambda.{Var, Substitution, Const}
+import at.logic.language.lambda.{ Var, Substitution, Const }
 import at.logic.language.lambda.symbols.SymbolA
 import at.logic.language.lambda.types._
 import at.logic.language.schema.{ SchemaFormula, IntegerTerm, IntVar, IndexedPredicate, IntZero, unfoldSFormula, Succ, Pred, sIndTerm, unfoldSINDTerm, sTerm, unfoldSTerm, toIntegerTerm }

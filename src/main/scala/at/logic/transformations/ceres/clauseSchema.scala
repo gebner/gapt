@@ -8,7 +8,7 @@ import at.logic.calculi.lk.{ UnaryLKProof, BinaryLKProof }
 import at.logic.calculi.occurrences.{ defaultFormulaOccurrenceFactory, FormulaOccurrence }
 import at.logic.calculi.slk.AndEquivalenceRule1._
 import at.logic.calculi.slk._
-import at.logic.language.lambda.{App, Substitution, Var, Const}
+import at.logic.language.lambda.{ App, Substitution, Var, Const }
 import at.logic.language.lambda.types._
 import at.logic.language.hol._
 import at.logic.language.schema._
@@ -255,12 +255,12 @@ object unfoldGroundAtom {
   def apply( f: SchemaFormula, trs: dbTRSsTermN ): SchemaFormula = f match {
     case Atom( name: Var, args )   => Atom( name, args.map( x => unfoldSTermN( x, trs ) ) )
     case Atom( name: Const, args ) => Atom( name, args.map( x => unfoldSTermN( x, trs ) ) )
-    case _                               => f
+    case _                         => f
   }
   def apply( f: SchemaFormula ): SchemaFormula = f match {
     case Atom( name: Var, args )   => Atom( name, args.map( x => unfoldSTerm( x ) ) )
     case Atom( name: Const, args ) => Atom( name, args.map( x => unfoldSTerm( x ) ) )
-    case _                               => f
+    case _                         => f
   }
 }
 

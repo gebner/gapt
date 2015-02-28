@@ -1,8 +1,8 @@
 package at.logic.language.hoare
 
 import at.logic.language.fol._
-import at.logic.language.hol.{Neg, Imp, And}
-import at.logic.language.lambda.{Substitution, Var, freeVariables}
+import at.logic.language.hol.{ Neg, Imp, And }
+import at.logic.language.lambda.{ Substitution, Var, freeVariables }
 
 object usedVariables {
   def apply( p: Program ): List[Var] = p match {

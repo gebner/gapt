@@ -9,7 +9,7 @@ import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.lambda.BetaReduction._
 import at.logic.language.hol._
-import at.logic.language.lambda.{freeVariables, Substitution, App, Var}
+import at.logic.language.lambda.{ freeVariables, Substitution, App, Var }
 import at.logic.utils.ds.trees._
 import base._
 

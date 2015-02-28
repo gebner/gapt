@@ -7,7 +7,7 @@ import at.logic.calculi.resolution.robinson._
 import at.logic.language.fol._
 import at.logic.calculi.resolution.{ FClause, Clause }
 import at.logic.algorithms.lk.{ applySubstitution => applySub, CleanStructuralRules, CloneLKProof }
-import at.logic.language.hol.{Equation, HOLFormula}
+import at.logic.language.hol.{ Equation, HOLFormula }
 
 object RobinsonToLK extends at.logic.utils.logging.Logger {
   type mapT = scala.collection.mutable.Map[FClause, LKProof]

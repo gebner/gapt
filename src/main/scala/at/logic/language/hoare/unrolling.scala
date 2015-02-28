@@ -3,8 +3,8 @@ package at.logic.language.hoare
 import at.logic.calculi.lk.base.FSequent
 import at.logic.language.fol._
 import at.logic.language.fol.Utils.numeral
-import at.logic.language.hol.{AllVar, Equation, And}
-import at.logic.language.lambda.{Var, Substitution}
+import at.logic.language.hol.{ AllVar, Equation, And }
+import at.logic.language.lambda.{ Var, Substitution }
 
 object unrollLoop {
   def apply( p: Program, actualN: Int ): Program = p match {

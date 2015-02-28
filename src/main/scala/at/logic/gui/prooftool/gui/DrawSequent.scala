@@ -10,7 +10,7 @@ package at.logic.gui.prooftool.gui
 import at.logic.calculi.lk.base.{ FSequent, Sequent }
 import at.logic.language.hol._
 import at.logic.calculi.occurrences.{ FormulaOccurrence, defaultFormulaOccurrenceFactory }
-import at.logic.language.lambda.{App, Abs, Const, Var}
+import at.logic.language.lambda.{ App, Abs, Const, Var }
 import at.logic.language.schema.{ BiggerThanC, BigAnd, BigOr, IndexedPredicate, indexedFOVar, indexedOmegaVar, IntegerTerm, IntVar, IntConst, Succ }
 import at.logic.transformations.ceres.struct.ClauseSetSymbol
 import at.logic.transformations.ceres.PStructToExpressionTree.ProjectionSetSymbol
@@ -149,7 +149,7 @@ object DrawSequent {
       val name = pred match {
         case Const( n, _ ) => n
         case Var( n, _ )   => n
-        case _                => throw new Exception( "An atom can only contain a const or a var on the outermost level!" )
+        case _             => throw new Exception( "An atom can only contain a const or a var on the outermost level!" )
       }
       if ( args.size == 2 && name.toString.matches( """(=|!=|\\neq|<|>|\\leq|\\geq|\\in|\+|-|\*|/)""" ) ) { //!name.toString.matches("""[\w\p{InGreek}]*""")) {
         //formats infix formulas
@@ -178,7 +178,7 @@ object DrawSequent {
       val name = f match {
         case Const( n, _ ) => n
         case Var( n, _ )   => n
-        case _                => throw new Exception( "An atom can only contain a const or a var on the outermost level!" )
+        case _             => throw new Exception( "An atom can only contain a const or a var on the outermost level!" )
       }
 
       if ( name.toString == "EXP" )
@@ -197,11 +197,11 @@ object DrawSequent {
     case z: IntConst => n.toString
     case IntZero()   => n.toString
     case v: IntVar => if ( n > 0 )
-// FIXME: v.toPrettyString + "+" + n.toString
-        s"$v+$n"
+      // FIXME: v.toPrettyString + "+" + n.toString
+      s"$v+$n"
     else
-// FIXME:      v.toPrettyString
-        s"$v"
+      // FIXME:      v.toPrettyString
+      s"$v"
     case Succ( s ) => parseIntegerTerm( s, n + 1 )
     case _         => throw new Exception( "Error in parseIntegerTerm(..) in gui" )
   }
