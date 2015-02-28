@@ -6,6 +6,7 @@ import at.logic.calculi.lk.base.FSequent
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.calculi.resolution.{ ResolutionProof, Clause }
 import at.logic.language.fol._
+import at.logic.language.hol._
 import at.logic.language.hol.replacements.getAtPosition
 import at.logic.parsing.language.prover9.{ Prover9TermParserA, Prover9TermParser, Prover9TermParserLadrStyle }
 import at.logic.parsing.language.tptp.TPTPFOLExporter

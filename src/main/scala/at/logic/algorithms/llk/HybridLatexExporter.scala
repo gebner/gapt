@@ -150,10 +150,10 @@ class HybridLatexExporter( val expandTex: Boolean ) {
   def getFormulaString( f: HOLExpression, outermost: Boolean = true, escape_latex: Boolean ): String = f match {
     case AllVar( x, t ) =>
       val op = if ( escape_latex ) "\\forall" else "all"
-      "(" + op + " " + getFormulaString( x.asInstanceOf[HOLVar], false, escape_latex ) + " " + getFormulaString( t, false, escape_latex ) + ")"
+      "(" + op + " " + getFormulaString( x.asInstanceOf[Var], false, escape_latex ) + " " + getFormulaString( t, false, escape_latex ) + ")"
     case ExVar( x, t ) =>
       val op = if ( escape_latex ) "\\exists" else "exists"
-      "(" + op + " " + getFormulaString( x.asInstanceOf[HOLVar], false, escape_latex ) + " " + getFormulaString( t, false, escape_latex ) + ")"
+      "(" + op + " " + getFormulaString( x.asInstanceOf[Var], false, escape_latex ) + " " + getFormulaString( t, false, escape_latex ) + ")"
     case Neg( t1 ) =>
       val op = if ( escape_latex ) "\\neg" else "-"
       val str = " " + op + " " + getFormulaString( t1, false, escape_latex )
@@ -173,8 +173,8 @@ class HybridLatexExporter( val expandTex: Boolean ) {
 
     case Atom( f, args ) =>
       val sym = f match {
-        case HOLConst( x, _ ) => x
-        case HOLVar( x, _ )   => x
+        case Const( x, _ ) => x
+        case Var( x, _ )   => x
       }
       val str: String =
         if ( args.length == 2 && sym.toString.matches( """(<|>|\\leq|\\geq|=|>=|<=)""" ) )
@@ -186,8 +186,8 @@ class HybridLatexExporter( val expandTex: Boolean ) {
       str
     case Function( f, args, _ ) =>
       val sym = f match {
-        case HOLConst( x, _ ) => x
-        case HOLVar( x, _ )   => x
+        case Const( x, _ ) => x
+        case Var( x, _ )   => x
       }
       if ( args.length == 2 && sym.toString.matches( """[+\-*/]""" ) )
         "(" + getFormulaString( args( 0 ), false, escape_latex ) + " " + sym.toString + " " + getFormulaString( args( 1 ), false, escape_latex ) + ")"
@@ -198,11 +198,11 @@ class HybridLatexExporter( val expandTex: Boolean ) {
           nameToLatexString( sym.toString ) + ( if ( args.isEmpty ) " " else args.map( getFormulaString( _, false, escape_latex ) ).mkString( "(", ", ", ")" ) )
       }
 
-    case HOLVar( v, _ )   => v.toString
-    case HOLConst( c, _ ) => c.toString
-    case HOLAbs( x, t ) =>
-      "(\\lambda " + getFormulaString( x.asInstanceOf[HOLVar], false, escape_latex ) + " " + getFormulaString( t, false, escape_latex ) + ")"
-    case HOLApp( s, t ) =>
+    case Var( v, _ )   => v.toString
+    case Const( c, _ ) => c.toString
+    case Abs( x, t ) =>
+      "(\\lambda " + getFormulaString( x.asInstanceOf[Var], false, escape_latex ) + " " + getFormulaString( t, false, escape_latex ) + ")"
+    case App( s, t ) =>
       if ( escape_latex )
         "\\apply{ " + getFormulaString( s, false, escape_latex ) + " " + getFormulaString( t, false, escape_latex ) + "}"
       else

@@ -1,8 +1,8 @@
 package at.logic.algorithms.fol.hol2fol
 
 import at.logic.algorithms.fol.recreateWithFactory
+import at.logic.language.lambda._
 import at.logic.language.hol._
-import at.logic.language.lambda.FactoryA
 import at.logic.language.lambda.symbols.StringSymbol
 import at.logic.language.lambda.types.{ Ti, TA, To }
 import at.logic.utils.logging.Logger
@@ -26,63 +26,62 @@ object undoHol2Fol extends Logger {
    * @param sig_vars a mapping fol name to hol var with appropriate type
    * @param sig_consts a mapping fol name to hol const with appropriate type
    * @param abssymbol_map a mapping fol constant name to a lambda expression (obtained by replaceAbstractions)
-   * @param factory the factory used for the return formula
    * @return the changed formula
    */
   def backtranslate( e: HOLFormula,
-                     sig_vars: Map[String, List[HOLVar]],
-                     sig_consts: Map[String, List[HOLConst]],
-                     abssymbol_map: Map[String, HOLExpression] )( factory: FactoryA ): HOLFormula =
-    backtranslate( e.asInstanceOf[HOLExpression], sig_vars, sig_consts, abssymbol_map, Some( To ) )( factory ).asInstanceOf[HOLFormula]
+                     sig_vars: Map[String, List[Var]],
+                     sig_consts: Map[String, List[Const]],
+                     abssymbol_map: Map[String, HOLExpression] ): HOLFormula =
+    backtranslate( e, sig_vars, sig_consts, abssymbol_map, Some( To ) )
 
   /**
    * We do some dirty stuff in here to translate a prover9 term back to the richer type signature of hol proofs, undoing
    * replace abstractions at the same time.
    */
   def backtranslate( e: HOLExpression,
-                     sig_vars: Map[String, List[HOLVar]],
-                     sig_consts: Map[String, List[HOLConst]],
+                     sig_vars: Map[String, List[Var]],
+                     sig_consts: Map[String, List[Const]],
                      abssymbol_map: Map[String, HOLExpression],
-                     expected_type: Option[TA] )( factory: FactoryA ): HOLExpression = {
+                     expected_type: Option[TA] ): HOLExpression = {
     e match {
       // --------------- logical structure ------------------------
-      case Atom( HOLConst( name, _ ), args ) if sig_consts contains name.toString =>
-        val args_ = args.map( backtranslate( _, sig_vars, sig_consts, abssymbol_map, None )( factory ) )
+      case Atom( Const( name, _ ), args ) if sig_consts contains name.toString =>
+        val args_ = args.map( backtranslate( _, sig_vars, sig_consts, abssymbol_map, None ) )
         val head = sig_consts( name.toString )( 0 )
         Atom( head, args_ )
 
       /*      case Equation(s, t) =>
-        Equation(backtranslate( s, sig_vars, sig_consts, abssymbol_map, None )( factory ) ,
-                 backtranslate( t, sig_vars, sig_consts, abssymbol_map, None )( factory ) )
+        Equation(backtranslate( s, sig_vars, sig_consts, abssymbol_map, None ) ,
+                 backtranslate( t, sig_vars, sig_consts, abssymbol_map, None ) )
                  */
 
-      case Neg( f )    => Neg( backtranslate( f, sig_vars, sig_consts, abssymbol_map )( factory ) )
-      case And( f, g ) => And( backtranslate( f, sig_vars, sig_consts, abssymbol_map )( factory ), backtranslate( g, sig_vars, sig_consts, abssymbol_map )( factory ) )
-      case Or( f, g )  => Or( backtranslate( f, sig_vars, sig_consts, abssymbol_map )( factory ), backtranslate( g, sig_vars, sig_consts, abssymbol_map )( factory ) )
-      case Imp( f, g ) => Imp( backtranslate( f, sig_vars, sig_consts, abssymbol_map )( factory ), backtranslate( g, sig_vars, sig_consts, abssymbol_map )( factory ) )
+      case Neg( f )    => Neg( backtranslate( f, sig_vars, sig_consts, abssymbol_map ) )
+      case And( f, g ) => And( backtranslate( f, sig_vars, sig_consts, abssymbol_map ), backtranslate( g, sig_vars, sig_consts, abssymbol_map ) )
+      case Or( f, g )  => Or( backtranslate( f, sig_vars, sig_consts, abssymbol_map ), backtranslate( g, sig_vars, sig_consts, abssymbol_map ) )
+      case Imp( f, g ) => Imp( backtranslate( f, sig_vars, sig_consts, abssymbol_map ), backtranslate( g, sig_vars, sig_consts, abssymbol_map ) )
       case AllVar( x, f ) =>
-        val f_ = backtranslate( f, sig_vars, sig_consts, abssymbol_map )( factory )
+        val f_ = backtranslate( f, sig_vars, sig_consts, abssymbol_map )
         val xcandidates = freeVariables( f_ ).filter( _.name == x.name )
         xcandidates match {
-          case Nil        => AllVar( factory.createVar( x.sym, x.exptype ).asInstanceOf[HOLVar], f_ )
+          case Nil        => AllVar( Var( x.sym, x.exptype ), f_ )
           case List( x_ ) => AllVar( x_, f_ )
           case _          => throw new Exception( "We have not more than one free variable with name " + x.name + xcandidates.mkString( ": (", ", ", ")" ) )
         }
 
       case ExVar( x, f ) =>
-        val f_ = backtranslate( f, sig_vars, sig_consts, abssymbol_map )( factory )
+        val f_ = backtranslate( f, sig_vars, sig_consts, abssymbol_map )
         val xcandidates = freeVariables( f_ ).filter( _.name == x.name )
         xcandidates match {
-          case Nil        => ExVar( factory.createVar( x.sym, x.exptype ).asInstanceOf[HOLVar], f_ )
+          case Nil        => ExVar( Var( x.sym, x.exptype ), f_ )
           case List( x_ ) => ExVar( x_, f_ )
           case _          => throw new Exception( "We have not more than one free variable with name " + x.name + xcandidates.mkString( ": (", ", ", ")" ) )
         }
 
       // --------------- term structure ------------------------
       //cases for term replacement
-      case HOLConst( name, _ ) if abssymbol_map.contains( name ) =>
-        val qterm_ = recreateWithFactory( abssymbol_map( name ), factory ).asInstanceOf[HOLExpression] //unsafe cast
-        val qterm: HOLExpression = freeVariables( qterm_ ).foldRight( qterm_ )( ( v, term ) => HOLAbs( v, term ) )
+      case Const( name, _ ) if abssymbol_map.contains( name ) =>
+        val qterm_ = abssymbol_map( name )
+        val qterm: HOLExpression = freeVariables( qterm_ ).foldRight( qterm_ )( ( v, term ) => Abs( v, term ) )
         expected_type match {
           case Some( expt ) =>
             require( qterm.exptype == expt, "We did a replacement of the symbol " + name + " by " + qterm + " but the type " + qterm.exptype + " is not the expected type " + expected_type )
@@ -91,11 +90,11 @@ object undoHol2Fol extends Logger {
             qterm
         }
 
-      case Function( HOLConst( name, _ ), args, _ ) if abssymbol_map.contains( name ) =>
-        val qterm_ = recreateWithFactory( abssymbol_map( name ), factory ).asInstanceOf[HOLExpression] //unsafe cast
-        val qterm: HOLExpression = freeVariables( qterm_ ).foldRight( qterm_ )( ( v, term ) => HOLAbs( v, term ) )
-        val btargs = args.map( x => backtranslate( x.asInstanceOf[HOLExpression], sig_vars, sig_consts, abssymbol_map, None )( factory ) )
-        val r = btargs.foldLeft( qterm )( ( term, nextarg ) => HOLApp( term, nextarg ) )
+      case Function( Const( name, _ ), args, _ ) if abssymbol_map.contains( name ) =>
+        val qterm_ = abssymbol_map( name )
+        val qterm: HOLExpression = freeVariables( qterm_ ).foldRight( qterm_ )( ( v, term ) => Abs( v, term ) )
+        val btargs = args.map( x => backtranslate( x, sig_vars, sig_consts, abssymbol_map, None ) )
+        val r = btargs.foldLeft( qterm )( ( term, nextarg ) => App( term, nextarg ) )
         expected_type match {
           case Some( expt ) =>
             require( qterm.exptype == expt, "We did a replacement of the symbol " + name + " by " + qterm + " but the type " + qterm.exptype + " is not the expected type " + expected_type )
@@ -105,27 +104,27 @@ object undoHol2Fol extends Logger {
         }
 
       //normal ones
-      case Function( HOLConst( name, _ ), args, _ ) if sig_consts contains name =>
-        val btargs = args.map( x => backtranslate( x.asInstanceOf[HOLExpression], sig_vars, sig_consts, abssymbol_map, None )( factory ) )
+      case Function( Const( name, _ ), args, _ ) if sig_consts contains name =>
+        val btargs = args.map( x => backtranslate( x, sig_vars, sig_consts, abssymbol_map, None ) )
         val head = sig_consts( name )( 0 ) //we have to pick a candidate somehow, lets go for the first
         Function( head, btargs )
 
-      case HOLVar( name, Ti ) if sig_vars contains name =>
+      case Var( name, Ti ) if sig_vars contains name =>
         val head = sig_vars( name )( 0 ) //we have to pick a candidate somehow, lets go for the first
         head
 
-      case HOLConst( name, Ti ) if sig_consts contains name =>
+      case Const( name, Ti ) if sig_consts contains name =>
         val head = sig_consts( name )( 0 ) //we have to pick a candidate somehow, lets go for the first
         head
 
-      case HOLVar( ivy_varname( name ), Ti ) =>
+      case Var( ivy_varname( name ), Ti ) =>
         trace( "Guessing that the variable " + name + " comes from ivy, assigning type i." )
-        factory.createVar( StringSymbol( name ), Ti ).asInstanceOf[HOLVar]
+        Var( name, Ti )
 
-      case HOLVar( name, Ti ) =>
+      case Var( name, Ti ) =>
         throw new Exception( "No signature information for variable " + e )
 
-      case HOLConst( name, _ ) =>
+      case Const( name, _ ) =>
         throw new Exception( "No signature information for const " + e )
 
       case _ =>
@@ -136,14 +135,14 @@ object undoHol2Fol extends Logger {
 
   val ivy_varname = """(v[0-9]+)""".r
 
-  def getSignature( fs: List[HOLExpression] ): ( Map[String, Set[HOLConst]], Map[String, Set[HOLVar]] ) =
-    fs.foldLeft( ( Map[String, Set[HOLConst]](), Map[String, Set[HOLVar]]() ) )( ( maps, e ) => {
+  def getSignature( fs: List[HOLExpression] ): ( Map[String, Set[Const]], Map[String, Set[Var]] ) =
+    fs.foldLeft( ( Map[String, Set[Const]](), Map[String, Set[Var]]() ) )( ( maps, e ) => {
       //println("next "+maps._1.size+":"+maps._2.size)
       getSignature( e, maps._1, maps._2 )
     } )
 
-  def getSignature( e: HOLExpression, csig: Map[String, Set[HOLConst]], vsig: Map[String, Set[HOLVar]] ): ( Map[String, Set[HOLConst]], Map[String, Set[HOLVar]] ) = e match {
-    case v: HOLVar =>
+  def getSignature( e: HOLExpression, csig: Map[String, Set[Const]], vsig: Map[String, Set[Var]] ): ( Map[String, Set[Const]], Map[String, Set[Var]] ) = e match {
+    case v: Var =>
       val name = v.name
       vsig.get( name ) match {
         case Some( list ) if list contains v =>
@@ -154,7 +153,7 @@ object undoHol2Fol extends Logger {
           ( csig, vsig + ( ( name, Set( v ) ) ) )
       }
 
-    case c: HOLConst =>
+    case c: Const =>
       val name = c.name
       csig.get( name ) match {
         case Some( list ) if list contains c =>
@@ -165,17 +164,17 @@ object undoHol2Fol extends Logger {
           ( csig + ( ( name, Set( c ) ) ), vsig )
       }
 
-    case HOLApp( s, t ) =>
+    case App( s, t ) =>
       val ( cm1, vm1 ) = getSignature( s, csig, vsig )
       val ( cm2, vm2 ) = getSignature( t, cm1, vm1 )
 
-      val cmtotal = ( cm1.toList ++ cm2.toList ).foldLeft( Map[String, Set[HOLConst]]() )( ( map, elem ) =>
+      val cmtotal = ( cm1.toList ++ cm2.toList ).foldLeft( Map[String, Set[Const]]() )( ( map, elem ) =>
         map.get( elem._1 ) match {
           case None         => map + elem
           case Some( list ) => map + ( ( elem._1, list ++ elem._2 ) )
         } )
 
-      val vmtotal = ( vm1.toList ++ vm2.toList ).foldLeft( Map[String, Set[HOLVar]]() )( ( map, elem ) =>
+      val vmtotal = ( vm1.toList ++ vm2.toList ).foldLeft( Map[String, Set[Var]]() )( ( map, elem ) =>
         map.get( elem._1 ) match {
           case None         => map + elem
           case Some( list ) => map + ( ( elem._1, list ++ elem._2 ) )
@@ -183,13 +182,13 @@ object undoHol2Fol extends Logger {
 
       ( cmtotal, vmtotal )
 
-    case HOLAbs( x @ HOLVar( name, _ ), s ) =>
+    case Abs( x @ Var( name, _ ), s ) =>
       val ( cm1, vm1 ) = getSignature( s, csig, vsig )
       vm1.get( name ) match {
         case None =>
-          ( cm1, vm1 + ( ( name, Set( x.asInstanceOf[HOLVar] ) ) ) )
+          ( cm1, vm1 + ( ( name, Set( x.asInstanceOf[Var] ) ) ) )
         case Some( list ) =>
-          ( cm1, vm1 + ( ( name, list + x.asInstanceOf[HOLVar] ) ) )
+          ( cm1, vm1 + ( ( name, list + x.asInstanceOf[Var] ) ) )
       }
   }
 

@@ -1,10 +1,12 @@
 package at.logic.algorithms.resolution
 
+import at.logic.language.hol.Equation
+import at.logic.language.lambda.Substitution
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
 import at.logic.language.lambda.types.To
-import at.logic.language.fol.{Equation => FOLEquation, And, Or, Neg, Atom, FOLConst, Imp, FOLVar, Substitution}
+import at.logic.language.fol.{FOLAtom, FOLConst, FOLVar}
 import at.logic.calculi.resolution._
 import at.logic.calculi.resolution.robinson._
 import at.logic.calculi.lk.base.FSequent
@@ -13,8 +15,8 @@ import at.logic.calculi.lk.base.FSequent
 class FixDerivationTest extends SpecificationWithJUnit {
   "fixDerivation" should {
     "not say that p :- is derivable from p :- p, r by symmetry" in {
-      val p = Atom( "p", Nil )
-      val r = Atom( "r", Nil )
+      val p = FOLAtom( "p", Nil )
+      val r = FOLAtom( "r", Nil )
       val to = FClause( p::Nil, Nil )
       val from = FSequent( p::Nil, p::r::Nil )
 
@@ -26,11 +28,11 @@ class FixDerivationTest extends SpecificationWithJUnit {
       val b = FOLConst("b")
       val c = FOLConst("c")
       val d = FOLConst("d")
-      val ab = FOLEquation( a, b )
-      val bc = FOLEquation( b, c )
-      val cd = FOLEquation( c, d )
-      val cb = FOLEquation( c, b )
-      val dc = FOLEquation( d, c )
+      val ab = Equation( a, b )
+      val bc = Equation( b, c )
+      val cd = Equation( c, d )
+      val cb = Equation( c, b )
+      val dc = Equation( d, c )
       val from = FSequent( ab::bc::Nil, cd::Nil )
       val to = FClause( cb::ab::Nil, dc::Nil )
 
@@ -43,12 +45,12 @@ class FixDerivationTest extends SpecificationWithJUnit {
       val y = FOLVar("y")
       val u = FOLVar("u")
       val v = FOLVar("v")
-      val pa = Atom("p", a::Nil)
-      val px = Atom("p", x::Nil)
-      val py = Atom("p", y::Nil)
-      val qx = Atom("q", x::Nil)
-      val qu = Atom("q", u::Nil)
-      val qv = Atom("q", v::Nil)
+      val pa = FOLAtom("p", a::Nil)
+      val px = FOLAtom("p", x::Nil)
+      val py = FOLAtom("p", y::Nil)
+      val qx = FOLAtom("q", x::Nil)
+      val qu = FOLAtom("q", u::Nil)
+      val qv = FOLAtom("q", v::Nil)
 
       val to = FClause( pa::Nil, qx::Nil )
       val from = FSequent( px::py::Nil, qu::qv::Nil )
@@ -57,9 +59,9 @@ class FixDerivationTest extends SpecificationWithJUnit {
     }
 
     "obtain a derivation of :- p from { :- q; q :- p } from a derivation of :- p, r from { :- q, r; q :- p }" in {
-      val p = Atom("p")
-      val q = Atom("q")
-      val r = Atom("r")
+      val p = FOLAtom("p")
+      val q = FOLAtom("q")
+      val r = FOLAtom("r")
 
       val der = Resolution(InitialClause(Nil, q::r::Nil), InitialClause(q::Nil, p::Nil), q, q, Substitution())
       val cq = FSequent(Nil, q::Nil)
@@ -71,9 +73,9 @@ class FixDerivationTest extends SpecificationWithJUnit {
     }
 
     "obtain a derivation of :- p from { :- q; q :- p } from a derivation of :- p, r from { :- q, r; q :- p, p }" in {
-      val p = Atom("p")
-      val q = Atom("q")
-      val r = Atom("r")
+      val p = FOLAtom("p")
+      val q = FOLAtom("q")
+      val r = FOLAtom("r")
 
       val der = Resolution(InitialClause(Nil, q::r::Nil), 
         Factor(

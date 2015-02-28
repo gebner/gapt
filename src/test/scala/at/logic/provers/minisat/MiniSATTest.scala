@@ -11,6 +11,7 @@ import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
 
 import at.logic.language.fol._
+import at.logic.language.hol._
 import at.logic.calculi.resolution._
 import at.logic.language.lambda.types._
 import at.logic.calculi.lk.base.FSequent
@@ -35,7 +36,7 @@ class MiniSATTest extends SpecificationWithJUnit {
                   And(atom(p, h),atom(pp,h))).toList)).toList)).toList))
     }
 
-    def atom( p: Int, h: Int ) = Atom(rel, pigeon(p)::hole(h)::Nil)
+    def atom( p: Int, h: Int ) = FOLAtom(rel, pigeon(p)::hole(h)::Nil)
 
     def pigeon(i: Int) = FOLConst("p_" + i)
 
@@ -47,9 +48,9 @@ class MiniSATTest extends SpecificationWithJUnit {
     val c = FOLConst("c")
     val d = FOLConst("d")
     val e = FOLConst("e")
-    val pc = Atom("P", c::Nil)
-    val pd = Atom("P", d::Nil)
-    val pe = Atom("P", e::Nil)
+    val pc = FOLAtom("P", c::Nil)
+    val pd = FOLAtom("P", d::Nil)
+    val pe = FOLAtom("P", e::Nil)
       
     "find a model for an atom" in {
       val clause = FClause(Nil, pc::Nil)

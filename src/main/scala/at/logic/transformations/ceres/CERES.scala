@@ -1,6 +1,7 @@
 package at.logic.transformations.ceres
 
 import at.logic.calculi.resolution.FClause
+import at.logic.language.lambda.Var
 import at.logic.language.lambda.types._
 import at.logic.language.lambda.symbols._
 import at.logic.language.hol._
@@ -174,7 +175,7 @@ class CERES {
 
   def refProjection( es: FSequent ): LKProof = {
     require( es.formulas.nonEmpty, "Can not project reflexivity to an empty end-sequent!" )
-    val x = es.formulas( 0 ).factory.createVar( StringSymbol( "x" ), Ti ).asInstanceOf[HOLVar]
+    val x = es.formulas( 0 ).factory.createVar( StringSymbol( "x" ), Ti ).asInstanceOf[Var]
     val axiomseq = FSequent( Nil, List( Equation( x, x ) ) )
     //addWeakenings(Axiom(axiomseq.antecedent, axiomseq.succedent), axiomseq compose es)
     WeakeningMacroRule( Axiom( axiomseq.antecedent, axiomseq.succedent ), axiomseq compose es )

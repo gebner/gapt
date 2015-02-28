@@ -11,6 +11,7 @@ import at.logic.language.hol.And
 import at.logic.language.hol.Imp
 import at.logic.language.hol.Neg
 import at.logic.language.hol.Or
+import at.logic.language.lambda.Var
 import at.logic.utils.logging.Logger
 
 import swing._
@@ -295,8 +296,8 @@ class DrawExpansionTree( val expansionTree: MultiExpansionTree, private val ft: 
       val vars = et.getVars
       val f = et.toShallow
       f match {
-        case AllVar( _, _ ) => vars.foldLeft( "" )( ( str: String, v: HOLVar ) => str + "(\\forall " + DrawSequent.formulaToLatexString( v ) + ")" )
-        case ExVar( _, _ )  => vars.foldLeft( "" )( ( str: String, v: HOLVar ) => str + "(\\exists " + DrawSequent.formulaToLatexString( v ) + ")" )
+        case AllVar( _, _ ) => vars.foldLeft( "" )( ( str: String, v: Var ) => str + "(\\forall " + DrawSequent.formulaToLatexString( v ) + ")" )
+        case ExVar( _, _ )  => vars.foldLeft( "" )( ( str: String, v: Var ) => str + "(\\exists " + DrawSequent.formulaToLatexString( v ) + ")" )
       }
   }
 

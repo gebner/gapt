@@ -11,9 +11,10 @@ import at.logic.calculi.resolution._
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.hol._
-import at.logic.language.hol.BetaReduction._
+import at.logic.language.lambda.BetaReduction._
+import ImplicitStandardStrategy._
 import at.logic.language.hol.skolemSymbols.TypeSynonyms.SkolemSymbol
-import at.logic.language.lambda.symbols._
+import at.logic.language.lambda._
 import at.logic.language.lambda.types._
 import at.logic.utils.ds.acyclicGraphs._
 import at.logic.calculi.lk.base.{ Sequent, AuxiliaryFormulas, PrincipalFormulas, SubstitutionTerm }
@@ -332,7 +333,7 @@ object ImplFR {
 }
 
 object ForallT {
-  def apply[V <: Sequent]( s1: ResolutionProof[V], term1oc: FormulaOccurrence, v: HOLVar ) = {
+  def apply[V <: Sequent]( s1: ResolutionProof[V], term1oc: FormulaOccurrence, v: Var ) = {
     val term1op = s1.root.succedent.find( x => x == term1oc )
     if ( term1op == None ) throw new ResolutionRuleCreationException( "Auxialiary formulas are not contained in the right part of the sequent" )
     else {
@@ -385,7 +386,7 @@ object ForallF {
 }
 
 object ExistsF {
-  def apply[V <: Sequent]( s1: ResolutionProof[V], term1oc: FormulaOccurrence, v: HOLVar ) = {
+  def apply[V <: Sequent]( s1: ResolutionProof[V], term1oc: FormulaOccurrence, v: Var ) = {
     val term1op = s1.root.antecedent.find( x => x == term1oc )
     if ( term1op == None ) throw new ResolutionRuleCreationException( "Auxialiary formulas are not contained in the right part of the sequent" )
     else {

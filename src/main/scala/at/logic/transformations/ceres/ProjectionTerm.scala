@@ -10,6 +10,7 @@ import at.logic.calculi.slk._
 import at.logic.language.fol.Utils.{ removeDoubles, removeDoubles3 }
 import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols.LogicalSymbolA
+import at.logic.language.lambda.Const
 import at.logic.language.lambda.symbols.SymbolA
 import at.logic.language.lambda.types._
 import at.logic.language.schema.{ Substitution => SchemaSubstitution, SchemaFormula, IntegerTerm, SchemaVar, IntVar, IndexedPredicate, IntZero, unfoldSFormula, Succ, Pred, sIndTerm, unfoldSINDTerm, sTerm, unfoldSTerm, toIntegerTerm }
@@ -469,9 +470,9 @@ object PStructToExpressionTree {
       "pr^{(" + cutConfToString( cut_occs ) + ")," + name + "}"
   }
 
-  case class PTimesC( val rho: String ) extends HOLConst( new PTimesSymbol( rho ), Type( "( o -> (o -> o) )" ) )
-  case object PPlusC extends HOLConst( PPlusSymbol, Type( "( o -> (o -> o) )" ) )
-  case class PWeakC( val seq: Sequent ) extends HOLConst( new PWeakSymbol( seq ), Type( "(o -> o)" ) )
+  case class PTimesC( val rho: String ) extends Const( new PTimesSymbol( rho ), Type( "( o -> (o -> o) )" ) )
+  case object PPlusC extends Const( PPlusSymbol, Type( "( o -> (o -> o) )" ) )
+  case class PWeakC( val seq: Sequent ) extends Const( new PWeakSymbol( seq ), Type( "(o -> o)" ) )
 
   // for nice printing in Console only !
   def printTree( r: Tree[String] ): Unit = r match {

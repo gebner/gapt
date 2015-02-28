@@ -8,25 +8,9 @@ import at.logic.calculi.resolution.robinson._
 import at.logic.calculi.resolution.ral._
 import at.logic.calculi.lksk.{ LabelledFormulaOccurrence, LabelledSequent }
 import at.logic.calculi.occurrences.FormulaOccurrence
-import at.logic.language.fol.{ FOLExpression, FOLFormula, Substitution => FOLSubstitution }
+import at.logic.language.fol.{ FOLExpression, FOLFormula }
 import at.logic.language.hol._
-import at.logic.language.lambda.{ Substitution => LambdaSubstitution, Var, FactoryA, LambdaExpression }
-
-/**
- * Created by marty on 9/9/14.
- */
-
-object RobinsonToRal extends RobinsonToRal {
-  override def convert_formula( e: HOLFormula ): HOLFormula =
-    recreateWithFactory( e, HOLFactory ).asInstanceOf[HOLFormula]
-  override def convert_substitution( s: Substitution ): Substitution = {
-    recreateWithFactory( s, HOLFactory, convert_map ).asInstanceOf[Substitution]
-  }
-
-  //TODO: this is somehow dirty....
-  def convert_map( m: Map[Var, LambdaExpression] ): LambdaSubstitution =
-    Substitution( m.asInstanceOf[Map[HOLVar, HOLExpression]] )
-}
+import at.logic.language.lambda.{Substitution, Var, FactoryA, LambdaExpression}
 
 case class RalException[V <: LabelledSequent]( val message: String, val rp: List[RobinsonResolutionProof], val ralp: List[RalResolutionProof[V]], val exp: List[HOLExpression] ) extends Exception( message );
 
@@ -54,9 +38,8 @@ abstract class RobinsonToRal {
 
         ( emptyTranslationMap, rule )
 
-      case Resolution( clause, p1, p2, aux1, aux2, sub_ ) =>
+      case Resolution( clause, p1, p2, aux1, aux2, sub ) =>
         //println("Resolution on "+aux1+" in "+p1.root.succedent+" and "+aux2+" in "+p2.root.antecedent+ " with sub "+sub_)
-        val sub = convert_substitution( sub_ )
         val ( rmap1, rp1 ) = apply( p1, map )
         val ( rmap2, rp2 ) = apply( p2, rmap1 )
         val sub1 = if ( sub.isIdentity ) rp1 else Sub( rp1, sub )

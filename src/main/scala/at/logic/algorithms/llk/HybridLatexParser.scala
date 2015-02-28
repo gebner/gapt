@@ -7,6 +7,7 @@ import scala.collection.immutable.PagedSeq
 import java.io.FileReader
 import at.logic.language.lambda.types.TA
 import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.calculi.lk.base.{ FSequent, LKProof }
 import at.logic.parsing.language.xml.ProofDatabase
 import at.logic.algorithms.llk.TokenToLKConverter
@@ -21,8 +22,8 @@ case class ExtendedProofDatabase( eproofs: Map[HOLFormula, LKProof],
     extends ProofDatabase( Map(), Nil, Nil, Nil ) {
   override val proofs: List[( String, LKProof )] = eproofs.map( x =>
     x._1 match {
-      case Atom( HOLConst( sym, _ ), _ ) => ( sym.toString, x._2 )
-      case Atom( HOLVar( sym, _ ), _ )   => ( sym.toString, x._2 )
+      case Atom( Const( sym, _ ), _ ) => ( sym.toString, x._2 )
+      case Atom( Var( sym, _ ), _ )   => ( sym.toString, x._2 )
     } ).toList
   override val Definitions: Map[HOLExpression, HOLExpression] = edefinitions
   override val axioms: List[FSequent] = eaxioms.values.toList map ( x => FSequent( Nil, x :: Nil ) )

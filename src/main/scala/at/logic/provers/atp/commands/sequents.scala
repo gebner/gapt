@@ -6,9 +6,8 @@ import at.logic.algorithms.matching.FOLMatchingAlgorithm
 import at.logic.algorithms.subsumption.{ StillmanSubsumptionAlgorithmFOL, SubsumptionAlgorithm }
 import at.logic.calculi.lk.base.{ FSequent, Sequent }
 import at.logic.calculi.resolution.{ ResolutionProof, Clause }
-import at.logic.language.lambda.types.->
-import at.logic.language.hol.{ HOLFormula, HOLExpression, HOLVar, subTerms, Substitution }
-import at.logic.language.fol.{ Equation, FOLExpression }
+import at.logic.language.hol.{Equation, HOLFormula, HOLExpression, subTerms}
+import at.logic.language.lambda.{Substitution, Var}
 import at.logic.provers.atp.commands.base.{ ResultCommand, DataCommand }
 import at.logic.provers.atp.Definitions._
 import at.logic.utils.ds.{ Add, Remove, PublishingBufferEvent, PublishingBuffer }
@@ -116,11 +115,11 @@ object fvarInvariantMSEquality {
     val f1 = ( c1.antecedent.map( _.formula ), c1.succedent.map( _.formula ) )
     val FSequent( neg, pos ) = f2
     // we get all free variables from f2 and try to systematically replace those in f1
-    val set1 = ( f1._1 ++ f1._2 ).flatMap( subTerms( _ ) ).filter( e => e match { case f: HOLVar => true; case _ => false } ).toSet
-    val set2 = ( f2._1 ++ f2._2 ).flatMap( subTerms( _ ) ).filter( e => e match { case f: HOLVar => true; case _ => false } ).toSet
+    val set1 = ( f1._1 ++ f1._2 ).flatMap( subTerms( _ ) ).filter( e => e match { case f: Var => true; case _ => false } ).toSet
+    val set2 = ( f2._1 ++ f2._2 ).flatMap( subTerms( _ ) ).filter( e => e match { case f: Var => true; case _ => false } ).toSet
     if ( set1.size != set2.size ) List[FSequent]() // they cannot be equal
     // create all possible substitutions
-    ( for ( s <- set1.toList.permutations.map( _.zip( set2 ) ).map( x => Substitution( x.asInstanceOf[List[Tuple2[HOLVar, HOLExpression]]] ) ) )
+    ( for ( s <- set1.toList.permutations.map( _.zip( set2 ) ).map( x => Substitution( x.asInstanceOf[List[Tuple2[Var, HOLExpression]]] ) ) )
       yield ( f1._1.map( s( _ ).asInstanceOf[HOLFormula] ), f1._2.map( s( _ ).asInstanceOf[HOLFormula] ) ) ).toList.exists( cls => {
       neg.diff( cls._1 ).isEmpty && pos.diff( cls._2 ).isEmpty && cls._1.diff( neg ).isEmpty && cls._2.diff( pos ).isEmpty
     } )

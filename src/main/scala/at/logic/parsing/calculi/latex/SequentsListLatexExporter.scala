@@ -9,6 +9,7 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.lksk._
 import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.language.hol.logicSymbols._
 import at.logic.language.lambda.types._
 import at.logic.parsing.ExportingException
@@ -73,20 +74,20 @@ trait SequentsListLatexExporter extends HOLTermLatexExporter {
     this
   }
 
-  private def getFSVars( fs: FSequent ): Set[HOLVar] = fs.formulas.toSet.flatMap( getVars )
-  private def getVars( l: HOLExpression ): Set[HOLVar] = l match {
-    case v: HOLVar      => Set( v )
-    case c: HOLConst    => Set()
-    case HOLAbs( x, t ) => getVars( t ) ++ getVars( x )
-    case HOLApp( s, t ) => getVars( s ) ++ getVars( t )
+  private def getFSVars( fs: FSequent ): Set[Var] = fs.formulas.toSet.flatMap( getVars )
+  private def getVars( l: HOLExpression ): Set[Var] = l match {
+    case v: Var      => Set( v )
+    case c: Const    => Set()
+    case Abs( x, t ) => getVars( t ) ++ getVars( x )
+    case App( s, t ) => getVars( s ) ++ getVars( t )
   }
 
-  private def getFSConsts( fs: FSequent ): Set[HOLConst] = fs.formulas.toSet.flatMap( getConsts )
-  private def getConsts( l: HOLExpression ): Set[HOLConst] = l match {
-    case v: HOLVar      => Set()
-    case c: HOLConst    => Set( c )
-    case HOLAbs( x, t ) => getConsts( t ) ++ getConsts( x )
-    case HOLApp( s, t ) => getConsts( s ) ++ getConsts( t )
+  private def getFSConsts( fs: FSequent ): Set[Const] = fs.formulas.toSet.flatMap( getConsts )
+  private def getConsts( l: HOLExpression ): Set[Const] = l match {
+    case v: Var      => Set()
+    case c: Const    => Set( c )
+    case Abs( x, t ) => getConsts( t ) ++ getConsts( x )
+    case App( s, t ) => getConsts( s ) ++ getConsts( t )
   }
 
   def printTypes( l: List[FSequent] ) = {
@@ -142,8 +143,8 @@ trait SequentsListLatexExporter extends HOLTermLatexExporter {
   }
 
   private def getTypes( l: List[FSequent] ) = {
-    val vars = l.foldLeft( Set[HOLVar]() )( ( acc, fs ) => acc ++ getFSVars( fs ) )
-    val consts = l.foldLeft( Set[HOLConst]() )( ( acc, fs ) => acc ++ getFSConsts( fs ) )
+    val vars = l.foldLeft( Set[Var]() )( ( acc, fs ) => acc ++ getFSVars( fs ) )
+    val consts = l.foldLeft( Set[Const]() )( ( acc, fs ) => acc ++ getFSConsts( fs ) )
     val svars = vars.map( _.name.toString() )
     val cvars = consts.map( _.name.toString() )
     if ( cvars.exists( svars.contains( _ ) ) || svars.exists( cvars.contains( _ ) ) )

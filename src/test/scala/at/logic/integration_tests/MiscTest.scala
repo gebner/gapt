@@ -13,7 +13,7 @@ import at.logic.calculi.lk.base._
 import at.logic.calculi.occurrences._
 import at.logic.language.fol._
 import at.logic.language.hol.logicSymbols._
-import at.logic.language.hol.{And => AndHOL, Imp => ImpHOL, Or => OrHOL}
+import at.logic.language.hol.{Imp, AllVar}
 import at.logic.language.lambda.symbols._
 import at.logic.language.lambda.types._
 import at.logic.parsing.calculus.xml.saveXML
@@ -53,16 +53,16 @@ class MiscTest extends SpecificationWithJUnit with ClasspathFileCopier {
     val p = "P"
 
     val x = FOLVar("x")
-    val ass = AllVar( x, Imp( Atom( p, x::Nil ), Atom( p, Function( s, x::Nil )::Nil ) ) )
+    val ass = AllVar( x, Imp( FOLAtom( p, x::Nil ), FOLAtom( p, FOLFunction( s, x::Nil )::Nil ) ) )
     if ( k == n ) // leaf proof
     {
-      val a = Atom( p,  Utils.numeral( n )::Nil )
+      val a = FOLAtom( p,  Utils.numeral( n )::Nil )
       WeakeningLeftRule( Axiom( a::Nil, a::Nil ), ass )
     }
     else
     {
-      val p1 = Atom( p, Utils.numeral( k )::Nil )
-      val p2 = Atom( p, Utils.numeral( k + 1 )::Nil )
+      val p1 = FOLAtom( p, Utils.numeral( k )::Nil )
+      val p2 = FOLAtom( p, Utils.numeral( k + 1 )::Nil )
       val aux = Imp( p1, p2 )
       ContractionLeftRule( ForallLeftRule( ImpLeftRule( Axiom( p1::Nil, p1::Nil ), LinearExampleProof( k + 1, n ), p1, p2 ), aux, ass, Utils.numeral( k ) ), ass )
     }
@@ -161,8 +161,8 @@ class MiscTest extends SpecificationWithJUnit with ClasspathFileCopier {
     "construct proof with expansion sequent extracted from proof 1/2" in {
       val y = FOLVar("y")
       val x = FOLVar("x")
-      val Py = Atom("P", y :: Nil)
-      val Px = Atom("P", x :: Nil)
+      val Py = FOLAtom("P", y :: Nil)
+      val Px = FOLAtom("P", x :: Nil)
       val AllxPx = AllVar(x, Px)
 
       // test with 1 weak & 1 strong

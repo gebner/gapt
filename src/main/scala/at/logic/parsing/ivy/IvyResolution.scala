@@ -2,9 +2,9 @@ package at.logic.parsing.ivy
 
 import at.logic.calculi.proofs.{ BinaryRuleTypeA, UnaryRuleTypeA, NullaryRuleTypeA }
 import at.logic.calculi.proofs.{ NullaryAGraphProof, UnaryAGraphProof, BinaryAGraphProof, AGraphProof }
+import at.logic.language.lambda.{Substitution, Const}
 import at.logic.utils.ds.acyclicGraphs.{ LeafAGraph, UnaryAGraph, BinaryAGraph }
 import at.logic.parsing.lisp.SExpression
-import at.logic.language.fol.Substitution
 import at.logic.language.fol.{ FOLConst, FOLTerm }
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.calculi.resolution.Clause
@@ -143,7 +143,7 @@ case class Resolution( id: String,
 case class NewSymbol( id: String,
                       clause_exp: SExpression,
                       lit: FormulaOccurrence,
-                      new_symbol: FOLConst,
+                      new_symbol: Const,
                       replacement_term: FOLTerm,
                       override val vertex: Clause, override val t: IvyResolutionProof )
     extends UnaryAGraph( vertex, t ) with UnaryAGraphProof[Clause] with IvyResolutionProof {

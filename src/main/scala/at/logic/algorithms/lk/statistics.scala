@@ -5,7 +5,8 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base.{ LKProof, Sequent }
 import at.logic.calculi.slk._
 import at.logic.language.lambda.types.TA
-import at.logic.language.hol.{ HOLExpression, HOLApp, HOLAbs, HOLConst }
+import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.calculi.lksk.{ UnaryLKskProof }
 import scala.collection.mutable
 
@@ -50,10 +51,10 @@ object getTypeInformation {
     map.toMap //create an immutable map from the mutable one
   }
   private def mapValues( map: mutable.Map[HOLExpression, TA], f: HOLExpression ): Unit = f match {
-    case c: HOLConst => map.getOrElseUpdate( c, c.exptype )
-    case HOLApp( a, b ) =>
+    case c: Const => map.getOrElseUpdate( c, c.exptype )
+    case App( a, b ) =>
       mapValues( map, a ); mapValues( map, b )
-    case HOLAbs( _, b ) => mapValues( map, b )
+    case Abs( _, b ) => mapValues( map, b )
     case _              => ()
   }
 }

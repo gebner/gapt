@@ -11,6 +11,7 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.occurrences._
 import at.logic.language.hol._
+import at.logic.language.lambda._
 
 object map_proof extends map_proof
 class map_proof {
@@ -146,12 +147,12 @@ class map_proof {
       }
       case ExistsLeftRule( p, s, a, m, v ) => {
         val new_parent = new_parents.head
-        val new_proof = ExistsLeftRule( new_parent._1, new_parent._2( a ), wfun( m.formula ), fun( v ).asInstanceOf[HOLVar] )
+        val new_proof = ExistsLeftRule( new_parent._1, new_parent._2( a ), wfun( m.formula ), fun( v ).asInstanceOf[Var] )
         ( new_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, new_proof, new_parent._2 ) )
       }
       case ForallRightRule( p, s, a, m, v ) => {
         val new_parent = new_parents.head
-        val new_proof = ForallRightRule( new_parent._1, new_parent._2( a ), wfun( m.formula ), fun( v ).asInstanceOf[HOLVar] )
+        val new_proof = ForallRightRule( new_parent._1, new_parent._2( a ), wfun( m.formula ), fun( v ).asInstanceOf[Var] )
         ( new_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, new_proof, new_parent._2 ) )
       }
     }

@@ -5,6 +5,7 @@ import at.logic.algorithms.subsumption._
 import at.logic.algorithms.matching._
 import at.logic.calculi.lk.base.FSequent
 import at.logic.language.hol._
+import at.logic.language.lambda.freeVariables
 
 object deleteTautologies {
   def apply( sequents: List[FSequent] ): List[FSequent] =

@@ -5,15 +5,16 @@
 
 package at.logic.language.schema
 
-import at.logic.language.hol.{ Substitution => SubstitutionHOL, HOLExpression, HOLVar }
+import at.logic.language.lambda.{Substitution => SubstitutionHOL, Var}
+import at.logic.language.hol.{ HOLExpression}
 
-class Substitution( val schemamap: Map[SchemaVar, SchemaExpression] ) extends SubstitutionHOL( schemamap.asInstanceOf[Map[HOLVar, HOLExpression]] ) {
+class Substitution( val schemamap: Map[SchemaVar, SchemaExpression] ) extends SubstitutionHOL( schemamap.asInstanceOf[Map[Var, HOLExpression]] ) {
   def apply( t: SchemaExpression ): SchemaExpression = {
-    val s = SubstitutionHOL( map.asInstanceOf[Map[HOLVar, HOLExpression]] )
+    val s = SubstitutionHOL( map.asInstanceOf[Map[Var, HOLExpression]] )
     s( t ).asInstanceOf[SchemaExpression]
   }
   def apply( t: SchemaFormula ): SchemaFormula = {
-    val s = SubstitutionHOL( map.asInstanceOf[Map[HOLVar, HOLExpression]] )
+    val s = SubstitutionHOL( map.asInstanceOf[Map[Var, HOLExpression]] )
     s( t ).asInstanceOf[SchemaFormula]
   }
 }

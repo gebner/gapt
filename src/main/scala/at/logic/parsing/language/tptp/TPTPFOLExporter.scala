@@ -7,13 +7,14 @@ package at.logic.parsing.language.tptp
 
 import at.logic.algorithms.fol.hol2fol._
 import at.logic.language.fol._
+import at.logic.language.hol._
 import at.logic.language.lambda.symbols.{ StringSymbol, SymbolA }
 import at.logic.calculi.lk.base.FSequent
 import scala.collection.immutable.HashMap
 import at.logic.language.hol.HOLFormula
 import at.logic.language.hol
 import scala.collection.mutable
-import at.logic.language.lambda.LambdaExpression
+import at.logic.language.lambda.{Var, freeVariables, LambdaExpression}
 
 object TPTPFOLExporter extends at.logic.utils.logging.Logger {
   // FIXME: this should not be here!
@@ -59,31 +60,29 @@ object TPTPFOLExporter extends at.logic.utils.logging.Logger {
   }
 
   def getVarRenaming( f: FOLFormula ) = {
-    freeVariables( f ).toList.zipWithIndex.foldLeft( new HashMap[FOLVar, String] )( ( m, p ) =>
+    freeVariables( f ).toList.zipWithIndex.foldLeft( new HashMap[Var, String] )( ( m, p ) =>
       m + ( p._1 -> ( "X" + p._2.toString ) ) )
-  }
-
-  def tptp( e: FOLExpression )( implicit s_map: Map[FOLVar, String] ): String = e match {
-    case f: FOLFormula => tptp( f )
-    case t: FOLTerm    => tptp( t )
   }
 
   // To be able to deal with theorem provers that implement only
   // the parsing of clauses (i.e. they assume associativity of |
   // and dislike parentheses), we only export clauses at the moment.
-  def tptp( f: FOLFormula )( implicit s_map: Map[FOLVar, String] ): String = f match {
-    case Atom( x, args ) => handleAtom( x, args )
+  def tptp( f: FOLFormula )( implicit s_map: Map[Var, String] ): String = f match {
+    case FOLAtom( x, args ) => handleAtom( x, args )
     case Or( x, y )      => tptp( x ) + " | " + tptp( y )
     case Neg( x )        => "~" + tptp( x )
+    case FOLConst( c )       => single_quote( c.toString )
+    case x: Var           => s_map( x )
+    case FOLFunction( x, args ) => handleAtom( x, args )
   }
 
-  private def addToMap( v: FOLVar )( implicit s_map: Map[FOLVar, String] ) = {
+  private def addToMap( v: Var )( implicit s_map: Map[Var, String] ) = {
     s_map + ( ( v, "X" + s_map.size ) )
   }
 
   // Exports a full formula in TPTP format.
-  def tptpFormula( f: FOLFormula )( implicit s_map: Map[FOLVar, String] ): String = f match {
-    case Atom( x, args ) => handleAtom( x, args )
+  def tptpFormula( f: FOLFormula )( implicit s_map: Map[Var, String] ): String = f match {
+    case FOLAtom( x, args ) => handleAtom( x, args )
     case Or( x, y )      => "( " + tptpFormula( x ) + " | " + tptpFormula( y ) + " )"
     case Neg( x )        => "( ~" + tptpFormula( x ) + ")"
     case And( x, y )     => "( " + tptpFormula( x ) + " & " + tptpFormula( y ) + " )"
@@ -99,13 +98,7 @@ object TPTPFOLExporter extends at.logic.utils.logging.Logger {
       }
   }
 
-  def tptp( t: FOLTerm )( implicit s_map: Map[FOLVar, String] ): String = t match {
-    case FOLConst( c )       => single_quote( c.toString )
-    case x: FOLVar           => s_map( x )
-    case Function( x, args ) => handleAtom( x, args )
-  }
-
-  def handleAtom( x: SymbolA, args: List[FOLTerm] )( implicit s_map: Map[FOLVar, String] ) =
+  def handleAtom( x: SymbolA, args: List[FOLTerm] )( implicit s_map: Map[Var, String] ) =
     if ( x.toString.equals( "=" ) )
       tptp( args.head ) + " = " + tptp( args.last )
     else

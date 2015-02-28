@@ -17,8 +17,10 @@ import at.logic.calculi.lksk.TypeSynonyms._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.resolution.createContext
 import at.logic.language.hol._
-import at.logic.language.hol.BetaReduction._
+import at.logic.language.lambda.BetaReduction._
+import ImplicitStandardStrategy._
 import at.logic.language.hol.skolemSymbols.TypeSynonyms.SkolemSymbol
+import at.logic.language.lambda.{Var, Substitution}
 import at.logic.language.lambda.types._
 import at.logic.utils.ds.acyclicGraphs._
 import at.logic.utils.ds.trees.LeafTree
@@ -111,7 +113,7 @@ object Cut {
 }
 
 object ForallT {
-  def apply[V <: LabelledSequent]( s1: RalResolutionProof[V], term1oc: LabelledFormulaOccurrence, v: HOLVar ) = {
+  def apply[V <: LabelledSequent]( s1: RalResolutionProof[V], term1oc: LabelledFormulaOccurrence, v: Var ) = {
     s1.root.l_succedent.find( x => x == term1oc ) match {
       case None =>
         throw new ResolutionRuleCreationException( "Auxiliary formulas are not contained in the right part of the sequent" )
@@ -166,7 +168,7 @@ object ForallF {
 }
 
 object ExistsF {
-  def apply[V <: LabelledSequent]( s1: RalResolutionProof[V], term1oc: LabelledFormulaOccurrence, v: HOLVar ) = {
+  def apply[V <: LabelledSequent]( s1: RalResolutionProof[V], term1oc: LabelledFormulaOccurrence, v: Var ) = {
     s1.root.l_antecedent.find( x => x == term1oc ) match {
       case None =>
         throw new ResolutionRuleCreationException( "Auxiliary formulas are not contained in the right part of the sequent" )

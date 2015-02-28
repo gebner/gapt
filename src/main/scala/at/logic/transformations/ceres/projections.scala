@@ -13,7 +13,7 @@ import at.logic.calculi.lk.base.{ LKProof, Sequent, PrincipalFormulas }
 import scala.collection.immutable.HashSet
 import at.logic.language.lambda.types._
 import at.logic.language.lambda.symbols._
-import at.logic.language.lambda.{ rename, freeVariables }
+import at.logic.language.lambda.{Var, rename, freeVariables}
 import at.logic.calculi.lksk.{
   ExistsSkLeftRule,
   ForallSkRightRule,
@@ -37,11 +37,11 @@ object Projections extends at.logic.utils.logging.Logger {
     val es = proof.root.toFSequent
     val x = es.formulas.headOption match {
       case Some( f ) => f.factory.createVar( StringSymbol( "x" ), t )
-      case None      => HOLVar( StringSymbol( "x" ), t )
+      case None      => Var( StringSymbol( "x" ), t )
     }
 
     var count = 0
-    val x_ = rename( x, es.formulas.flatMap( freeVariables( _ ) ).toList ).asInstanceOf[HOLVar]
+    val x_ = rename( x, es.formulas.flatMap( freeVariables( _ ) ).toList ).asInstanceOf[Var]
     val ax: LKProof = Axiom( Nil, List( Equation( x_, x_ ) ) )
     val left = es.antecedent.foldLeft( ax )( ( p, f ) => WeakeningLeftRule( p, f ) )
     val right = es.succedent.foldLeft( left )( ( p, f ) => WeakeningRightRule( p, f ) )
@@ -54,11 +54,11 @@ object Projections extends at.logic.utils.logging.Logger {
     val es = proof.root.toFSequent
     val x = es.formulas.headOption match {
       case Some( f ) => f.factory.createVar( StringSymbol( "x" ), t )
-      case None      => HOLVar( StringSymbol( "x" ), t )
+      case None      => Var( StringSymbol( "x" ), t )
     }
 
     var count = 0
-    val x_ = rename( x, es.formulas.flatMap( freeVariables( _ ) ).toList ).asInstanceOf[HOLVar]
+    val x_ = rename( x, es.formulas.flatMap( freeVariables( _ ) ).toList ).asInstanceOf[Var]
     val ( ax, _ ) = AxiomSk.createDefault(
       FSequent( Nil, List( Equation( x_, x_ ) ) ),
       ( List(), List( EmptyLabel() ) ) )
@@ -494,8 +494,8 @@ object Projections extends at.logic.utils.logging.Logger {
         } ) )
   }
 
-  def handleStrongQuantRule( proof: LKProof, p: LKProof, a: FormulaOccurrence, m: FormulaOccurrence, v: HOLVar,
-                             constructor: ( LKProof, HOLFormula, HOLFormula, HOLVar ) => LKProof, pred: HOLFormula => Boolean )( implicit cut_ancs: Set[FormulaOccurrence] ): Set[LKProof] = {
+  def handleStrongQuantRule( proof: LKProof, p: LKProof, a: FormulaOccurrence, m: FormulaOccurrence, v: Var,
+                             constructor: ( LKProof, HOLFormula, HOLFormula, Var ) => LKProof, pred: HOLFormula => Boolean )( implicit cut_ancs: Set[FormulaOccurrence] ): Set[LKProof] = {
     val s = apply( p, copySetToAncestor( cut_ancs ), pred )
     if ( cut_ancs.contains( m ) ) s
     else throw new Exception( "The proof is not skolemized!" ) // s.map( p => constructor( p, a, m.formula, v ) )

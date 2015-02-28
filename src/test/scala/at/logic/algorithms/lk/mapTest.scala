@@ -3,6 +3,7 @@ package at.logic.algorithms.lk
 import at.logic.algorithms.fol.hol2fol.convertHolToFol
 import at.logic.calculi.lk._
 import at.logic.language.fol.FOLFormula
+import at.logic.language.lambda.{Substitution, Const, Var}
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
@@ -18,10 +19,10 @@ import at.logic.language.lambda.types._
 @RunWith(classOf[JUnitRunner])
 class mapTest extends SpecificationWithJUnit {
   "map" should {
-    val List(u,x,y,z) = List("u","x","y","z") map (HOLVar(_, Ti))
-    val List(a,b,c) = List("a","b","c") map (HOLConst(_, Ti))
-    val List(p) = List("p") map (HOLConst(_, Ti -> (Ti -> To)))
-    val List(q) = List("q") map (HOLConst(_, Ti -> To))
+    val List(u,x,y,z) = List("u","x","y","z") map (Var(_, Ti))
+    val List(a,b,c) = List("a","b","c") map (Const(_, Ti))
+    val List(p) = List("p") map (Const(_, Ti -> (Ti -> To)))
+    val List(q) = List("q") map (Const(_, Ti -> To))
     val pxy = Atom(p, List(x,y))
     val qz = Atom(q, List(z))
 
@@ -58,12 +59,7 @@ class mapTest extends SpecificationWithJUnit {
 
       val cut = CutRule(i1a, i2, i1a.root.succedent(0), i2.root.antecedent(0))
 
-      def fun(e:HOLExpression) : HOLExpression = e match {
-        case f : HOLFormula => convertHolToFol.convertFormula(f)
-        case _ => convertHolToFol.convertTerm(e)
-      }
-
-      val (cutproof, _) = map_proof(cut, fun )
+      val (cutproof, _) = map_proof(cut, convertHolToFol.apply )
       for (f <- cutproof.root.toFSequent.formulas) {
         val r = if (f.isInstanceOf[FOLFormula]) "" else (f.toString+" is not a fol formula")
         "" must_== (r)

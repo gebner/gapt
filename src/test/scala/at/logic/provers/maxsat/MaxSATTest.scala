@@ -4,6 +4,7 @@
 
 package at.logic.provers.maxsat
 
+import at.logic.language.hol.{Neg, Or}
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -32,9 +33,9 @@ class MaxSATTest extends SpecificationWithJUnit {
     val c2 = FOLConst("c2")
     val c3 = FOLConst("c3")
 
-    val x1 = Atom("X", c1 :: Nil)
-    val x2 = Atom("X", c2 :: Nil)
-    val x3 = Atom("X", c3 :: Nil)
+    val x1 = FOLAtom("X", c1 :: Nil)
+    val x2 = FOLAtom("X", c2 :: Nil)
+    val x3 = FOLAtom("X", c3 :: Nil)
 
     val h1 = Or(x1, x2)
     val h2 = Or(x2, x3)

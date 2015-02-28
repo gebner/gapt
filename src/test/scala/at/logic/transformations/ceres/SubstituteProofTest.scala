@@ -26,9 +26,9 @@ class SubstituteProofTest extends SpecificationWithJUnit {
     val tokens = HybridLatexParser.parseFile("target" + separator + "substitutions.llk")
     val pdb = HybridLatexParser.createLKProof(tokens)
     val map  = Map[String, LKProof]() ++ pdb.proofs
-    val x = HOLVar(StringSymbol("x"), Ti )
-    val f = HOLConst(StringSymbol("f"), Ti -> Ti )
-    val fa = Function(f, List(HOLConst(StringSymbol("a"), Ti)))
+    val x = Var(StringSymbol("x"), Ti )
+    val f = Const(StringSymbol("f"), Ti -> Ti )
+    val fa = Function(f, List(Const(StringSymbol("a"), Ti)))
 
     val sub1 = Substitution(x,fa)
 

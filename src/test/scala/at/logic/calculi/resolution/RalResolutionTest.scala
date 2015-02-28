@@ -4,6 +4,7 @@ import at.logic.calculi.lk.base.FSequent
 import at.logic.calculi.lksk.LabelledSequent
 import at.logic.calculi.lksk.TypeSynonyms.{Label, EmptyLabel}
 import at.logic.language.hol._
+import at.logic.language.lambda.{Substitution, Var, Const}
 import at.logic.language.lambda.types.{Ti, To}
 import org.junit.runner.RunWith
 import org.specs2.mutable._
@@ -16,8 +17,8 @@ import org.specs2.runner.JUnitRunner
 class RalResolutionTest extends SpecificationWithJUnit{
   "Ral resolution" should {
     "work on simple proofs" in {
-      val x = HOLVar("X", To)
-      val p = Atom(HOLConst("P", To), Nil)
+      val x = Var("X", To)
+      val p = Atom(Const("P", To), Nil)
       val exx = ExVar(x,x.asInstanceOf[HOLFormula])
       val root = FSequent(Nil,List(exx))
       val labels : (List[Label],List[Label]) = (List[Label](),List[Label](EmptyLabel()))
@@ -35,10 +36,10 @@ class RalResolutionTest extends SpecificationWithJUnit{
     }
 
     "work on non-idempotent substitutions" in {
-      val x = HOLVar("x", Ti)
-      val fx = Function(HOLConst("f", Ti -> Ti), x::Nil)
-      val px = Atom(HOLConst("P", Ti->To), List(x))
-      val pfx = Atom(HOLConst("P", Ti->To), List(fx))
+      val x = Var("x", Ti)
+      val fx = Function(Const("f", Ti -> Ti), x::Nil)
+      val px = Atom(Const("P", Ti->To), List(x))
+      val pfx = Atom(Const("P", Ti->To), List(fx))
 
       val sub = Substitution(x, fx)
 

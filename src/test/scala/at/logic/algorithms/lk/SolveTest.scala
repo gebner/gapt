@@ -5,6 +5,7 @@ import at.logic.calculi.lk.{Axiom, NegLeftRule}
 import at.logic.calculi.occurrences.{FormulaOccurrence, defaultFormulaOccurrenceFactory}
 import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols.{LogicalSymbolA}
+import at.logic.language.lambda.{Var, Const}
 import at.logic.language.lambda.symbols.StringSymbol
 import at.logic.language.schema.{IntVar, Succ, IndexedPredicate, IntZero, Or => OrS, SchemaFormula, BigAnd, BigOr}
 import java.io.File.separator
@@ -70,11 +71,11 @@ class SolveTest extends SpecificationWithJUnit {
       solve.solvePropositional(FSequent(A :: B :: C :: Nil, And(And(A, B), C) :: Nil))
       solve.solvePropositional(FSequent(bigo2 :: Nil, A0 :: A1 :: A2 :: Nil))
       
-      val c2 = HOLConst(new StringSymbol("c"), Ti)
-      val d2 = HOLConst(new StringSymbol("d"), Ti)
-      val e2 = HOLConst(new StringSymbol("e"), Ti)
+      val c2 = Const(new StringSymbol("c"), Ti)
+      val d2 = Const(new StringSymbol("d"), Ti)
+      val e2 = Const(new StringSymbol("e"), Ti)
         
-      val P = HOLConst(new StringSymbol("P"), Ti -> To)      
+      val P = Const(new StringSymbol("P"), Ti -> To)
 
       val Pc2 = Atom(P, c2::Nil)
       val Pd2 = Atom(P, d2::Nil)
@@ -95,13 +96,13 @@ class SolveTest extends SpecificationWithJUnit {
 
     "prove non-atomic axioms (1)" in {
       import at.logic.language.hol._
-      val List(x,y,z)    = List("x","y","z") map (x => HOLVar(StringSymbol(x), Ti))
-      val List(u,v,w) = List("u","v","w") map (x => HOLVar(StringSymbol(x), Ti -> Ti))
-      val List(a,b,c, zero)    = List("a","b","c","0") map (x => HOLConst(StringSymbol(x), Ti))
-      val List(f,g,h,s)    = List("f","g","h","s") map (x => HOLConst(StringSymbol(x), Ti -> Ti))
-      val List(p,q)      = List("P","Q") map (x => HOLConst(StringSymbol(x), Ti -> Ti))
+      val List(x,y,z)    = List("x","y","z") map (x => Var(StringSymbol(x), Ti))
+      val List(u,v,w) = List("u","v","w") map (x => Var(StringSymbol(x), Ti -> Ti))
+      val List(a,b,c, zero)    = List("a","b","c","0") map (x => Const(StringSymbol(x), Ti))
+      val List(f,g,h,s)    = List("f","g","h","s") map (x => Const(StringSymbol(x), Ti -> Ti))
+      val List(p,q)      = List("P","Q") map (x => Const(StringSymbol(x), Ti -> Ti))
       val List(_Xsym,_Ysym)    = List("X","Y") map (x => StringSymbol(x))
-      val List(_X,_Y)    = List(_Xsym,_Ysym) map (x => HOLVar(x, Ti -> To))
+      val List(_X,_Y)    = List(_Xsym,_Ysym) map (x => Var(x, Ti -> To))
 
       val xzero = Atom(_X,List(zero))
       val xx = Atom(_X,List(x))
@@ -125,16 +126,16 @@ class SolveTest extends SpecificationWithJUnit {
 
     "prove non-atomic axioms (2)" in {
       import at.logic.language.hol._
-      val List(x,y,z)    = List("x","y","z") map (x => HOLVar(StringSymbol(x), Ti))
-      val List(u,v,w) = List("u","v","w") map (x => HOLVar(StringSymbol(x), Ti -> Ti))
-      val List(a,b,c, zero)    = List("a","b","c","0") map (x => HOLConst(StringSymbol(x), Ti))
-      val List(f,g,h,s)    = List("f","g","h","s") map (x => HOLConst(StringSymbol(x), Ti -> Ti))
+      val List(x,y,z)    = List("x","y","z") map (x => Var(StringSymbol(x), Ti))
+      val List(u,v,w) = List("u","v","w") map (x => Var(StringSymbol(x), Ti -> Ti))
+      val List(a,b,c, zero)    = List("a","b","c","0") map (x => Const(StringSymbol(x), Ti))
+      val List(f,g,h,s)    = List("f","g","h","s") map (x => Const(StringSymbol(x), Ti -> Ti))
       val List(psym,qsym)      = List("P","Q") map (x => StringSymbol(x))
       val List(_Xsym,_Ysym)    = List("X","Y") map (x => StringSymbol(x))
-      val List(_X,_Y)    = List(_Xsym,_Ysym) map (x => HOLVar(x, Ti -> To))
+      val List(_X,_Y)    = List(_Xsym,_Ysym) map (x => Var(x, Ti -> To))
 
-      val Q = HOLConst(qsym, Ti -> (Ti -> To) )
-      val P = HOLConst(qsym, Ti -> To)
+      val Q = Const(qsym, Ti -> (Ti -> To) )
+      val P = Const(qsym, Ti -> To)
       val xzero = Atom(Q,List(y, Function(s,List(x))))
 
       val formula = AllVar(x, Neg(ExVar(y, xzero)))
@@ -155,9 +156,9 @@ class SolveTest extends SpecificationWithJUnit {
 
     "prove sequent where quantifier order matters" in {
       // example from Chaudhuri et.al.: A multi-focused proof system ...
-      val List(x,y,u,v)    = List("x","y","u","v") map (x => HOLVar(StringSymbol(x), Ti))
-      val c = HOLConst(StringSymbol("c"), Ti)
-      val d = HOLConst(StringSymbol("d"), Ti -> To)
+      val List(x,y,u,v)    = List("x","y","u","v") map (x => Var(StringSymbol(x), Ti))
+      val c = Const(StringSymbol("c"), Ti)
+      val d = Const(StringSymbol("d"), Ti -> To)
 
 
       val formula = ExVar(x, Or( Neg( Atom(d, x::Nil) ), AllVar(y, Atom(d, y::Nil)))) // exists x (-d(x) or forall y d(y))

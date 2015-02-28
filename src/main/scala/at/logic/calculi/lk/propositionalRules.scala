@@ -79,7 +79,7 @@ object Axiom {
    * @param suc The succedent of the axiom.
    * @return The LKProof consisting of (ant |- suc) as its axiom.
    */
-  def apply[T]( ant: Seq[Formula], suc: Seq[Formula] )( implicit factory: FOFactory ): LeafTree[Sequent] with NullaryLKProof = {
+  def apply[T]( ant: Seq[HOLFormula], suc: Seq[HOLFormula] )( implicit factory: FOFactory ): LeafTree[Sequent] with NullaryLKProof = {
     val left: Seq[FormulaOccurrence] = ant.map( x => factory.createFormulaOccurrence( x.asInstanceOf[HOLFormula], Nil ) )
     val right: Seq[FormulaOccurrence] = suc.map( x => factory.createFormulaOccurrence( x.asInstanceOf[HOLFormula], Nil ) )
     new LeafTree[Sequent]( Sequent( left, right ) ) with NullaryLKProof { def rule = InitialRuleType }

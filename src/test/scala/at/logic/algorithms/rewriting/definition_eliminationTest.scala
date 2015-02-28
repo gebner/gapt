@@ -4,6 +4,7 @@ import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
 import at.logic.language.fol._
+import at.logic.language.hol._
 import at.logic.language.lambda.symbols.{StringSymbol}
 import at.logic.calculi.lk._
 import at.logic.language.hol.HOLExpression
@@ -17,16 +18,16 @@ class definition_eliminationTest extends SpecificationWithJUnit {
     val List(p,q,a,b,tsym) = List("P","Q","A","B","t")
     val List(t) = List(tsym) map (FOLConst.apply)
     val List(alpha,beta,x,y) = List(alphasym, betasym, xsym, ysym).map(FOLVar.apply)
-    val qa = Atom(q, alpha::Nil)
-    val qx = Atom(q, x::Nil)
-    val pab = Atom(p, List(alpha,beta))
-    val pay = Atom(p, List(alpha,y))
-    val pty = Atom(p, List(t,y))
-    val pxy = Atom(p, List(x,y))
-    val ax =  Atom(a,x::Nil)
-    val at =  Atom(a,t::Nil)
-    val aa =  Atom(a,alpha::Nil)
-    val bx = Atom(b,x::Nil)
+    val qa = FOLAtom(q, alpha::Nil)
+    val qx = FOLAtom(q, x::Nil)
+    val pab = FOLAtom(p, List(alpha,beta))
+    val pay = FOLAtom(p, List(alpha,y))
+    val pty = FOLAtom(p, List(t,y))
+    val pxy = FOLAtom(p, List(x,y))
+    val ax =  FOLAtom(a,x::Nil)
+    val at =  FOLAtom(a,t::Nil)
+    val aa =  FOLAtom(a,alpha::Nil)
+    val bx = FOLAtom(b,x::Nil)
     val eqxt = Equation(x,t)
     val allypay = AllVar(y,pay)
     val allypty = AllVar(y,pty)
@@ -95,7 +96,7 @@ class definition_eliminationTest extends SpecificationWithJUnit {
   "Definition elimination" should {
     "work on formulas" in {
       skipped("Failing on HOL matching")
-      val f = And(proof1.ax,Or(Atom(proof1.a,proof1.t::Nil), proof1.bx))
+      val f = And(proof1.ax,Or(FOLAtom(proof1.a,proof1.t::Nil), proof1.bx))
       val f_ = DefinitionElimination(proof1.dmap,f)
       println(f_)
       val correct_f = And(proof1.allypxy,Or(proof1.allypty, And(proof1.qx, proof1.allypxy)))

@@ -13,7 +13,7 @@ import at.logic.language.hol._
 import at.logic.calculi.lk.base.FSequent
 import at.logic.language.lambda.types.Ti
 import at.logic.language.lambda.types.To
-import at.logic.language.lambda.App
+import at.logic.language.lambda.{Substitution, Var, Const, App}
 
 
 /**
@@ -99,9 +99,9 @@ class HybridLatexParserTest extends SpecificationWithJUnit with ClasspathFileCop
 
     "correctly infer replacement terms in equalities" in {
       import at.logic.calculi.lk.EquationVerifier.{Equal, Different, EqualModuloEquality, checkReplacement}
-      val List(a) = List("a") map (x => HOLConst(x, Ti))
-      val List(f,g) = List("f","g") map (x => HOLConst(x, Ti -> Ti))
-      val List(p) = List("p") map (x => HOLConst(x, Ti -> (Ti -> (Ti -> To)) ))
+      val List(a) = List("a") map (x => Const(x, Ti))
+      val List(f,g) = List("f","g") map (x => Const(x, Ti -> Ti))
+      val List(p) = List("p") map (x => Const(x, Ti -> (Ti -> (Ti -> To)) ))
       val t1 = App(p, List(App(f,a), App(f,App(g,App(f,a))), a  ))
       val t2 = App(p, List(App(f,a), App(f,App(g,App(g,a))), a  ))
       val fa = App(f,a)
@@ -165,17 +165,17 @@ class HybridLatexParserTest extends SpecificationWithJUnit with ClasspathFileCop
     "correctly prove the instance of an axiom" in {
       val vmap = Map[String,TA]( "x" -> Ti, "y" -> Ti, "z" -> Ti)
       val cmap = Map[String,TA]( "a" -> Ti, "1" -> Ti, "+" -> (Ti->(Ti->Ti)))
-      val naming : String => HOLExpression = x => { if (vmap contains x) HOLVar(x,vmap(x)) else
-                                                                       HOLConst(x,cmap(x)) }
+      val naming : String => HOLExpression = x => { if (vmap contains x) Var(x,vmap(x)) else
+                                                                       Const(x,cmap(x)) }
       val axiom =  HLKHOLParser.ASTtoHOL( naming, HybridLatexParser.parseFormula("(all x all y all z (x+(y+z)=(x+y)+z))"))
       val instance = HLKHOLParser.ASTtoHOL( naming, HybridLatexParser.parseFormula("a+((1+x)+y)=(a+(1+x))+y"))
-      val t1 = Function(HOLConst("+",Ti -> (Ti -> Ti)),List(
-                          HOLConst("1", Ti),
-                          HOLVar("x",Ti)))
-      val t2 = HOLConst("a", Ti)
-      val x = HOLVar("x",Ti)
-      val y = HOLVar("y",Ti)
-      val z = HOLVar("z",Ti)
+      val t1 = Function(Const("+",Ti -> (Ti -> Ti)),List(
+                          Const("1", Ti),
+                          Var("x",Ti)))
+      val t2 = Const("a", Ti)
+      val x = Var("x",Ti)
+      val y = Var("y",Ti)
+      val z = Var("z",Ti)
       val sub = Substitution( List((x,t2), (y,t1), (z,y)) )
       val p = HybridLatexParser.proveInstance(axiom.asInstanceOf[HOLFormula],instance.asInstanceOf[HOLFormula], sub)
       p.root.occurrences must haveSize(2)

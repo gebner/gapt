@@ -1,9 +1,11 @@
 
 package at.logic.parsing.ivy
 
+import at.logic.language.lambda.{Var, Const, Substitution}
 import at.logic.parsing.lisp.{ List => LispList, Atom => LispAtom, Cons => LispCons, SExpression, SExpressionParser }
 import at.logic.language.hol.HOLFormula
 import at.logic.language.fol._
+import at.logic.language.hol._
 import at.logic.calculi.resolution.Clause
 import at.logic.calculi.lk.base.FSequent
 import at.logic.calculi.occurrences.FormulaOccurrence
@@ -77,7 +79,7 @@ object IvyParser extends Logger {
       case _                               => ()
     }
     exp match {
-      /* ================== Atom ========================== */
+      /* ================== FOLAtom ========================== */
       case LispList( LispAtom( id ) :: LispList( LispAtom( "input" ) :: Nil ) :: clause :: _ ) => {
         val fclause = parse_clause( clause, is_variable_symbol )
 
@@ -85,7 +87,7 @@ object IvyParser extends Logger {
           Clause( fclause.antecedent map ( occurrences.factory.createFormulaOccurrence( _, Nil ) ),
             fclause.succedent map ( occurrences.factory.createFormulaOccurrence( _, Nil ) ) ) )
 
-        require( inference.root.toFSequent setEquals fclause, "Error in Atom parsing: required result=" + fclause + " but got: " + inference.root )
+        require( inference.root.toFSequent setEquals fclause, "Error in FOLAtom parsing: required result=" + fclause + " but got: " + inference.root )
         ( id, found_steps + ( ( id, inference ) ) )
       }
 
@@ -362,8 +364,8 @@ object IvyParser extends Logger {
         val Equation( l, r ) = fclause.succedent( 0 )
 
         val nclause = Clause( Nil, List( parent_proof.root.occurrences( 0 ).factory.createFormulaOccurrence( fclause.succedent( 0 ), Nil ) ) )
-        val const: FOLConst = r match {
-          case f @ FOLConst( _ ) => f.asInstanceOf[FOLConst]
+        val const: Const = r match {
+          case f : Const => f
           case _                 => throw new Exception( "Expecting right hand side of new_symbol equation to be the introduced symbol!" )
         }
 
@@ -388,7 +390,7 @@ object IvyParser extends Logger {
     //        it should not make a difference. (if f occurs twice in the clause, it might be derived differently
     //        but we usually don't care for that)
     iformula match {
-      case a @ Atom( sym, args ) =>
+      case a @ FOLAtom( sym, args ) =>
         c.positive.find( _.formula == a ) match {
           case Some( occ ) =>
             ( occ, true, termpos )
@@ -396,7 +398,7 @@ object IvyParser extends Logger {
             throw new Exception( "Error in getting literal by position! Could not find " + iformula + " in " + c )
         }
 
-      case Neg( a @ Atom( sym, args ) ) =>
+      case Neg( a @ FOLAtom( sym, args ) ) =>
         c.negative.find( _.formula == a ) match {
           case Some( occ ) =>
             ( occ, false, termpos )
@@ -411,14 +413,14 @@ object IvyParser extends Logger {
   def replaceTerm_by_in_at( what: FOLTerm, by: FOLTerm, exp: FOLExpression, pos: List[Int] ): FOLExpression = pos match {
     case p :: ps =>
       exp match {
-        case Atom( sym, args ) =>
+        case FOLAtom( sym, args ) =>
           require( 1 <= p && p <= args.length, "Error in parsing replacement: invalid argument position in atom!" )
           val ( args1, rterm :: args2 ) = args.splitAt( p - 1 )
-          Atom( sym, ( args1 ++ List( replaceTerm_by_in_at( what, by, rterm, ps ).asInstanceOf[FOLTerm] ) ++ args2 ) )
-        case Function( sym, args ) =>
+          FOLAtom( sym, ( args1 ++ List( replaceTerm_by_in_at( what, by, rterm, ps ).asInstanceOf[FOLTerm] ) ++ args2 ) )
+        case FOLFunction( sym, args ) =>
           require( 1 <= p && p <= args.length, "Error in parsing replacement: invalid argument position in function!" )
           val ( args1, rterm :: args2 ) = args.splitAt( p - 1 )
-          Function( sym, ( args1 ++ List( replaceTerm_by_in_at( what, by, rterm, ps ).asInstanceOf[FOLTerm] ) ++ args2 ) )
+          FOLFunction( sym, ( args1 ++ List( replaceTerm_by_in_at( what, by, rterm, ps ).asInstanceOf[FOLTerm] ) ++ args2 ) )
         case _ => throw new Exception( "Error in parsing replacement: unexpected (sub)term " + exp + " )" )
       }
 
@@ -444,13 +446,13 @@ object IvyParser extends Logger {
   }
 
   //Note:substitution are sometimes given as lists of cons and sometimes as two-element list...
-  def parse_substitution_( exp: List[SExpression], is_variable_symbol: String => Boolean ): List[( FOLVar, FOLTerm )] = exp match {
+  def parse_substitution_( exp: List[SExpression], is_variable_symbol: String => Boolean ): List[( Var, FOLTerm )] = exp match {
     case LispList( vexp :: texp ) :: xs =>
       val v = parse_term( vexp, is_variable_symbol )
       val t = parse_term( LispList( texp ), is_variable_symbol )
 
       v match {
-        case v_ : FOLVar =>
+        case v_ : Var =>
           ( v_, t ) :: parse_substitution_( xs, is_variable_symbol )
         case _ =>
           throw new Exception( "Error parsing substitution expression " + exp + ": substiution variable was not parsed as variable!" )
@@ -461,7 +463,7 @@ object IvyParser extends Logger {
       val t = parse_term( texp, is_variable_symbol )
 
       v match {
-        case v_ : FOLVar =>
+        case v_ : Var =>
           ( v_, t ) :: parse_substitution_( xs, is_variable_symbol )
         case _ =>
           throw new Exception( "Error parsing substitution expression " + exp + ": substiution variable was not parsed as variable!" )
@@ -503,10 +505,10 @@ object IvyParser extends Logger {
       c match {
         case Neg( formula ) =>
           formula match {
-            case Atom( _, _ ) => neg = formula :: neg
+            case FOLAtom( _, _ ) => neg = formula :: neg
             case _            => throw new Exception( "Error parsing clause: negative Literal " + formula + " is not an atom!" )
           }
-        case Atom( _, _ ) =>
+        case FOLAtom( _, _ ) =>
           pos = c :: pos
         case _ =>
           throw new Exception( "Error parsing clause: formula " + c + " is not a literal!" )
@@ -582,7 +584,7 @@ object IvyParser extends Logger {
       require( args.length == 2, "Error parsing equality: = must be a binary predicate!" )
       Equation( argterms( 0 ), argterms( 1 ) )
     } else {
-      Atom( name, argterms )
+      FOLAtom( name, argterms )
     }
 
   }
@@ -609,8 +611,8 @@ object IvyParser extends Logger {
       FOLConst( "nil" )
     case LispList( LispAtom( name ) :: args ) =>
       val rname = rewrite_name( name )
-      if ( is_variable_symbol( rname ) ) throw new Exception( "Parsing Error: Function name " + rname + " does not conform to naming conventions." )
-      Function( rname, args.map( parse_term( _, is_variable_symbol ) ) )
+      if ( is_variable_symbol( rname ) ) throw new Exception( "Parsing Error: FOLFunction name " + rname + " does not conform to naming conventions." )
+      FOLFunction( rname, args.map( parse_term( _, is_variable_symbol ) ) )
     case _ =>
       throw new Exception( "Parsing Error: Unexpected expression " + ts + " in parsing of a term." )
   }

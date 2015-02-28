@@ -1,6 +1,7 @@
 
 package at.logic.calculi.expansionTrees
 
+import at.logic.language.lambda.{Substitution, Const, Var}
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -11,19 +12,19 @@ import at.logic.language.lambda.types.{Ti => i, To => o, ->}
 @RunWith(classOf[JUnitRunner])
 class ExpansionTreeTest extends SpecificationWithJUnit {
 
-  val alpha = HOLVar(("\\alpha" ), i)
-  val beta = HOLVar(("\\beta" ), i)
-  val c = HOLConst(("c" ), i)
-  val d = HOLConst(("d" ), i)
-  val a = HOLConst(("a" ), i)
-  val f = HOLConst("f", i -> i)
-  val x = HOLVar(("x" ), i)
-  val y = HOLVar(("y" ), i)
-  val z = HOLVar(("z" ), i)
-  val eq = HOLConst("=", i -> (i -> o) )
-  val P = HOLConst("P", i -> (i -> (i -> o)))
-  val Q = HOLConst("Q", i -> o)
-  val R = HOLConst("R", i -> o)
+  val alpha = Var(("\\alpha" ), i)
+  val beta = Var(("\\beta" ), i)
+  val c = Const(("c" ), i)
+  val d = Const(("d" ), i)
+  val a = Const(("a" ), i)
+  val f = Const("f", i -> i)
+  val x = Var(("x" ), i)
+  val y = Var(("y" ), i)
+  val z = Var(("z" ), i)
+  val eq = Const("=", i -> (i -> o) )
+  val P = Const("P", i -> (i -> (i -> o)))
+  val Q = Const("Q", i -> o)
+  val R = Const("R", i -> o)
 
   val et1 = WeakQuantifier(
     ExVar(x, AtomHOL(eq, x::x::Nil)),
@@ -97,7 +98,7 @@ class ExpansionTreeTest extends SpecificationWithJUnit {
     }
 
     "not replace const " in {
-      val s = Substitution(HOLVar("c", i), HOLConst("d", i))
+      val s = Substitution(Var("c", i), Const("d", i))
       val etPrime = substitute(s, et1)
 
       etPrime mustEqual et1

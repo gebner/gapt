@@ -8,22 +8,20 @@ package at.logic.calculi.resolution
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.hol.HOLFormula
-import at.logic.language.fol._
-import at.logic.language.lambda.symbols._
-import at.logic.language.lambda.types._
+import at.logic.language.fol.{rename => renameFOL, _}
+import at.logic.language.lambda._
 import at.logic.utils.ds.acyclicGraphs._
 import at.logic.calculi.lk.base._
 import scala.collection.immutable.HashSet
 import at.logic.calculi.lk.EquationVerifier._
-import at.logic.language.hol.Formula
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.calculi.lk.{ EquationVerifier, BinaryLKProof, UnaryLKProof }
 import at.logic.calculi.lksk.UnaryLKskProof
 
 package robinson {
 
-  import at.logic.utils.logging.Logger
-  import org.slf4j.LoggerFactory
+import at.logic.language.hol.Equation
+import at.logic.utils.logging.Logger
 
   /* creates new formula occurrences where sub is applied to each element x in the given set and which has x as an ancestor
  * additional_context  may add additional ancestors, needed e.g. for factoring */
@@ -223,11 +221,11 @@ package robinson {
 
     def apply( p: RobinsonResolutionProof ): ResolutionProof[Clause] = {
       // TODO: refactor the following into Sequent.getFreeAndBoundVariables
-      val vars = p.root.occurrences.foldLeft( HashSet[FOLVar]() )( ( m, f ) => m ++ freeVariables( f.formula.asInstanceOf[FOLFormula] ) )
+      val vars = p.root.occurrences.foldLeft( HashSet[Var]() )( ( m, f ) => m ++ freeVariables( f.formula.asInstanceOf[FOLFormula] ) )
       // TODO: should not be necessary to pass argument Ti() here.
       // we return an actual variant only if there are free variables, otherwise we return the parent proof as it does not change
       if ( vars.isEmpty ) p
-      else apply( p, Substitution( rename( vars, vars ) ) )
+      else apply( p, Substitution( renameFOL( vars, vars ) ) )
     }
 
     def unapply( proof: ResolutionProof[Clause] with AppliedSubstitution ) = if ( proof.rule == VariantType ) {
@@ -265,7 +263,7 @@ package robinson {
 
     /* factors cnt occurrences of a literal into 1.*/
     def apply( p: RobinsonResolutionProof,
-               a: Formula, cnt: Int, pos: Boolean, sub: Substitution ): RobinsonResolutionProof = {
+               a: HOLFormula, cnt: Int, pos: Boolean, sub: Substitution ): RobinsonResolutionProof = {
       val list = if ( pos ) p.root.positive else p.root.negative
       val occ = list.find( fo => fo.formula == a ).get
       val occs = list.filter( _ != occ ).foldLeft( List[FormulaOccurrence]() )( ( res, fo ) => if ( res.size < cnt - 1 && fo.formula == a )
@@ -296,7 +294,7 @@ package robinson {
     /* factors a_cnt occurrences of a (pos) and b_cnt occurrences of b (neg)
      into 1.*/
     def apply( p: RobinsonResolutionProof,
-               a: Formula, a_cnt: Int, b: Formula, b_cnt: Int,
+               a: HOLFormula, a_cnt: Int, b: HOLFormula, b_cnt: Int,
                sub: Substitution ): RobinsonResolutionProof = {
       val a_occ = p.root.negative.find( fo => fo.formula == a ).get
       val b_occ = p.root.positive.find( fo => fo.formula == b ).get
@@ -448,7 +446,10 @@ package robinson {
     def escapeTex( s: String ) = s.replaceAll( "_", "\\_" )
 
     def tex( p: ResolutionProof[Clause], ids: Map[Clause, Int], edges: List[List[Int]] ): ( String, List[List[Int]] ) = {
-      def f( l: Seq[FormulaOccurrence] ): String = lst2string( ( x: FormulaOccurrence ) => escapeTex( x.formula.toPrettyString ), ",", l.toList )
+      def f( l: Seq[FormulaOccurrence] ): String = lst2string( ( x: FormulaOccurrence ) => escapeTex(
+// FIXME:        x.formula.toPrettyString
+      x.formula.toString
+      ), ",", l.toList )
 
       p match {
         case Resolution( clause, p1, p2, occ1, occ2, subst ) =>

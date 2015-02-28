@@ -5,7 +5,8 @@ import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.calculi.resolution.robinson.{ InitialClause, Factor, Resolution, Variant, Paramodulation, Instance, RobinsonResolutionProof }
 import at.logic.calculi.resolution.Clause
 import at.logic.calculi.lk.base.Sequent
-import at.logic.language.lambda.types.Ti
+import at.logic.language.fol
+import at.logic.language.lambda._
 import at.logic.language.fol._
 
 /**
@@ -121,29 +122,29 @@ object InstantiateElimination {
   type OccMap = Map[FormulaOccurrence, FormulaOccurrence]
   val emptyOccMap = Map[FormulaOccurrence, FormulaOccurrence]()
 
-  type RenameMap = Map[FOLVar, FOLVar]
-  val emptyRenameMap = Map[FOLVar, FOLVar]()
+  type RenameMap = Map[Var, Var]
+  val emptyRenameMap = Map[Var, Var]()
 
   type ProofMap = Map[RobinsonResolutionProof, ( OccMap, VarSet, RobinsonResolutionProof )]
   val emptyProofMap = Map[RobinsonResolutionProof, ( OccMap, VarSet, RobinsonResolutionProof )]()
 
-  type VarSet = Set[FOLVar]
-  val emptyVarSet = Set[FOLVar]()
+  type VarSet = Set[Var]
+  val emptyVarSet = Set[Var]()
 
   /* for a given substitution s, create a new substitution t from fresh variables. return a pair (r,t) where r
    * is the renaming from old vars to new vars */
   def extract_renaming( s: Substitution, forbidden: VarSet ): ( Substitution, Substitution, VarSet ) = {
-    val vars = s.folmap.keys
+    val vars = s.map.keys
     val olds = vars.toList
-    val news = vars.foldLeft( List[FOLVar]() ) {
+    val news = vars.foldLeft( List[Var]() ) {
       case ( acc, v ) =>
-        val newv = rename( v, acc ++ forbidden.toList )
+        val newv = fol.rename( v, acc ++ forbidden.toList )
         newv :: acc
     }
 
     val olds_new = olds zip news.asInstanceOf[List[FOLExpression]]
     val r = Substitution( olds_new )
-    val t = Substitution( s.folmap.map( el => ( r( el._1 ).asInstanceOf[FOLVar], el._2 ) ) )
+    val t = Substitution( s.map.map( el => ( r( el._1 ).asInstanceOf[Var], el._2 ) ) )
 
     ( r, t, news.toSet )
   }
@@ -628,17 +629,17 @@ object InstantiateElimination {
     }
   }
 
-  def commonvars( s1: Substitution, s2: Substitution ): Set[FOLVar] = {
-    val k1 = s1.folmap.keySet
-    val k2 = s2.folmap.keySet
+  def commonvars( s1: Substitution, s2: Substitution ): Set[Var] = {
+    val k1 = s1.map.keySet
+    val k2 = s2.map.keySet
     k1.filter( k2.contains ) //++ k2.filter(k1.contains)
   }
 
   // TODO: should this method go somewhere else??
   def getVars( s: Sequent ): VarSet =
-    s.occurrences.foldLeft( Set[FOLVar]() )( ( acc, occ ) => acc ++ freeVariables( occ.formula.asInstanceOf[FOLFormula] ).toSet )
+    s.occurrences.foldLeft( Set[Var]() )( ( acc, occ ) => acc ++ freeVariables( occ.formula.asInstanceOf[FOLFormula] ).toSet )
 
-  def getVars( ss: Seq[Sequent] ): VarSet = ss.foldLeft( Set[FOLVar]() )( ( acc, s ) => acc ++ getVars( s ) )
+  def getVars( ss: Seq[Sequent] ): VarSet = ss.foldLeft( Set[Var]() )( ( acc, s ) => acc ++ getVars( s ) )
 
 }
 

@@ -13,6 +13,7 @@ package at.logic.parsing.language.xml
 
 import at.logic.calculi.lk.base._
 import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.language.lambda.types._
 import scala.xml._
 import scala.xml.Utility.trim
@@ -52,14 +53,14 @@ object Match {
 
   def apply( s: HOLExpression, t: HOLExpression ): Option[Substitution] =
     ( s, t ) match {
-      case ( HOLApp( s_1, s_2 ), HOLApp( t_1, t_2 ) )               => merge( apply( s_1, t_1 ), apply( s_2, t_2 ) )
-      case ( v: HOLVar, _ ) if !getVars( t ).contains( v )          => Some( Substitution( v, t ) )
-      case ( v1 @ HOLVar( _, _ ), v2 @ HOLVar( _, _ ) ) if v1 == v2 => Some( Substitution() )
-      case ( v1 @ HOLVar( _, _ ), v2 @ HOLVar( _, _ ) ) if v1 != v2 => {
+      case ( App( s_1, s_2 ), App( t_1, t_2 ) )               => merge( apply( s_1, t_1 ), apply( s_2, t_2 ) )
+      case ( v: Var, _ ) if !getVars( t ).contains( v )          => Some( Substitution( v, t ) )
+      case ( v1 @ Var( _, _ ), v2 @ Var( _, _ ) ) if v1 == v2 => Some( Substitution() )
+      case ( v1 @ Var( _, _ ), v2 @ Var( _, _ ) ) if v1 != v2 => {
         None
       }
-      case ( c1 @ HOLConst( _, _ ), c2 @ HOLConst( _, _ ) ) if c1 == c2 => Some( Substitution() )
-      case ( HOLAbs( v1, e1 ), HOLAbs( v2, e2 ) ) => apply( e1, e2 )
+      case ( c1 @ Const( _, _ ), c2 @ Const( _, _ ) ) if c1 == c2 => Some( Substitution() )
+      case ( Abs( v1, e1 ), Abs( v2, e2 ) ) => apply( e1, e2 )
       case _ => None
     }
 
@@ -70,19 +71,19 @@ object Match {
           s1._1 != s2._1 || s1._2 == s2._2 ) ) )
         None
       else {
-        val new_list = ss2.holmap.filter( s2 => ss1.holmap.forall( s1 => s1._1 != s2._1 ) )
-        Some( Substitution( ss1.holmap ++ new_list ) )
+        val new_list = ss2.map.filter( s2 => ss1.map.forall( s1 => s1._1 != s2._1 ) )
+        Some( Substitution( ss1.map ++ new_list ) )
       }
     }
     case ( None, _ ) => None
     case ( _, None ) => None
   }
 
-  def getVars( t: HOLExpression ): Set[HOLVar] = t match {
-    case HOLApp( t_1, t_2 ) => getVars( t_1 ) ++ getVars( t_2 )
-    case v: HOLVar          => ( Set[HOLVar]() ) + v
-    case HOLAbs( _, sub )   => getVars( sub )
-    case _                  => Set[HOLVar]()
+  def getVars( t: HOLExpression ): Set[Var] = t match {
+    case App( t_1, t_2 ) => getVars( t_1 ) ++ getVars( t_2 )
+    case v: Var          => ( Set[Var]() ) + v
+    case Abs( _, sub )   => getVars( sub )
+    case _                  => Set[Var]()
   }
 }
 
@@ -339,8 +340,8 @@ object XMLParser {
     def getProofDatabase(): ProofDatabase = getProofDatabase( getInput() )
     def getProofDatabase( pdb: Node ): ProofDatabase =
       new ProofDatabase( ( pdb \ "definitionlist" \ "termdef" ).map( n => ( new NodeReader( n ) with XMLDefinitionParser ).getNameTermDefinition() ).toList.map(
-        c => ( Atom( HOLConst( c._1, FunctionType( To, ( c._2 )._1.map( _.exptype ) ) ), ( c._2 )._1 ), ( c._2 )._2 ) ).toMap ++ ( pdb \ "definitionlist" \ "formuladef" ).map( n => ( new NodeReader( n ) with XMLDefinitionParser ).getNameFormulaDefinition() ).toList.map(
-          c => ( Atom( HOLConst( c._1, FunctionType( To, ( c._2 )._1.map( _.exptype ) ) ), ( c._2 )._1 ), ( c._2 )._2 ) ).toMap ++ ( pdb \ "definitionlist" \ "indirecttermdef" ).map( n => ( new NodeReader( n ) with XMLDefinitionParser ).getIndirectDefinition() ).toMap,
+        c => ( Atom( Const( c._1, FunctionType( To, ( c._2 )._1.map( _.exptype ) ) ), ( c._2 )._1 ), ( c._2 )._2 ) ).toMap ++ ( pdb \ "definitionlist" \ "formuladef" ).map( n => ( new NodeReader( n ) with XMLDefinitionParser ).getNameFormulaDefinition() ).toList.map(
+          c => ( Atom( Const( c._1, FunctionType( To, ( c._2 )._1.map( _.exptype ) ) ), ( c._2 )._1 ), ( c._2 )._2 ) ).toMap ++ ( pdb \ "definitionlist" \ "indirecttermdef" ).map( n => ( new NodeReader( n ) with XMLDefinitionParser ).getIndirectDefinition() ).toMap,
         ( pdb \ "proof" ).map( n => ( new NodeReader( n ) with XMLProofParser ).getNamedProof() ).toList,
         ( new NodeReader( ( pdb \ "axiomset" ).head ) with XMLSequentParser ).getAxiomSet(),
         ( pdb \ "sequentlist" ).map( n => ( new NodeReader( n ) with XMLSequentParser ).getNamedSequentList() ).toList )
@@ -354,9 +355,9 @@ object XMLParser {
      *                              trait XMLVariableListParser extends XMLNodeParser {
      *
      */
-    def getNameTermDefinition(): ( String, ( List[HOLVar], HOLFormula ) ) = getNameTermDefinition( getInput() )
-    def getNameTermDefinition( n: Node ): ( String, ( List[HOLVar], HOLFormula ) ) = ( n.attribute( "symbol" ).get.head.text, getTermDefinitionRec( n ) )
-    def getTermDefinitionRec( n: Node ): ( List[HOLVar], HOLFormula ) =
+    def getNameTermDefinition(): ( String, ( List[Var], HOLFormula ) ) = getNameTermDefinition( getInput() )
+    def getNameTermDefinition( n: Node ): ( String, ( List[Var], HOLFormula ) ) = ( n.attribute( "symbol" ).get.head.text, getTermDefinitionRec( n ) )
+    def getTermDefinitionRec( n: Node ): ( List[Var], HOLFormula ) =
       (
         ( n.child ).filter( ( m: Node ) =>
           trim( m ) match { case <variablelist>{ ns @ _* }</variablelist> => true; case _ => false } ).map( c =>
@@ -366,11 +367,11 @@ object XMLParser {
         map(
           c => {
             val args = XMLUtils.nodesToAbstractTerms( c.child.toList )
-            Atom( HOLConst( c.attribute( "symbol" ).get.head.text, FunctionType( To, args.map( _.exptype ) ) ), args )
+            Atom( Const( c.attribute( "symbol" ).get.head.text, FunctionType( To, args.map( _.exptype ) ) ), args )
           } ).head )
-    def getNameFormulaDefinition(): ( String, ( List[HOLVar], HOLFormula ) ) = getNameFormulaDefinition( getInput() )
-    def getNameFormulaDefinition( n: Node ): ( String, ( List[HOLVar], HOLFormula ) ) = ( n.attribute( "symbol" ).get.head.text, getFormulaDefinitionRec( n ) )
-    def getFormulaDefinitionRec( n: Node ): ( List[HOLVar], HOLFormula ) = (
+    def getNameFormulaDefinition(): ( String, ( List[Var], HOLFormula ) ) = getNameFormulaDefinition( getInput() )
+    def getNameFormulaDefinition( n: Node ): ( String, ( List[Var], HOLFormula ) ) = ( n.attribute( "symbol" ).get.head.text, getFormulaDefinitionRec( n ) )
+    def getFormulaDefinitionRec( n: Node ): ( List[Var], HOLFormula ) = (
       ( n.child ).filter( ( m: Node ) =>
         trim( m ) match { case <variablelist>{ ns @ _* }</variablelist> => true; case _ => false } ).map( c =>
         ( new NodeReader( c ) with XMLVariableListParser ).getVariableList() ).head,
@@ -477,7 +478,7 @@ object XMLParser {
           // check whether conclusion has been correctly constructed
           assert( root multiSetEquals conc, triple._1.root.toString + " does not equal " + conc.toString + "(rule type " + rt + ")" )
           // check whether the permutation of the formula occurrences corresponds to the conclusion
-          def checkPerm( perm: Array[FormulaOccurrence], list: Seq[Formula] ) =
+          def checkPerm( perm: Array[FormulaOccurrence], list: Seq[HOLFormula] ) =
             perm.zip( perm.indices ).foreach( p => assert( p._1.formula == list.apply( p._2 ),
               "formula at occurrence " + p._1.formula.toString +
                 " is not equal to formula in list position " + p._2 + ": " +
@@ -815,9 +816,9 @@ object XMLParser {
               val subst_ = subst.get
               assert( subst_.map.size <= 1 )
               assert( subst_.map.contains( v ) || subst_.map.size == 0 )
-              assert( subst_( v ).isInstanceOf[HOLVar] )
+              assert( subst_( v ).isInstanceOf[Var] )
               // TODO: give auxf instead of auxf.formula
-              ExistsLeftRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[HOLVar] )
+              ExistsLeftRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[Var] )
             }
             case _ => throw new ParsingException( "Rule type is existsl, but main formula is not ex-quantified." )
           }
@@ -836,9 +837,9 @@ object XMLParser {
               val subst_ = subst.get
               assert( subst_.map.size <= 1 )
               assert( subst_.map.contains( v ) || subst_.map.size == 0 )
-              assert( subst_( v ).isInstanceOf[HOLVar] )
+              assert( subst_( v ).isInstanceOf[Var] )
               // TODO: give auxf instead of auxf.formula
-              ExistsLeftRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[HOLVar] )
+              ExistsLeftRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[Var] )
             }
             case _ => throw new ParsingException( "Rule type is existsl, but main formula is not ex-quantified." )
           }
@@ -857,9 +858,9 @@ object XMLParser {
               val subst_ = subst.get
               assert( subst_.map.size <= 1 )
               assert( subst_.map.contains( v ) || subst_.map.size == 0 )
-              assert( subst_( v ).isInstanceOf[HOLVar] )
+              assert( subst_( v ).isInstanceOf[Var] )
               // TODO: give auxf instead of auxf.formula
-              ForallRightRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[HOLVar] )
+              ForallRightRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[Var] )
             }
             case _ => throw new ParsingException( "Rule type is forallr, but main formula is not all-quantified." )
           }
@@ -878,9 +879,9 @@ object XMLParser {
               val subst_ = subst.get
               assert( subst_.map.size <= 1 )
               assert( subst_.map.contains( v ) || subst_.map.size == 0 )
-              assert( subst_( v ).isInstanceOf[HOLVar] )
+              assert( subst_( v ).isInstanceOf[Var] )
               // TODO: give auxf instead of auxf.formula
-              ForallRightRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[HOLVar] )
+              ForallRightRule( prem, auxf.formula, mainf, subst_( v ).asInstanceOf[Var] )
             }
             case _ => throw new ParsingException( "Rule type is forallr, but main formula is not all-quantified." )
           }
@@ -1067,17 +1068,17 @@ object XMLParser {
           case Some( seq ) =>
             //println(seq.head.text)
             val args = XMLUtils.nodesToAbstractTerms( ns.toList )
-            Atom( HOLConst( n.attribute( "symbol" ).get.head.text, FunctionType( To, args.map( _.exptype ) ) ),
+            Atom( Const( n.attribute( "symbol" ).get.head.text, FunctionType( To, args.map( _.exptype ) ) ),
               args )
 
           case _ =>
             val args = XMLUtils.nodesToAbstractTerms( ns.toList )
-            Atom( HOLConst( n.attribute( "symbol" ).get.head.text, FunctionType( To, args.map( _.exptype ) ) ),
+            Atom( Const( n.attribute( "symbol" ).get.head.text, FunctionType( To, args.map( _.exptype ) ) ),
               args )
         }
-        case <variableatomformula>{ ns @ _* }</variableatomformula> => Atom( ( new NodeReader( ns.head ) with XMLSetTermParser ).getSetTerm().asInstanceOf[HOLVar],
+        case <variableatomformula>{ ns @ _* }</variableatomformula> => Atom( ( new NodeReader( ns.head ) with XMLSetTermParser ).getSetTerm().asInstanceOf[Var],
           XMLUtils.nodesToAbstractTerms( ns.toList.tail ) )
-        case <definedsetformula>{ ns @ _* }</definedsetformula> => HOLApp( ( new NodeReader( ns.head ) with XMLSetTermParser ).getSetTerm().asInstanceOf[HOLExpression],
+        case <definedsetformula>{ ns @ _* }</definedsetformula> => App( ( new NodeReader( ns.head ) with XMLSetTermParser ).getSetTerm().asInstanceOf[HOLExpression],
           XMLUtils.nodesToAbstractTerms( ns.toList.tail ) ).asInstanceOf[HOLFormula]
         case <conjunctiveformula>{ ns @ _* }</conjunctiveformula> => createConjunctiveFormula( n.attribute( "type" ).get.head.text,
           XMLUtils.nodesToFormulas( ns.toList ) )
@@ -1090,7 +1091,7 @@ object XMLParser {
           }
         case <secondorderquantifiedformula>{ ns @ _* }</secondorderquantifiedformula> =>
           {
-            val variable = ( new NodeReader( ns.head ) with XMLSetTermParser ).getSetTerm().asInstanceOf[HOLVar]
+            val variable = ( new NodeReader( ns.head ) with XMLSetTermParser ).getSetTerm().asInstanceOf[Var]
             val form = ( new NodeReader( ns.last ) with XMLFormulaParser ).getFormula()
             createQuantifiedFormula( n.attribute( "type" ).get.head.text,
               variable, form )
@@ -1110,7 +1111,7 @@ object XMLParser {
         }
       }
 
-    private def createQuantifiedFormula( sym: String, variable: HOLVar, formula: HOLFormula ): HOLFormula =
+    private def createQuantifiedFormula( sym: String, variable: Var, formula: HOLFormula ): HOLFormula =
       sym match {
         case "all"     => AllVar( variable, formula )
         case "exists"  => ExVar( variable, formula )
@@ -1170,22 +1171,22 @@ object XMLParser {
 
     /**
      * If the Node provided by XMLNodeParser is a &lt;variable&gt; element,
-     * a HOLVar object corresponding to the Node is returned.
+     * a Var object corresponding to the Node is returned.
      *
-     * @return A HOLVar object corresponding to the Node provided by getInput().
+     * @return A Var object corresponding to the Node provided by getInput().
      * @throws ParsingException If the Node provided by getInput() is not a &lt;variable&gt; element.
      */
-    def getVariable(): HOLVar = getVariable( getInput() )
+    def getVariable(): Var = getVariable( getInput() )
 
     /**
-     * If n is a &lt;variable&gt; element, a HOLVar object corresponding to the Node is returned.
+     * If n is a &lt;variable&gt; element, a Var object corresponding to the Node is returned.
      *
      * @param n A Node corresponding to a &lt;variable&gt; element.
-     * @return A HOLVar object corresponding to the Node provided by getInput().
+     * @return A Var object corresponding to the Node provided by getInput().
      * @throws ParsingException If n is not a &lt;variable&gt; element.
      */
-    def getVariable( n: Node ): HOLVar = try {
-      getTerm( n ).asInstanceOf[HOLVar]
+    def getVariable( n: Node ): Var = try {
+      getTerm( n ).asInstanceOf[Var]
     } catch {
       case e: ClassCastException => throw new ParsingException( "Expected <variable> but found: " + n.toString )
     }
@@ -1201,14 +1202,14 @@ object XMLParser {
      */
     def getTerm( n: Node ): HOLExpression =
       trim( n ) match {
-        case <variable/> => HOLVar( n.attribute( "symbol" ).get.head.text, Ti )
-        case <constant/> => HOLConst( n.attribute( "symbol" ).get.head.text, Ti )
+        case <variable/> => Var( n.attribute( "symbol" ).get.head.text, Ti )
+        case <constant/> => Const( n.attribute( "symbol" ).get.head.text, Ti )
         case <function>{ ns @ _* }</function> => createFunction( n.attribute( "symbol" ).get.head.text,
           XMLUtils.nodesToAbstractTerms( ns.toList ) )
         case _ => throw new ParsingException( "Could not parse XML: " + n.toString )
       }
     private def createFunction( sym: String, args: List[HOLExpression] ): HOLExpression =
-      Function( HOLConst( sym, FunctionType( Ti, args.map( a => a.exptype ) ) ), args )
+      Function( Const( sym, FunctionType( Ti, args.map( a => a.exptype ) ) ), args )
   }
 
   /**
@@ -1225,9 +1226,9 @@ object XMLParser {
      */
     def getSetTerm(): HOLExpression = getSetTerm( getInput() )
 
-    def compose( vars: List[HOLVar], f: HOLFormula ): HOLExpression = vars match {
+    def compose( vars: List[Var], f: HOLFormula ): HOLExpression = vars match {
       case Nil     => f
-      case h :: tl => HOLAbs( h, compose( tl, f ) )
+      case h :: tl => Abs( h, compose( tl, f ) )
     }
 
     /**
@@ -1245,17 +1246,17 @@ object XMLParser {
         // provided here, so we assume for the moment that all second order
         // variables have type i -> o.
         case <secondordervariable/> =>
-          HOLVar( n.attribute( "symbol" ).get.head.text, Ti -> To )
+          Var( n.attribute( "symbol" ).get.head.text, Ti -> To )
         case <lambdasubstitution>{ ns @ _* }</lambdasubstitution> => {
           val vars = ( new NodeReader( ns.head ) with XMLVariableListParser ).getVariableList()
           val f = ( new NodeReader( ns.last ) with XMLFormulaParser ).getFormula()
-          compose( vars, f ).asInstanceOf[HOLAbs]
+          compose( vars, f ).asInstanceOf[Abs]
         }
         // TODO: treat definitional aspect of definedset
         case <definedset>{ ns @ _* }</definedset> =>
           {
             val args = XMLUtils.nodesToAbstractTerms( ns.toList )
-            Function( HOLConst( n.attribute( "symbol" ).get.head.text, FunctionType( Ti -> To, args.map( t => t.exptype ) ) ),
+            Function( Const( n.attribute( "symbol" ).get.head.text, FunctionType( Ti -> To, args.map( t => t.exptype ) ) ),
               args )
           }
         case _ => throw new ParsingException( "Could not parse XML: " + n.toString )
@@ -1263,27 +1264,27 @@ object XMLParser {
   }
 
   /**
-   * This trait parses XML elements &lt;variablelist&gt; into Lists of HOLVar objects.
+   * This trait parses XML elements &lt;variablelist&gt; into Lists of Var objects.
    */
   trait XMLVariableListParser extends XMLNodeParser {
     /**
      * If the Node provided by XMLNodeParser is a &lt;variablelist&gt; element,
-     * a List of HOLVar objects corresponding to the Node is returned.
+     * a List of Var objects corresponding to the Node is returned.
      *
-     * @return A List of HOLVar objects corresponding to the Node provided by getInput().
+     * @return A List of Var objects corresponding to the Node provided by getInput().
      * @throws ParsingException If the Node provided by getInput() is not a &lt;variablelist&gt; element.
      */
-    def getVariableList(): List[HOLVar] = getVariableList( getInput() )
+    def getVariableList(): List[Var] = getVariableList( getInput() )
 
     /**
      * If n is a &lt;variablelist&gt; element,
-     * a List of HOLVar objects corresponding to the Node is returned.
+     * a List of Var objects corresponding to the Node is returned.
      *
      * @param n A Node correspondign to a &lt;variablelist&gt; element.
-     * @return  A List of HOLVar objects corresponding to n.
+     * @return  A List of Var objects corresponding to n.
      * @throws  ParsingException If n) is not a &lt;variablelist&gt; element.
      */
-    def getVariableList( n: Node ): List[HOLVar] =
+    def getVariableList( n: Node ): List[Var] =
       trim( n ) match {
         case <variablelist>{ ns @ _* }</variablelist> => {
           ns.map( n => ( new NodeReader( n ) with XMLTermParser ).getVariable() ).toList

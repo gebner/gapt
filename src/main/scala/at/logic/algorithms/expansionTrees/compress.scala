@@ -3,7 +3,8 @@ package at.logic.algorithms.expansionTrees
 
 import at.logic.calculi.expansionTrees._
 import at.logic.calculi.expansionTrees.{ MWeakQuantifier, MStrongQuantifier, MAnd, MOr, MImp, MNeg, MAtom, MSkolemQuantifier, MultiExpansionTree, MultiExpansionSequent }
-import at.logic.language.hol.{ HOLExpression, HOLVar, ExVar, AllVar, HOLFormula, instantiate }
+import at.logic.language.hol.{ HOLExpression, ExVar, AllVar, HOLFormula, instantiate }
+import at.logic.language.lambda.Var
 import at.logic.utils.dssupport.ListSupport.groupSeq
 
 /**
@@ -40,7 +41,7 @@ object compressQuantifiers {
    */
   def apply( sequent: ExpansionSequent ): MultiExpansionSequent = MultiExpansionSequent( sequent.antecedent.map( this.apply ), sequent.succedent.map( this.apply ) )
 
-  private def compressStrong( tree: MultiExpansionTree, v: HOLVar ): Tuple2[MultiExpansionTree, Seq[HOLVar]] = tree match {
+  private def compressStrong( tree: MultiExpansionTree, v: Var ): Tuple2[MultiExpansionTree, Seq[Var]] = tree match {
     case MStrongQuantifier( _, vars, sel ) => ( sel, vars.+:( v ) )
     case _                                 => ( tree, List( v ) )
   }
@@ -95,7 +96,7 @@ object decompressQuantifiers {
    */
   def apply( sequent: MultiExpansionSequent ): ExpansionSequent = ExpansionSequent( sequent.antecedent.map( this.apply ), sequent.succedent.map( this.apply ) )
 
-  private def decompressStrong( f: HOLFormula, eig: Seq[HOLVar], sel: ExpansionTree ): ExpansionTree = f match {
+  private def decompressStrong( f: HOLFormula, eig: Seq[Var], sel: ExpansionTree ): ExpansionTree = f match {
     case AllVar( _, _ ) | ExVar( _, _ ) => StrongQuantifier( f, eig.head, decompressStrong( instantiate( f, eig.head ), eig.tail, sel ) )
     case _                              => sel
   }

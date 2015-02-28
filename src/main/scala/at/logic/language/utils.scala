@@ -6,19 +6,11 @@ package at.logic.language.hol
 
 import at.logic.calculi.lk.base._
 import at.logic.language.hol.replacements.{ getAllPositions2, getAllPositions }
+import at.logic.language.lambda.freeVariables
 import at.logic.language.lambda.symbols.StringSymbol
-import at.logic.language.lambda.{ freeVariables => freeVariablesLambda, rename => renameLambda }
+import at.logic.language.lambda._
 import at.logic.language.hol.logicSymbols._
 import at.logic.language.lambda.types.{ Ti, TA }
-
-object freeVariables {
-  /**
-   * Computes a list of all HOL Variables of an expression, including repetitions.
-   * @param e the expressions to extract from
-   * @return the list of free variables in e
-   */
-  def apply( e: HOLExpression ): List[HOLVar] = freeVariablesLambda( e ).asInstanceOf[List[HOLVar]]
-}
 
 object freeHOVariables {
   /**
@@ -27,23 +19,16 @@ object freeHOVariables {
    * @param f the expressions to extract from
    * @return the list of free variables with type != Ti in e
    */
-  def apply( f: HOLFormula ) = freeVariables( f ).filter( _ match { case HOLVar( _, Ti ) => false; case _ => true } )
+  def apply( f: HOLFormula ) = freeVariables( f ).filter( _ match { case Var( _, Ti ) => false; case _ => true } )
 }
 
 // matches for consts and vars, but nothing else
 object VarOrConst {
   def unapply( e: HOLExpression ): Option[( String, TA )] = e match {
-    case HOLVar( name, et )   => Some( ( name, et ) )
-    case HOLConst( name, et ) => Some( ( name, et ) )
+    case Var( name, et )   => Some( ( name, et ) )
+    case Const( name, et ) => Some( ( name, et ) )
     case _                    => None
   }
-}
-
-// get a new variable/constant (similar to the current and) different from all 
-// variables/constants in the blackList, returns this variable if this variable 
-// is not in the blackList
-object rename {
-  def apply( v: HOLVar, blacklist: List[HOLVar] ): HOLVar = renameLambda( v, blacklist ).asInstanceOf[HOLVar]
 }
 
 // Instantiates a term in a quantified formula (using the first quantifier).
@@ -61,8 +46,8 @@ object instantiate {
 
 object containsQuantifier {
   def apply( e: HOLExpression ): Boolean = e match {
-    case HOLVar( x, tpe )   => false
-    case HOLConst( x, tpe ) => false
+    case Var( x, tpe )   => false
+    case Const( x, tpe ) => false
     case Atom( x, args )    => false
     case And( x, y )        => containsQuantifier( x ) || containsQuantifier( y )
     case Or( x, y )         => containsQuantifier( x ) || containsQuantifier( y )
@@ -71,8 +56,8 @@ object containsQuantifier {
     case ExVar( x, f )      => true
     case AllVar( x, f )     => true
     // Is this really necessary?
-    case HOLAbs( v, exp )   => containsQuantifier( exp )
-    case HOLApp( l, r )     => containsQuantifier( l ) || containsQuantifier( r )
+    case Abs( v, exp )   => containsQuantifier( exp )
+    case App( l, r )     => containsQuantifier( l ) || containsQuantifier( r )
     case _                  => throw new Exception( "Unrecognized symbol." )
   }
 }
@@ -96,8 +81,8 @@ object containsStrongQuantifier {
 
 object isPrenex {
   def apply( e: HOLExpression ): Boolean = e match {
-    case HOLVar( _, _ )   => true
-    case HOLConst( _, _ ) => true
+    case Var( _, _ )   => true
+    case Const( _, _ ) => true
     case Atom( _, _ )     => true
     case Neg( f )         => !containsQuantifier( f )
     case And( f1, f2 )    => !containsQuantifier( f1 ) && !containsQuantifier( f2 )
@@ -118,8 +103,8 @@ object isAtom {
 
 object subTerms {
   def apply( e: HOLExpression ): List[HOLExpression] = e match {
-    case HOLVar( _, _ )         => List( e )
-    case HOLConst( _, _ )       => List( e )
+    case Var( _, _ )         => List( e )
+    case Const( _, _ )       => List( e )
     case Atom( _, args )        => e +: args.flatMap( a => subTerms( a ) )
     case Function( _, args, _ ) => e +: args.flatMap( a => subTerms( a ) )
     case And( x, y )            => e +: ( subTerms( x ) ++ subTerms( y ) )
@@ -128,15 +113,15 @@ object subTerms {
     case Neg( x )               => e +: subTerms( x )
     case AllVar( _, x )         => e +: subTerms( x )
     case ExVar( _, x )          => e +: subTerms( x )
-    case HOLAbs( _, x )         => e +: subTerms( x )
-    case HOLApp( x, y )         => e +: ( subTerms( x ) ++ subTerms( y ) )
+    case Abs( _, x )         => e +: subTerms( x )
+    case App( x, y )         => e +: ( subTerms( x ) ++ subTerms( y ) )
     case _                      => throw new Exception( "Unrecognized symbol." )
   }
 }
 
 object isLogicalSymbol {
   def apply( e: HOLExpression ): Boolean = e match {
-    case x: HOLConst => x.sym.isInstanceOf[LogicalSymbolA]
+    case x: Const => x.sym.isInstanceOf[LogicalSymbolA]
     case _           => false
   }
 }
@@ -170,8 +155,8 @@ object getMatrix {
   def apply( f: HOLFormula ): HOLFormula = {
     assert( isPrenex( f ) )
     f match {
-      case HOLVar( _, _ ) |
-        HOLConst( _, _ ) |
+      case Var( _, _ ) |
+        Const( _, _ ) |
         Atom( _, _ ) |
         Imp( _, _ ) |
         And( _, _ ) |
@@ -185,16 +170,6 @@ object getMatrix {
 }
 
 object normalizeFreeVariables {
-  /**
-   * Systematically renames the free variables by their left-to-right occurence in a HOL Formula f to x_{i} where all
-   * x_{i} are different from the names of all bound variables in the term. I.e. reversing the substitution yields
-   * the syntactically same formula.
-   *
-   * @param f the formula to be normalized
-   * @return a pair (g,sub) such that g = sub(f). reversing sub allows to restore the original variables.
-   */
-  def apply( f: HOLFormula ): ( HOLFormula, Substitution ) = apply( f.asInstanceOf[HOLExpression] ).asInstanceOf[( HOLFormula, Substitution )]
-
   /**
    * Systematically renames the free variables by their left-to-right occurence in a HOL Expression f to x_{i} where all
    * x_{i} are different from the names of all bound variables in the term. I.e. reversing the substitution yields
@@ -223,19 +198,6 @@ object normalizeFreeVariables {
   }
 
   /**
-   * Works exactly like normalizeFreeVaribles(f:HOLFormula) but allows the specification of your own name generator.
-   * Please note that such a normalized formula is still only unique up to alpha equality. Compare for example
-   * (all y P(x,y)) with (all x_{0} P(x,x_{0}):
-   * the first normalizes to (all y P(x_{0},y whereas the second normalizes to (all x_{0}1 P(x_{0},x_{0}1).
-   *
-   * @param f the formula to be normalized
-   * @param freshName a function which generates a fresh name every call.
-   * @return a pair (g,sub) such that g = sub(f). reversing sub allows to restore the original variables.
-   */
-  def apply( f: HOLFormula, freshName: () => String ): ( HOLFormula, Substitution ) =
-    apply( f.asInstanceOf[HOLExpression], freshName ).asInstanceOf[( HOLFormula, Substitution )]
-
-  /**
    * Works exactly like normalizeFreeVaribles(f:HOLExpression) but allows the specification of your own name generator.
    * Please note that such a normalized formula is still only unique up to alpha equality. Compare for example
    * (all y P(x,y)) with (all x_{0} P(x,x_{0}):
@@ -247,10 +209,10 @@ object normalizeFreeVariables {
    */
   def apply( f: HOLExpression, freshName: () => String ): ( HOLExpression, Substitution ) = {
     val vs = freeVariables( f )
-    val map = vs.foldLeft( Map[HOLVar, HOLVar]() )( ( map, v ) => {
+    val map = vs.foldLeft( Map[Var, Var]() )( ( map, v ) => {
       if ( map.contains( v ) ) map else {
         val name = freshName()
-        map + ( ( v, v.factory.createVar( StringSymbol( name ), v.exptype ).asInstanceOf[HOLVar] ) )
+        map + ( ( v, v.factory.createVar( StringSymbol( name ), v.exptype ).asInstanceOf[Var] ) )
       }
     } )
 
@@ -294,7 +256,7 @@ object toAbbreviatedString {
 
     val s: ( String, String, Int ) = exp match {
       case null           => ( "null", "null", -2 )
-      case HOLVar( x, t ) => ( x.toString() + " : " + t.toString(), x.toString(), 0 )
+      case Var( x, t ) => ( x.toString() + " : " + t.toString(), x.toString(), 0 )
       case Atom( x, args ) => {
         ( x.toString() + "(" + ( args.foldRight( "" ) {
           case ( x, "" )  => "" + toAbbreviatedString( x )
@@ -337,9 +299,9 @@ object toAbbreviatedString {
       case Neg( x )               => ( NegSymbol + toAbbreviatedString( x ), NegSymbol.toString(), 0 )
       case ExVar( x, f )          => ( ExistsSymbol + toAbbreviatedString( x ) + "." + toAbbreviatedString( f ), ExistsSymbol.toString(), 0 )
       case AllVar( x, f )         => ( ForallSymbol + toAbbreviatedString( x ) + "." + toAbbreviatedString( f ), ForallSymbol.toString(), 0 )
-      case HOLAbs( v, exp )       => ( "(λ" + toAbbreviatedString( v ) + "." + toAbbreviatedString( exp ) + ")", "λ", 0 )
-      case HOLApp( l, r )         => ( "(" + toAbbreviatedString( l ) + ")(" + toAbbreviatedString( r ) + ")", "()()", 0 )
-      case HOLConst( x, exptype ) => ( x.toString(), x.toString(), 0 )
+      case Abs( v, exp )       => ( "(λ" + toAbbreviatedString( v ) + "." + toAbbreviatedString( exp ) + ")", "λ", 0 )
+      case App( l, r )         => ( "(" + toAbbreviatedString( l ) + ")(" + toAbbreviatedString( r ) + ")", "()()", 0 )
+      case Const( x, exptype ) => ( x.toString(), x.toString(), 0 )
       case _                      => throw new Exception( "ERROR: Unknown HOL expression." );
     }
     return s

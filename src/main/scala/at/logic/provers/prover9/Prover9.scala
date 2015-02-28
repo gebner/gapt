@@ -14,7 +14,8 @@ import at.logic.calculi.lk.{ CutRule, Axiom }
 import at.logic.calculi.resolution._
 import at.logic.calculi.resolution.robinson.{ InitialClause, RobinsonResolutionProof }
 import at.logic.language.fol._
-import at.logic.language.hol.containsStrongQuantifier
+import at.logic.language.hol._
+import at.logic.language.lambda.{Substitution, Const, Var, freeVariables}
 import at.logic.parsing.ivy.IvyParser
 import at.logic.parsing.ivy.IvyParser.{ IvyStyleVariables, PrologStyleVariables, LadrStyleVariables }
 import at.logic.parsing.ivy.conversion.IvyToRobinson
@@ -455,14 +456,14 @@ class Prover9Prover extends Prover with at.logic.utils.logging.Logger {
     }
 
   // Grounds a sequent by replacing variables by new constants.
-  private def ground( seq: FSequent ): ( FSequent, Map[FOLVar, FOLConst] ) = {
+  private def ground( seq: FSequent ): ( FSequent, Map[Var, Const] ) = {
     // FIXME: cast of formula of sequent!
     val free = seq.antecedent.flatMap(
       f => freeVariables( f.asInstanceOf[FOLFormula] ) ).toSet ++
       seq.succedent.flatMap( f => freeVariables( f.asInstanceOf[FOLFormula] ) ).toSet
     // FIXME: make a better association between the consts and the vars.
     //val map = free.zip( free.map( v => new FOLConst( new CopySymbol( v.name ) ) ) ).toMap
-    val map = free.zip( free.map( v => new FOLConst( v.sym ) ) ).toMap
+    val map = free.zip( free.map( v => FOLConst( v.sym ) ) ).toMap
     trace( "grounding map in prover9: " )
     trace( map.toString )
     // FIXME: cast of formula of sequent!
@@ -472,7 +473,7 @@ class Prover9Prover extends Prover with at.logic.utils.logging.Logger {
     ( ret, map )
   }
 
-  private def unground( p: LKProof, map: Map[FOLVar, FOLConst] ) =
+  private def unground( p: LKProof, map: Map[Var, Const] ) =
     applyReplacement( p, map.map( x => x.swap ) )._1
 
   /* TODO: should use this when grounding instead of ConstantStringSymbol

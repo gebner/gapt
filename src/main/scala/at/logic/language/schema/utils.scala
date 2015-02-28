@@ -5,7 +5,7 @@
 
 package at.logic.language.schema
 
-import at.logic.language.hol.{ freeVariables => freeVariablesHOL, HOLFormula }
+import at.logic.language.lambda.{ freeVariables => freeVariablesHOL }
 
 object freeVariables {
   def apply( e: SchemaExpression ): List[SchemaVar] = freeVariablesHOL( e ).asInstanceOf[List[SchemaVar]]

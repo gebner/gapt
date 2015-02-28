@@ -40,8 +40,8 @@ import at.logic.transformations.skolemization.lksk.LKtoLKskc
 
 
 
- class Robinson2RalAndUndoHOL2Fol(sig_vars : Map[String, List[HOLVar]],
-                                   sig_consts : Map[String, List[HOLConst]],
+ class Robinson2RalAndUndoHOL2Fol(sig_vars : Map[String, List[Var]],
+                                   sig_consts : Map[String, List[Const]],
                                    cmap : replaceAbstractions.ConstantsMap) extends RobinsonToRal {
     val absmap = Map[String, HOLExpression]() ++ (cmap.toList.map(x => (x._2.toString, x._1)))
     val cache = Map[HOLExpression, HOLExpression]()
@@ -57,7 +57,7 @@ import at.logic.transformations.skolemization.lksk.LKtoLKskc
     override def convert_substitution(s:Substitution) : Substitution = {
       val mapping = s.map.toList.map(x =>
         (
-          BetaReduction.betaNormalize(recreateWithFactory(undoHol2Fol.backtranslate(x._1.asInstanceOf[FOLVar], sig_vars, sig_consts, absmap, None)(HOLFactory), HOLFactory).asInstanceOf[HOLExpression]).asInstanceOf[HOLVar],
+          BetaReduction.betaNormalize(recreateWithFactory(undoHol2Fol.backtranslate(x._1.asInstanceOf[FOLVar], sig_vars, sig_consts, absmap, None)(HOLFactory), HOLFactory).asInstanceOf[HOLExpression]).asInstanceOf[Var],
           BetaReduction.betaNormalize(recreateWithFactory(undoHol2Fol.backtranslate(x._2.asInstanceOf[FOLExpression], sig_vars, sig_consts, absmap, None)(HOLFactory), HOLFactory).asInstanceOf[HOLExpression])
           )
       )
@@ -67,8 +67,8 @@ import at.logic.transformations.skolemization.lksk.LKtoLKskc
   }
 
  object Robinson2RalAndUndoHOL2Fol {
-    def apply(sig_vars : Map[String, List[HOLVar]],
-              sig_consts : Map[String, List[HOLConst]],
+    def apply(sig_vars : Map[String, List[Var]],
+              sig_consts : Map[String, List[Const]],
               cmap : replaceAbstractions.ConstantsMap) =
       new Robinson2RalAndUndoHOL2Fol(sig_vars, sig_consts, cmap)
   }

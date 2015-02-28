@@ -12,8 +12,9 @@ import at.logic.calculi.lk.base._
 import at.logic.calculi.lksk.{ LabelledSequent, UnaryLKskProof, LabelledFormulaOccurrence }
 import at.logic.calculi.occurrences.{ defaultFormulaOccurrenceFactory, FormulaOccurrence }
 import at.logic.calculi.slk._
-import at.logic.language.hol.{ Substitution => HOLSubstitution, _ }
+import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols._
+import at.logic.language.lambda.{App, Substitution, Const}
 import at.logic.language.lambda.types._
 import at.logic.language.lambda.symbols.SymbolA
 import at.logic.language.schema.{ Substitution => SchemaSubstitution, SchemaFormula, BiggerThan, IntZero, IntVar, IntegerTerm, IndexedPredicate, Succ, TopC, BigAnd, BigOr, Pred, SchemaVar }
@@ -210,11 +211,11 @@ object structToExpressionTree {
     def toCode = "EmptyPlusSymbol"
   }
 
-  case object TimesC extends HOLConst( TimesSymbol, Type( "( o -> (o -> o) )" ) )
-  case object PlusC extends HOLConst( PlusSymbol, Type( "( o -> (o -> o) )" ) )
-  case object DualC extends HOLConst( DualSymbol, Type( "(o -> o)" ) )
-  case object EmptyTimesC extends HOLConst( EmptyTimesSymbol, To )
-  case object EmptyPlusC extends HOLConst( EmptyPlusSymbol, To )
+  case object TimesC extends Const( TimesSymbol, Type( "( o -> (o -> o) )" ) )
+  case object PlusC extends Const( PlusSymbol, Type( "( o -> (o -> o) )" ) )
+  case object DualC extends Const( DualSymbol, Type( "(o -> o)" ) )
+  case object EmptyTimesC extends Const( EmptyTimesSymbol, To )
+  case object EmptyPlusC extends Const( EmptyPlusSymbol, To )
 }
 
 // some stuff for schemata
@@ -269,7 +270,7 @@ object cutOccConfigToCutConfig {
 
   def getFormulaForCC( fo: FormulaOccurrence, fs: List[HOLFormula], params: List[IntVar], terms: List[IntegerTerm] ) =
     {
-      val sub = HOLSubstitution( params.zip( terms ) )
+      val sub = Substitution( params.zip( terms ) )
 
       val list = fs.filter( f => {
         sub( f ).syntaxEquals( fo.formula ) || f.syntaxEquals( fo.formula )
@@ -599,7 +600,7 @@ object StructCreators {
 
 //returns an arithmetically ground struct
 object groundStruct {
-  def apply( s: Struct, subst: HOLSubstitution ): Struct = {
+  def apply( s: Struct, subst: Substitution ): Struct = {
     s match {
       case A( fo ) => {
         fo.formula match {
@@ -627,7 +628,7 @@ object unfoldGroundStruct {
     s match {
       case A( fo ) => {
         fo.formula match {
-          case HOLApp( f, l ) => f.asInstanceOf[HOLConst].sym match {
+          case App( f, l ) => f.asInstanceOf[Const].sym match {
             case clsym: ClauseSetSymbol => {
               if ( l == IntZero() ) {
                 val base = SchemaProofDB.get( clsym.name ).base
@@ -641,13 +642,13 @@ object unfoldGroundStruct {
               //println("struct : "+struct)
               val new_map = Map.empty[SchemaVar, IntegerTerm] + Tuple2( IntVar( "k" ), Pred( l.asInstanceOf[IntegerTerm] ) )
               val new_subst = SchemaSubstitution( new_map )
-              val gr_struct = groundStruct( struct, new_subst.asInstanceOf[HOLSubstitution] )
+              val gr_struct = groundStruct( struct, new_subst )
               //println("ground struct : "+gr_struct)
               return unfoldGroundStruct( gr_struct )
             }
             case _ => {
-              //if(f.asInstanceOf[HOLConst].name.toString().contains("cl^"))
-              //println("proof_name = "+f.asInstanceOf[HOLConst].name.asInstanceOf[ClauseSetSymbol].name)
+              //if(f.asInstanceOf[Const].name.toString().contains("cl^"))
+              //println("proof_name = "+f.asInstanceOf[Const].name.asInstanceOf[ClauseSetSymbol].name)
             }
           }
           case _ => () //println("complex f-la")

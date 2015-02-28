@@ -80,10 +80,10 @@ class PrimeProofTest extends SpecificationWithJUnit {
 //      val csPre : List[Sequent] = StandardClauseSet.transformStructToClauseSet(s) map (_.getSequent)
 //
 //      // we will add three axioms: 0 < p(x), 1 < p(x), x = x
-//      val seq1 = Sequent(Nil, Atom(ConstantStringSymbol("<"), HOLConst(ConstantStringSymbol("0"), Ti())::Function(ConstantStringSymbol("p"), HOLVar(VariableStringSymbol("x"), Ti())::Nil, Ti())::Nil)::Nil)
-//      val seq2 = Sequent(Nil, Atom(ConstantStringSymbol("<"), HOLConst(ConstantStringSymbol("1"), Ti())::Function(ConstantStringSymbol("p"), HOLVar(VariableStringSymbol("x"), Ti())::Nil, Ti())::Nil)::Nil)
-//      val seq3 = Sequent(Nil, Atom(ConstantStringSymbol("="), HOLVar(VariableStringSymbol("x"), Ti())::(HOLVar(VariableStringSymbol("x"), Ti())::Nil))::Nil)
-//      val seq4 = Sequent(Nil, Atom(ConstantStringSymbol("="), Function(ConstantStringSymbol("+"), HOLConst(ConstantStringSymbol("0"), Ti())::HOLVar(VariableStringSymbol("x"), Ti())::Nil, Ti())::HOLVar(VariableStringSymbol("x"), Ti())::Nil)::Nil)
+//      val seq1 = Sequent(Nil, Atom(ConstantStringSymbol("<"), Const(ConstantStringSymbol("0"), Ti())::Function(ConstantStringSymbol("p"), Var(VariableStringSymbol("x"), Ti())::Nil, Ti())::Nil)::Nil)
+//      val seq2 = Sequent(Nil, Atom(ConstantStringSymbol("<"), Const(ConstantStringSymbol("1"), Ti())::Function(ConstantStringSymbol("p"), Var(VariableStringSymbol("x"), Ti())::Nil, Ti())::Nil)::Nil)
+//      val seq3 = Sequent(Nil, Atom(ConstantStringSymbol("="), Var(VariableStringSymbol("x"), Ti())::(Var(VariableStringSymbol("x"), Ti())::Nil))::Nil)
+//      val seq4 = Sequent(Nil, Atom(ConstantStringSymbol("="), Function(ConstantStringSymbol("+"), Const(ConstantStringSymbol("0"), Ti())::Var(VariableStringSymbol("x"), Ti())::Nil, Ti())::Var(VariableStringSymbol("x"), Ti())::Nil)::Nil)
 //
 //      val holcs : List[Sequent] = pdb.axioms ::: List[Sequent](seq1,seq2,seq3,seq4) ::: csPre
 //

@@ -5,6 +5,7 @@ package at.logic.transformations.skolemization
 import at.logic.algorithms.fol.hol2fol.convertHolToFol
 import at.logic.language.lambda.BetaReduction._
 import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
+import at.logic.language.lambda.{Substitution, Const, Var}
 import scala.collection.immutable.{ HashMap, HashSet }
 import scala.collection.immutable.Stream.Empty
 import at.logic.calculi.occurrences._
@@ -57,14 +58,8 @@ object skolemize extends Logger {
   /* formula skolemization -- symbols provides the skolem symbols to introduce */
   def apply( f: HOLFormula, pol: Int, symbols: Stream[SymbolA] ): HOLFormula = skolemize( f, pol, symbols )
 
-  /* formula skolemization -- polarity 0 is negative and polarity 1 is positive */
-  def apply( f: FOLFormula, pol: Int ): FOLFormula = apply( f, pol, SkolemSymbolFactory.getSkolemSymbols )
-
-  /* formula skolemization -- symbols provides the skolem symbols to introduce */
-  def apply( f: FOLFormula, pol: Int, symbols: Stream[SymbolA] ): FOLFormula = convertHolToFol( skolemize( f, pol, symbols ) )
   /*
-
-  Idea of the algorithm: Going upwards in the prooftree, we remember the 
+  Idea of the algorithm: Going upwards in the prooftree, we remember the
   instantiations of the weak quantifiers (inst_map) and replace EV's by Skolem terms (symbols chosen by symbol_map).
   The skolemized formulas in the proof-tree are computed dynamically at every step.
 
@@ -315,14 +310,14 @@ object skolemize extends Logger {
     ( ret, copyMapToDescendant( proof, ret, new_proof._2 ) + ( m -> ret.prin.head ) )
   }
 
-  def handleStrongQuantRule( proof: LKProof, p: LKProof, a: FormulaOccurrence, m: FormulaOccurrence, v: HOLVar,
-                             constructor: ( LKProof, FormulaOccurrence, HOLFormula, HOLVar ) => LKProof )( implicit symbol_map: Map[FormulaOccurrence, Stream[SymbolA]],
+  def handleStrongQuantRule( proof: LKProof, p: LKProof, a: FormulaOccurrence, m: FormulaOccurrence, v: Var,
+                             constructor: ( LKProof, FormulaOccurrence, HOLFormula, Var ) => LKProof )( implicit symbol_map: Map[FormulaOccurrence, Stream[SymbolA]],
                                                                                                            inst_map: Map[FormulaOccurrence, List[HOLExpression]],
                                                                                                            cut_ancs: Set[FormulaOccurrence] ) = {
     //println("\nentering strong quant rule for "+proof.root.toStringSimple)
     if ( !cut_ancs.contains( m ) ) {
       val sym_stream = symbol_map( m )
-      val sym = HOLConst( sym_stream.head, FunctionType( v.exptype, inst_map( m ).map( _.exptype ) ) )
+      val sym = Const( sym_stream.head, FunctionType( v.exptype, inst_map( m ).map( _.exptype ) ) )
       //println("skolem symbol: " + sym)
       val skolem_term = Function( sym, inst_map( m ) )
       val sub = Substitution( v, skolem_term )
@@ -388,7 +383,7 @@ object skolemize extends Logger {
     case ExVar( x, f ) =>
       if ( pol == 1 ) {
         trace( "skolemizing AllQ" )
-        val sym = HOLConst( symbols.head, FunctionType( x.exptype, terms.map( _.exptype ) ) )
+        val sym = Const( symbols.head, FunctionType( x.exptype, terms.map( _.exptype ) ) )
         val sf = Function( sym, terms )
 
         val sub = Substitution( x, sf )
@@ -403,7 +398,7 @@ object skolemize extends Logger {
     case AllVar( x, f ) =>
       if ( pol == 0 ) {
         trace( "skolemizing AllQ" )
-        val sym = HOLConst( symbols.head, FunctionType( x.exptype, terms.map( _.exptype ) ) )
+        val sym = Const( symbols.head, FunctionType( x.exptype, terms.map( _.exptype ) ) )
         val sf = Function( sym, terms )
 
         val sub = Substitution( x, sf )

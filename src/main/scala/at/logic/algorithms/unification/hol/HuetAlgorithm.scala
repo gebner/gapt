@@ -66,7 +66,7 @@ import at.logic.language.lambda.BetaReduction
           case (v,u)::uptail if u == v => List(new MyConfiguration(uptail))
 
           // (flex,flex)
-          case (HOLVar(n1,t1), HOLVar(n2,t2))::uptail => List(new MyConfiguration(pushPreSolvedToEnd(conf.uproblems)))
+          case (Var(n1,t1), Var(n2,t2))::uptail => List(new MyConfiguration(pushPreSolvedToEnd(conf.uproblems)))
 
           // (2)
           case (AbsN(_,AppN1(v,ls1)),AbsN(_,AppN1(u,ls2)))::uptail if v == u => (new MyConfiguration( (ls1.zip(ls2).asInstanceOf[List[Tuple2[HOLExpression,HOLExpression]]]) ::: uptail))::Nil
@@ -145,8 +145,8 @@ import at.logic.language.lambda.BetaReduction
     private[huet] def inPreSolvedForm(ls: List[Tuple2[HOLExpression,HOLExpression]]): Boolean = ls match {
       case head::rest => {
         head match {
-          case (HOLVar(n1,t1), HOLVar(n2,t2)) => inPreSolvedForm(rest)
-          case (v @ HOLVar(n1,t1), e: HOLExpression)   => {
+          case (Var(n1,t1), Var(n2,t2)) => inPreSolvedForm(rest)
+          case (v @ Var(n1,t1), e: HOLExpression)   => {
             if (e.freeVariables.contains(v.asInstanceOf[Var]) || e.boundVariables.contains(v.asInstanceOf[Var]))
               return false
             rest.foreach(x =>
@@ -155,7 +155,7 @@ import at.logic.language.lambda.BetaReduction
                         )
             inPreSolvedForm(ls.tail)
           }
-          case (e: HOLExpression, v @ HOLVar(n1,t1))  =>{
+          case (e: HOLExpression, v @ Var(n1,t1))  =>{
             if (e.freeVariables.contains(v.asInstanceOf[Var]) || e.boundVariables.contains(v.asInstanceOf[Var]))
               return false
             rest.foreach(x =>
@@ -197,7 +197,7 @@ import at.logic.language.lambda.BetaReduction
       val map: Map[Var, HOLExpression] = new HashMap[Var, HOLExpression]()
       val new_map = ls.foldLeft(map)((x,y)=> {
         y._1 match {
-          case HOLVar(n,t) => x + ((y._1.asInstanceOf[Var], y._2.asInstanceOf[HOLExpression]))
+          case Var(n,t) => x + ((y._1.asInstanceOf[Var], y._2.asInstanceOf[HOLExpression]))
           case _ => x + ((y._2.asInstanceOf[Var], y._1.asInstanceOf[HOLExpression]))
         }
       })
@@ -220,13 +220,13 @@ import at.logic.language.lambda.BetaReduction
 
     private[huet] def isFunctionConstantSymbol(v: HOLExpression): Boolean ={
       v match {
-        case HOLConst(n,t) => true
+        case Const(n,t) => true
         case _ => false
       }
     }
 
     private[huet] def isHOLVar(f: HOLExpression): Boolean = f match {
-      case HOLVar(n,t) => true
+      case Var(n,t) => true
       case _ => false
     }
 
@@ -239,8 +239,8 @@ import at.logic.language.lambda.BetaReduction
     }
 
 
-    private[huet] def createFuncVarH(ys: List[HOLVar], ls: List[HOLVar])(implicit disAllowedVars: MSet[Var] ) : Var = {
-      val k: HOLVar = HOLVar(VariableStringSymbol("x"), Ti()).asInstanceOf[HOLVar]
+    private[huet] def createFuncVarH(ys: List[Var], ls: List[Var])(implicit disAllowedVars: MSet[Var] ) : Var = {
+      val k: Var = Var(VariableStringSymbol("x"), Ti()).asInstanceOf[Var]
       val dv  = disAllowedVars.foldLeft(Set[Var]())((ls,x) => ls.+(x))
       val fv: Var = freshVar.apply1(FunctionType.apply(Ti(), (ys:::ls).map(x => x.exptype)), dv, k)
       disAllowedVars.union(fv.freeVariables)
@@ -249,25 +249,25 @@ import at.logic.language.lambda.BetaReduction
       fv
     }
 
-    private[huet] def getListOfZs(exptype: TA)(implicit disAllowedVars: MSet[Var] ) : List[HOLVar] = {
-      val k = HOLVar(VariableStringSymbol("x"), Ti())
-      val l1 = List[HOLVar]()
+    private[huet] def getListOfZs(exptype: TA)(implicit disAllowedVars: MSet[Var] ) : List[Var] = {
+      val k = Var(VariableStringSymbol("x"), Ti())
+      val l1 = List[Var]()
       exptype match {
         case Ti() => {
            val dv  = disAllowedVars.foldLeft(Set[Var]())((ls,x) => ls.+(x))
-           val fv = freshVar.apply1(exptype ,dv, k ).asInstanceOf[HOLVar]
+           val fv = freshVar.apply1(exptype ,dv, k ).asInstanceOf[Var]
            disAllowedVars.+(fv);
            disAllowedVars.union(fv.freeVariables)
            disAllowedVars.union(fv.boundVariables)
            return l1
         }
         case FunctionType(to, lsArgs ) => {
-          val ls:List[HOLVar] = lsArgs.map(z => {
+          val ls:List[Var] = lsArgs.map(z => {
             val dv  = disAllowedVars.foldLeft(Set[Var]())((ls,x) => ls.+(x))
             val fv = freshVar.apply1(z, dv, k); disAllowedVars.+(fv);
             disAllowedVars.union(fv.freeVariables)
             disAllowedVars.union(fv.boundVariables)
-            fv.asInstanceOf[HOLVar]
+            fv.asInstanceOf[Var]
           })
           ls
         }
@@ -278,11 +278,11 @@ import at.logic.language.lambda.BetaReduction
   //4a
   private[huet] def pairPartialBindingImitation(uprobl : List[Pair[HOLExpression, HOLExpression]])(implicit disAllowedVars: MSet[Var] ) :  Tuple2[HOLExpression, List[Configuration[Substitution[HOLExpression]]]] = {
     uprobl match {
-      case (AbsN(varList1, AppN(funcVar: HOLVar, args1)), AbsN(varList2, Function(sym : ConstantStringSymbol, args2, returnType)))::s => {
+      case (AbsN(varList1, AppN(funcVar: Var, args1)), AbsN(varList2, Function(sym : ConstantStringSymbol, args2, returnType)))::s => {
 
               val dv  = disAllowedVars.foldLeft(Set[Var]())((ls,x) => ls.+(x))
               val newVarList = args1.map(x => {val fv = freshVar.apply1(x.exptype, dv, funcVar); disAllowedVars+=fv; fv} )
-              val generalFlexibleTermList = args2.map(x1 => createFuncVarH(newVarList.asInstanceOf[List[HOLVar]], getListOfZs(x1.exptype)))
+              val generalFlexibleTermList = args2.map(x1 => createFuncVarH(newVarList.asInstanceOf[List[Var]], getListOfZs(x1.exptype)))
               val zHlist = generalFlexibleTermList.zip(args2.map(x => getListOfZs(x.exptype))).map(x => AbsN(x._2, x._1))
               val appzHlist = zHlist.map(x => {
                 val ev = EtaExpand.apply( AppN(x, newVarList));
@@ -306,25 +306,25 @@ import at.logic.language.lambda.BetaReduction
   // 4b
   private[huet] def listOfProjections(uprobl : List[Pair[HOLExpression, HOLExpression]])(implicit disAllowedVars: MSet[Var] ) :  List[Configuration[Substitution[HOLExpression]]] = {
     uprobl match {
-        case (AbsN(varList1, AppN(funcVar: HOLVar, args1)), AbsN(varList2, AppN(funcVar2: HOLConst, args2)))::s => {
+        case (AbsN(varList1, AppN(funcVar: Var, args1)), AbsN(varList2, AppN(funcVar2: Const, args2)))::s => {
          val dv  = disAllowedVars.foldLeft(Set[Var]())((ls,x) => ls.+(x))
-         val newVarList = args1.map(x => {val fv = freshVar.apply1(x.exptype, dv, funcVar).asInstanceOf[HOLVar]; disAllowedVars+=fv; fv.asInstanceOf[HOLVar]} )
-         val generalFlexibleTermListOfList: List[List[HOLVar]] = newVarList.map(x => {
+         val newVarList = args1.map(x => {val fv = freshVar.apply1(x.exptype, dv, funcVar).asInstanceOf[Var]; disAllowedVars+=fv; fv.asInstanceOf[Var]} )
+         val generalFlexibleTermListOfList: List[List[Var]] = newVarList.map(x => {
            x.exptype match {
-             case Ti() => List[HOLVar]()
+             case Ti() => List[Var]()
              case FunctionType(to, lsArgs ) => {
-               lsArgs.map(x1 => createFuncVarH(newVarList.asInstanceOf[List[HOLVar]], getListOfZs(x1)).asInstanceOf[HOLVar])
+               lsArgs.map(x1 => createFuncVarH(newVarList.asInstanceOf[List[Var]], getListOfZs(x1)).asInstanceOf[Var])
              }
            }
          })
 
          val listOfArgsOfY_i = generalFlexibleTermListOfList.zip(newVarList).map(x => {
            x._1 match {
-             case Nil => List[HOLVar]()
+             case Nil => List[Var]()
              case _ => {
                x._2.exptype match {
                  case FunctionType(to, lsArgs ) =>  (x._1.zip(lsArgs)).map(y => {val zs = getListOfZs(y._2) ;val h = AbsN(zs, AppN(AppN(y._1, newVarList), zs)); println("\nh = "+h.toString1+"  :  "+h.exptype.toString ); h})
-                 case Ti() => {println("\nERROR in 2\n"); List[HOLVar]()}
+                 case Ti() => {println("\nERROR in 2\n"); List[Var]()}
                  }
              }
            }

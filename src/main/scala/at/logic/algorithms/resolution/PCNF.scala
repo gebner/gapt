@@ -1,12 +1,16 @@
 package at.logic.algorithms.resolution
 
 import at.logic.calculi.lk.base.{ FSequent, LKProof }
+
 import at.logic.calculi.lk._
 import at.logic.calculi.resolution.FClause
 import at.logic.language.hol._
 import at.logic.algorithms.lk.{ applySubstitution => applySub }
 import at.logic.calculi.resolution.robinson.RobinsonResolutionProof
+import at.logic.language.lambda._
 import at.logic.utils.dssupport.ListSupport.removeFirst
+
+import scala.App
 
 /**
  * Given a formula f and a clause a in CNF(-f), PCNF computes a proof of s o a (see logic.at/ceres for the definition of o)
@@ -62,7 +66,6 @@ object PCNF {
             // check for reflexivity
             a.pos.find( f => f match {
               case Equation( a, b ) if a == b => true
-              case at.logic.language.fol.Equation( a, b ) if a == b => true // TOFIX: remove when bug 224 is solved
               case _ => false
             } ) match {
               case Some( f ) => ( Axiom( List(), List( f ) ), f.asInstanceOf[HOLFormula], false )
@@ -123,7 +126,7 @@ object PCNF {
       else throw new IllegalArgumentException( "clause: " + as( a, sub ) + " is not found in CNFs of ancestors: "
         + CNFp( f1 ) + " or " + CNFn( f2 ) + " of formula " + f )
     }
-    case ExVar( v, f2 ) => ExistsRightRule( PCNFn( f2, a, sub ), f2, f, v.asInstanceOf[HOLVar] )
+    case ExVar( v, f2 ) => ExistsRightRule( PCNFn( f2, a, sub ), f2, f, v )
     case _              => throw new IllegalArgumentException( "unknown head of formula: " + a.toString )
   }
 
@@ -147,7 +150,7 @@ object PCNF {
     case Imp( f1, f2 ) => {
       ImpLeftRule( PCNFn( f1, a, sub ), PCNFp( f2, a, sub ), f1, f2 )
     }
-    case AllVar( v, f2 ) => ForallLeftRule( PCNFp( f2, a, sub ), f2, f, v.asInstanceOf[HOLVar] )
+    case AllVar( v, f2 ) => ForallLeftRule( PCNFp( f2, a, sub ), f2, f, v )
     case _               => throw new IllegalArgumentException( "unknown head of formula: " + a.toString )
   }
 
@@ -157,7 +160,7 @@ object PCNF {
       val pairs = ( f1.neg.asInstanceOf[Seq[HOLExpression]].zip( f2.neg.asInstanceOf[Seq[HOLExpression]] )
         ++ f1.pos.asInstanceOf[Seq[HOLExpression]].zip( f2.pos.asInstanceOf[Seq[HOLExpression]] ) )
       try {
-        val sub = pairs.foldLeft( Substitution() )( ( sb, p ) => Substitution( sb.holmap ++ computeSub( p ).holmap ) )
+        val sub = pairs.foldLeft( Substitution() )( ( sb, p ) => Substitution( sb.map ++ computeSub( p ).map ) )
         if ( pairs.forall( p => sub( p._1 ) == p._2 ) ) Some( sub ) else None
       } catch {
         case e: Exception => None
@@ -165,14 +168,14 @@ object PCNF {
     }
   }
   def computeSub( p: ( HOLExpression, HOLExpression ) ): Substitution = ( p._1, p._2 ) match {
-    case ( HOLVar( a, _ ), HOLVar( b, _ ) ) if a == b => Substitution()
-    case ( v1: HOLVar, v2: HOLVar )                   => Substitution( v1, v2 )
-    case ( c1: HOLConst, c2: HOLConst )               => Substitution()
-    case ( HOLApp( a1, b1 ), HOLApp( a2, b2 ) ) =>
+    case ( Var( a, _ ), Var( b, _ ) ) if a == b => Substitution()
+    case ( v1: Var, v2: Var )                   => Substitution( v1, v2 )
+    case ( c1: Const, c2: Const )               => Substitution()
+    case ( App( a1, b1 ), App( a2, b2 ) ) =>
       val s1 = computeSub( a1, a2 )
       val s2 = computeSub( b1, b2 )
-      Substitution( s1.holmap ++ s2.holmap )
-    case ( HOLAbs( v1, a1 ), HOLAbs( v2, a2 ) ) => Substitution( computeSub( a1, a2 ).holmap - v1 )
+      Substitution( s1.map ++ s2.map )
+    case ( Abs( v1, a1 ), Abs( v2, a2 ) ) => Substitution( computeSub( a1, a2 ).map - v1 )
     case _                                      => throw new Exception()
   }
 

@@ -7,7 +7,7 @@ import at.logic.calculi.resolution.robinson._
 import at.logic.language.fol._
 import at.logic.calculi.resolution.{ FClause, Clause }
 import at.logic.algorithms.lk.{ applySubstitution => applySub, CleanStructuralRules, CloneLKProof }
-import at.logic.language.hol.HOLFormula
+import at.logic.language.hol.{Equation, HOLFormula}
 
 object RobinsonToLK extends at.logic.utils.logging.Logger {
   type mapT = scala.collection.mutable.Map[FClause, LKProof]
@@ -129,7 +129,7 @@ object RobinsonToLK extends at.logic.utils.logging.Logger {
           val u1 = applySub( recConvert( p1, seq, map, createAxiom ), s )._1
           val u2 = applySub( recConvert( p2, seq, map, createAxiom ), s )._1
 
-          val Atom( _, s0 :: _ ) = a1.formula
+          val FOLAtom( _, s0 :: _ ) = a1.formula
           val s1 = s( s0.asInstanceOf[FOLExpression] ).asInstanceOf[FOLTerm]
 
           // locate principal formula
@@ -196,6 +196,7 @@ object RobinsonToLK extends at.logic.utils.logging.Logger {
    * @param main A HOLFormula.
    * @return True iff 1.) equation is of the form s = s 2,) main and aux coincide and 3.) s occurs in aux.
    */
+  import at.logic.language.hol.ImplicitConversions._
   private def isTrivial( equation: HOLFormula, aux: HOLFormula, main: HOLFormula ): Boolean = equation match {
     case Equation( s, t ) =>
       if ( s != t || aux != main )

@@ -11,6 +11,7 @@ import at.logic.algorithms.resolution._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.resolution.FClause
 import at.logic.language.fol.Utils._
+import at.logic.language.hol._
 import at.logic.language.fol._
 import at.logic.provers.Prover
 import at.logic.provers.minisat.MiniSAT
@@ -346,21 +347,21 @@ object MinimizeSolution extends at.logic.utils.logging.Logger {
   }
 
   // Computes ground paramodulants including the trivial one
-  def Paramodulants( s: FOLTerm, t: FOLTerm, r: FOLTerm ): Set[FOLTerm] = r match {
+  def Paramodulants1( s: FOLTerm, t: FOLTerm, r: FOLTerm ): Set[FOLTerm] = r match {
     case _ if r == s => Set( t ) ++ Set( r )
-    case Function( f, args ) => {
-      val margs = args.map( a => Paramodulants( s, t, a ) )
-      getArgs( margs ).map( args => Function( f, args ) )
+    case FOLFunction( f, args ) => {
+      val margs = args.map( a => Paramodulants1( s, t, a ) )
+      getArgs( margs ).map( args => FOLFunction( f, args ) )
     }
     case _ => Set( r )
   }
 
   // Computes ground paramodulants without the trivial one
-  def Paramodulants( s: FOLTerm, t: FOLTerm, f: FOLFormula ): Set[FOLFormula] = {
+  def Paramodulants2( s: FOLTerm, t: FOLTerm, f: FOLFormula ): Set[FOLFormula] = {
     val res = f match {
-      case Atom( x, args ) => {
-        val margs = args.map( a => Paramodulants( s, t, a ) )
-        getArgs( margs ).map( args => Atom( x, args ) ) - f
+      case FOLAtom( x, args ) => {
+        val margs = args.map( a => Paramodulants1( s, t, a ) )
+        getArgs( margs ).map( args => FOLAtom( x, args ) ) - f
       }
     }
     trace( "paramodulants for " + s + " = " + t + " into " + f + " : " + res )
@@ -380,9 +381,9 @@ object MinimizeSolution extends at.logic.utils.logging.Logger {
   def myParamodulants( left: MyFClause[FOLFormula], right: MyFClause[FOLFormula] ): Set[MyFClause[FOLFormula]] =
     left.pos.foldLeft( Set[MyFClause[FOLFormula]]() )( ( res, eq ) =>
       res ++ ( eq match {
-        case Equation( s, t ) => right.neg.flatMap( aux => ( Paramodulants( s, t, aux ) ++ Paramodulants( t, s, aux ) ).map( para =>
+        case Equation( s, t ) => right.neg.flatMap( aux => ( Paramodulants2( s, t, aux ) ++ Paramodulants2( t, s, aux ) ).map( para =>
           getParaLeft( eq, aux, para, left, right ) ) ) ++
-          right.pos.flatMap( aux => ( Paramodulants( s, t, aux ) ++ Paramodulants( t, s, aux ) ).map( para =>
+          right.pos.flatMap( aux => ( Paramodulants2( s, t, aux ) ++ Paramodulants2( t, s, aux ) ).map( para =>
             getParaRight( eq, aux, para, left, right ) ) ).toSet
         case _ => Set()
       } ) )

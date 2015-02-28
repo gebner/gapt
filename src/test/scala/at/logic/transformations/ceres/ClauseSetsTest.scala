@@ -5,7 +5,8 @@ import at.logic.algorithms.lk.{getAncestors, getCutAncestors}
 import at.logic.calculi.lk.base.Sequent
 import at.logic.calculi.occurrences._
 import at.logic.calculi.slk.SchemaProofDB
-import at.logic.language.hol.{Substitution => HOLSubstitution, Atom => HOLAtom, _}
+import at.logic.language.hol.{ Atom => HOLAtom, _}
+import at.logic.language.lambda.Var
 import at.logic.language.schema.{Substitution => SchemaSubstitution, _}
 import at.logic.language.lambda.types._
 import at.logic.parsing.shlk_parsing.sFOParser
@@ -26,10 +27,10 @@ class ClauseSetsTest extends SpecificationWithJUnit {
   "ClauseSets" should {
     "- transform a Struct into a standard clause set" in {
 
-      val a = HOLAtom(HOLVar( "a", To ))
-      val b = HOLAtom(HOLVar( "b", To ))
-      val c = HOLAtom(HOLVar( "c", To ))
-      val d = HOLAtom(HOLVar( "d", To ))
+      val a = HOLAtom(Var( "a", To ))
+      val b = HOLAtom(Var( "b", To ))
+      val c = HOLAtom(Var( "c", To ))
+      val d = HOLAtom(Var( "d", To ))
       val fa = defaultFormulaOccurrenceFactory.createFormulaOccurrence(a, Nil)
       val fb = defaultFormulaOccurrenceFactory.createFormulaOccurrence(b, Nil)
       val fc = defaultFormulaOccurrenceFactory.createFormulaOccurrence(c, Nil)
@@ -66,7 +67,7 @@ class ClauseSetsTest extends SpecificationWithJUnit {
 
       val new_map = Map.empty[SchemaVar, IntegerTerm] + Tuple2(IntVar("k"), Succ(IntZero()) )
       var subst = SchemaSubstitution(new_map)
-      val gr = groundStruct(struct, subst.asInstanceOf[HOLSubstitution])
+      val gr = groundStruct(struct, subst)
       val unfold_gr = unfoldGroundStruct(gr)
 
       val cs_gr = StandardClauseSet.transformStructToClauseSet(gr)

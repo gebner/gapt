@@ -12,7 +12,7 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.occurrences._
 import at.logic.language.fol._
-import at.logic.language.hol.HOLFormula
+import at.logic.language.hol._
 
 object applyReplacement {
   //TODO: replace by map_proof(... (m) => TermReplacement(m, repl)) -- the code in here is now superfluous

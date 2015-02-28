@@ -6,14 +6,16 @@
 package at.logic.transformations.ceres.clauseSets
 
 import at.logic.algorithms.subsumption.StillmanSubsumptionAlgorithmHOL
+import at.logic.language.lambda.{App, Const}
 import at.logic.transformations.ceres.struct._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.lksk._
 import at.logic.calculi.occurrences._
 import at.logic.language.schema.IndexedPredicate
 import at.logic.language.lambda.types.{ To, Tindex }
-import at.logic.language.hol.{ HOLExpression, HOLApp, HOLConst, HOLFormula }
+import at.logic.language.hol.{ HOLExpression, HOLFormula }
 import at.logic.utils.logging.Logger
+import scala.App
 import scala.annotation.tailrec
 import scala.util.control.TailCalls._
 
@@ -237,7 +239,7 @@ object renameCLsymbols {
         fo.formula match {
           case IndexedPredicate( constant, indices ) if constant.sym.isInstanceOf[ClauseSetSymbol] => {
             if ( !map.contains( constant ) ) {
-              map = map + Tuple2( constant, HOLConst( "cl_" + i.toString, Tindex -> To ) )
+              map = map + Tuple2( constant, Const( "cl_" + i.toString, Tindex -> To ) )
               i = i + 1
             }
           }
@@ -255,7 +257,7 @@ object renameCLsymbols {
         fo.formula match {
           case IndexedPredicate( constant, indices ) if constant.sym.isInstanceOf[ClauseSetSymbol] => {
             if ( map.contains( constant ) ) {
-              HOLApp( map( constant ), indices.head )
+              App( map( constant ), indices.head )
             } else
               throw new Exception( "\nError in renameCLsymbols.apply !\n" )
           }
@@ -266,7 +268,7 @@ object renameCLsymbols {
         fo.formula match {
           case IndexedPredicate( constant, indices ) if constant.sym.isInstanceOf[ClauseSetSymbol] => {
             if ( map.contains( constant ) ) {
-              HOLApp( map( constant ), indices.head )
+              App( map( constant ), indices.head )
             } else
               throw new Exception( "\nError in renameCLsymbols.apply !\n" )
           }

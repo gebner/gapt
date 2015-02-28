@@ -1,6 +1,7 @@
 package at.logic.parsing.language.tptp
 
 import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.language.lambda.types._
 import at.logic.calculi.lk.base.{ FSequent, LKProof }
 import at.logic.language.hol.logicSymbols.{ EqSymbol, LogicalSymbolA }
@@ -62,8 +63,8 @@ class TPTPHOLExporter {
       return ()
     };
     println( "% Symbol translation table for THF export:" )
-    val csyms = cnames.keySet.toList.map( { case HOLConst( s, _ ) => s } )
-    val vsyms = vnames.keySet.toList.map( { case HOLVar( s, _ ) => s } )
+    val csyms = cnames.keySet.toList.map( { case Const( s, _ ) => s } )
+    val vsyms = vnames.keySet.toList.map( { case Var( s, _ ) => s } )
 
     val width = ( vsyms ++ csyms ).sortWith( ( x, y ) => y.size < x.size ).head.size
 
@@ -101,22 +102,22 @@ class TPTPHOLExporter {
 
   }
 
-  type NameMap = Map[HOLVar, String]
-  val emptyNameMap = Map[HOLVar, String]()
-  type CNameMap = Map[HOLConst, String]
-  val emptyCNameMap = Map[HOLConst, String]()
+  type NameMap = Map[Var, String]
+  val emptyNameMap = Map[Var, String]()
+  type CNameMap = Map[Const, String]
+  val emptyCNameMap = Map[Const, String]()
 
-  def createFormula( f: HOLExpression, map: Map[HOLVar, String] ) = f match {
-    case HOLVar( _, _ ) => map( f.asInstanceOf[HOLVar] )
+  def createFormula( f: HOLExpression, map: Map[Var, String] ) = f match {
+    case Var( _, _ ) => map( f.asInstanceOf[Var] )
   }
 
-  def createNamesFromSequent( l: List[FSequent] ): ( List[HOLVar], NameMap, List[HOLConst], CNameMap ) = {
-    val vs = l.foldLeft( Set[HOLVar]() )( ( set, fs ) => getVars( fs.toFormula, set ) ).toList
-    val cs = l.foldLeft( Set[HOLConst]() )( ( set, fs ) => getConsts( fs.toFormula, set ) ).toList
+  def createNamesFromSequent( l: List[FSequent] ): ( List[Var], NameMap, List[Const], CNameMap ) = {
+    val vs = l.foldLeft( Set[Var]() )( ( set, fs ) => getVars( fs.toFormula, set ) ).toList
+    val cs = l.foldLeft( Set[Const]() )( ( set, fs ) => getConsts( fs.toFormula, set ) ).toList
     ( vs, createNamesFromVar( vs ), cs, createNamesFromConst( cs ) )
   }
 
-  def createNamesFromVar( l: List[HOLVar] ): NameMap = l.foldLeft( emptyNameMap )( ( map, v ) => {
+  def createNamesFromVar( l: List[Var] ): NameMap = l.foldLeft( emptyNameMap )( ( map, v ) => {
     if ( map contains v )
       map
     else {
@@ -130,7 +131,7 @@ class TPTPHOLExporter {
     freeVariables( f ).foldRight( f )( ( v, g ) => AllVar( v, g ) )
   }
 
-  def createNamesFromConst( l: List[HOLConst] ): CNameMap = l.foldLeft( emptyCNameMap )( ( map, v ) => {
+  def createNamesFromConst( l: List[Const] ): CNameMap = l.foldLeft( emptyCNameMap )( ( map, v ) => {
     if ( map contains v )
       map
     else {
@@ -165,20 +166,20 @@ class TPTPHOLExporter {
       case AllVar( x, t )   => addparens( "![" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
       case ExVar( x, t )    => addparens( "?[" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
       case Equation( x, y ) => addparens( thf_formula( x, vmap, cmap ) + " = " + thf_formula( y, vmap, cmap ), !outermost )
-      case HOLAbs( x, t )   => addparens( "^[" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
-      case HOLApp( s, t )   => addparens( thf_formula( s, vmap, cmap ) + " @ " + thf_formula( t, vmap, cmap ), !outermost )
-      case HOLVar( _, _ )   => vmap( f.asInstanceOf[HOLVar] )
-      case HOLConst( _, _ ) => cmap( f.asInstanceOf[HOLConst] )
+      case Abs( x, t )   => addparens( "^[" + vmap( x ) + " : " + getTypeString( x.exptype ) + "] : (" + thf_formula( t, vmap, cmap ) + ")", !outermost )
+      case App( s, t )   => addparens( thf_formula( s, vmap, cmap ) + " @ " + thf_formula( t, vmap, cmap ), !outermost )
+      case Var( _, _ )   => vmap( f.asInstanceOf[Var] )
+      case Const( _, _ ) => cmap( f.asInstanceOf[Const] )
       case _                => throw new Exception( "TPTP export does not support outermost connective of " + f )
     }
   }
 
-  def thf_type_dec( i: Int, v: HOLVar, vmap: NameMap ): String = {
+  def thf_type_dec( i: Int, v: Var, vmap: NameMap ): String = {
     require( vmap.contains( v ), "Did not generate an export name for " + v + "!" )
     "thf(" + i + ", type, " + vmap( v ) + ": " + getTypeString( v.exptype ) + " )."
   }
 
-  def thf_type_dec( i: Int, c: HOLConst, cmap: CNameMap ): String = {
+  def thf_type_dec( i: Int, c: Const, cmap: CNameMap ): String = {
     require( cmap.contains( c ), "Did not generate an export name for " + c + "!" )
     "thf(" + i + ", type, " + cmap( c ) + ": " + getTypeString( c.exptype ) + " )."
   }
@@ -192,7 +193,7 @@ class TPTPHOLExporter {
     case _                 => throw new Exception( "TPTP type export for " + t + " not implemented!" )
   }
 
-  def mkVarName( str: String, map: Map[HOLVar, String] ) = {
+  def mkVarName( str: String, map: Map[Var, String] ) = {
     val fstr_ = str.filter( _.toString.matches( "[a-zA-Z0-9]" ) )
     val fstr = if ( fstr_.isEmpty ) {
       println( "Warning: " + str + " needs to be completely replaced by a fresh variable!" )
@@ -239,23 +240,23 @@ class TPTPHOLExporter {
     str + i
   }
 
-  def getVars( t: HOLExpression, set: Set[HOLVar] ): Set[HOLVar] = t match {
-    case HOLConst( _, _ ) => set
-    case HOLVar( _, _ )   => set + t.asInstanceOf[HOLVar]
-    case HOLApp( s, t )   => getVars( s, getVars( t, set ) )
-    case HOLAbs( x, t )   => getVars( t, set + x )
+  def getVars( t: HOLExpression, set: Set[Var] ): Set[Var] = t match {
+    case Const( _, _ ) => set
+    case Var( _, _ )   => set + t.asInstanceOf[Var]
+    case App( s, t )   => getVars( s, getVars( t, set ) )
+    case Abs( x, t )   => getVars( t, set + x )
   }
 
-  def getConsts( t: HOLExpression, set: Set[HOLConst] ): Set[HOLConst] = t match {
-    case HOLConst( _, _ ) =>
-      val c = t.asInstanceOf[HOLConst]
+  def getConsts( t: HOLExpression, set: Set[Const] ): Set[Const] = t match {
+    case Const( _, _ ) =>
+      val c = t.asInstanceOf[Const]
       if ( c.sym.isInstanceOf[LogicalSymbolA] )
         set
       else
         set + c
-    case HOLVar( _, _ ) => set
-    case HOLApp( s, t ) => getConsts( s, getConsts( t, set ) )
-    case HOLAbs( x, t ) => getConsts( t, set )
+    case Var( _, _ ) => set
+    case App( s, t ) => getConsts( s, getConsts( t, set ) )
+    case Abs( x, t ) => getConsts( t, set )
   }
 
 }

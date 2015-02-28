@@ -2,6 +2,7 @@
 package at.logic.calculi.expansionTrees
 
 import at.logic.language.hol.{ And => AndHOL, Or => OrHOL, Imp => ImpHOL, Neg => NegHOL, _ }
+import at.logic.language.lambda.Var
 import at.logic.utils.ds.trees._
 import at.logic.calculi.lk.base.FSequent
 import Utility._
@@ -23,7 +24,7 @@ object Utility {
    * @param formula The formula under consideration.
    * @return
    */
-  def getVarsEx( formula: HOLFormula ): List[HOLVar] = formula match {
+  def getVarsEx( formula: HOLFormula ): List[Var] = formula match {
     case ExVar( v, f ) => v +: getVarsEx( f )
     case _             => Nil
   }
@@ -34,7 +35,7 @@ object Utility {
    * @param formula The formula under consideration.
    * @return
    */
-  def getVarsAll( formula: HOLFormula ): List[HOLVar] = formula match {
+  def getVarsAll( formula: HOLFormula ): List[Var] = formula match {
     case AllVar( v, f ) => v +: getVarsAll( f )
     case _              => Nil
   }
@@ -94,7 +95,7 @@ trait MultiExpansionTree extends TreeA[Option[HOLFormula], Option[Seq[HOLExpress
    *
    * @return
    */
-  def getVars: List[HOLVar]
+  def getVars: List[Var]
 
   /**
    * Returns a node's shallow formula minus the quantifiers represented by that node.
@@ -156,7 +157,7 @@ case class MWeakQuantifier( formula: HOLFormula, instances: Seq[Instance] )
  * @param variables The vector '''α''' of eigenvariables used for the quantifiers.
  * @param selection The expansion tree E.
  */
-case class MStrongQuantifier( formula: HOLFormula, variables: Seq[HOLVar], selection: MultiExpansionTree )
+case class MStrongQuantifier( formula: HOLFormula, variables: Seq[Var], selection: MultiExpansionTree )
     extends MultiExpansionTree with T1 {
   lazy val node = Some( formula )
   lazy val children = List( ( selection, Some( variables ) ) )

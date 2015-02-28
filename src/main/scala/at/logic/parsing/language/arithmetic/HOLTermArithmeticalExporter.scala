@@ -7,6 +7,7 @@ package at.logic.parsing.language.arithmetic
 
 import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols._
+import at.logic.language.lambda.{Var, Const}
 import at.logic.language.lambda.symbols.SymbolA
 import at.logic.language.schema.{ TopC, BottomC, BigAnd, BigOr, SchemaFormula }
 import at.logic.language.schema.logicSymbols.BiggerThanSymbol
@@ -22,13 +23,13 @@ trait HOLTermArithmeticalExporter extends OutputExporter with HOLTermExporter {
   def exportFunction( t: HOLExpression ): Unit = t match {
     case TopC => getOutput.write( "\\top" )
     case BottomC => getOutput.write( "\\bot" )
-    case Function( HOLConst( "+", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( " + " ); exportTerm( y ); getOutput.write( ")" ) }
-    case Function( HOLConst( "-", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( " - " ); exportTerm( y ); getOutput.write( ")" ) }
-    case Function( HOLConst( "*", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( " * " ); exportTerm( y ); getOutput.write( ")" ) }
-    case Function( HOLConst( """/""", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ / """ ); exportTerm( y ); getOutput.write( ")" ) }
-    case Atom( HOLConst( "<", _ ), x :: y :: Nil ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ < """ ); exportTerm( y ); getOutput.write( ")" ) }
-    case Atom( HOLConst( ">", _ ), x :: y :: Nil ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ > """ ); exportTerm( y ); getOutput.write( ")" ) }
-    case Atom( HOLConst( "=", _ ), x :: y :: Nil ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ = """ ); exportTerm( y ); getOutput.write( ")" ) }
+    case Function( Const( "+", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( " + " ); exportTerm( y ); getOutput.write( ")" ) }
+    case Function( Const( "-", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( " - " ); exportTerm( y ); getOutput.write( ")" ) }
+    case Function( Const( "*", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( " * " ); exportTerm( y ); getOutput.write( ")" ) }
+    case Function( Const( """/""", _ ), x :: y :: Nil, _ ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ / """ ); exportTerm( y ); getOutput.write( ")" ) }
+    case Atom( Const( "<", _ ), x :: y :: Nil ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ < """ ); exportTerm( y ); getOutput.write( ")" ) }
+    case Atom( Const( ">", _ ), x :: y :: Nil ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ > """ ); exportTerm( y ); getOutput.write( ")" ) }
+    case Atom( Const( "=", _ ), x :: y :: Nil ) => { getOutput.write( "(" ); exportTerm( x ); getOutput.write( """ = """ ); exportTerm( y ); getOutput.write( ")" ) }
     case BigAnd( v, f, s, e ) =>
       getOutput.write( "(" )
       getOutput.write( """\bigwedge_{""" )
@@ -62,8 +63,8 @@ trait HOLTermArithmeticalExporter extends OutputExporter with HOLTermExporter {
     }
     case Atom( c, args ) => {
       val sym = c match {
-        case h @ HOLConst( _, _ ) => h.asInstanceOf[HOLConst].sym
-        case h @ HOLConst( _, _ ) => h.asInstanceOf[HOLVar].sym
+        case h @ Const( _, _ ) => h.asInstanceOf[Const].sym
+        case h @ Const( _, _ ) => h.asInstanceOf[Var].sym
       }
 
       var nonschematic = sym match {

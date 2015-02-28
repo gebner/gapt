@@ -7,8 +7,8 @@ package at.logic.calculi.lk
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.hol._
-import at.logic.language.fol.{ Neg => FOLNeg, Or => FOLOr, And => FOLAnd, Imp => FOLImp, Atom => FOLAtom, AllVar => FOLAllVar, Equation => FOLEquation, instantiateAll }
-import at.logic.language.fol.{ FOLVar, FOLTerm, FOLFormula }
+import at.logic.language.fol.{instantiateAll, FOLVar, FOLTerm, FOLFormula}
+import at.logic.language.lambda.Var
 import at.logic.language.lambda.symbols._
 import at.logic.language.hol.logicSymbols._
 import at.logic.utils.ds.trees._
@@ -16,6 +16,8 @@ import at.logic.calculi.lk.base._
 import at.logic.utils.logging.Logger
 import org.slf4j.LoggerFactory
 import scala.collection.mutable.ListBuffer
+
+import ImplicitConversions._
 
 trait MacroRuleLogger extends Logger {
   override def loggerName = "MacroRuleLogger"
@@ -145,21 +147,21 @@ object TransRule {
     val zv = FOLVar( StringSymbol( "z" ) )
 
     //Forall xyz.(x = y ^ y = z -> x = z)
-    val Trans = FOLAllVar( xv, FOLAllVar( yv, FOLAllVar( zv, FOLImp( FOLAnd( FOLEquation( xv, yv ), FOLEquation( yv, zv ) ), FOLEquation( xv, zv ) ) ) ) )
-    def TransX( x: FOLTerm ) = FOLAllVar( yv, FOLAllVar( zv, FOLImp( FOLAnd( FOLEquation( x, yv ), FOLEquation( yv, zv ) ), FOLEquation( x, zv ) ) ) )
-    def TransXY( x: FOLTerm, y: FOLTerm ) = FOLAllVar( zv, FOLImp( FOLAnd( FOLEquation( x, y ), FOLEquation( y, zv ) ), FOLEquation( x, zv ) ) )
-    def TransXYZ( x: FOLTerm, y: FOLTerm, z: FOLTerm ) = FOLImp( FOLAnd( FOLEquation( x, y ), FOLEquation( y, z ) ), FOLEquation( x, z ) )
+    val Trans = AllVar( xv, AllVar( yv, AllVar( zv, Imp( And( Equation( xv, yv ), Equation( yv, zv ) ), Equation( xv, zv ) ) ) ) )
+    def TransX( x: FOLTerm ) = AllVar( yv, AllVar( zv, Imp( And( Equation( x, yv ), Equation( yv, zv ) ), Equation( x, zv ) ) ) )
+    def TransXY( x: FOLTerm, y: FOLTerm ) = AllVar( zv, Imp( And( Equation( x, y ), Equation( y, zv ) ), Equation( x, zv ) ) )
+    def TransXYZ( x: FOLTerm, y: FOLTerm, z: FOLTerm ) = Imp( And( Equation( x, y ), Equation( y, z ) ), Equation( x, z ) )
 
-    val xy = FOLEquation( x, y )
-    val yz = FOLEquation( y, z )
-    val xz = FOLEquation( x, z )
+    val xy = Equation( x, y )
+    val yz = Equation( y, z )
+    val xz = Equation( x, z )
 
     val ax_xy = Axiom( xy :: Nil, xy :: Nil )
     val ax_yz = Axiom( yz :: Nil, yz :: Nil )
 
     val s1 = AndRightRule( ax_xy, ax_yz, xy, yz )
 
-    val imp = ImpLeftRule( s1, s2, FOLAnd( xy, yz ), xz )
+    val imp = ImpLeftRule( s1, s2, And( xy, yz ), xz )
 
     val allQZ = ForallLeftRule( imp, TransXYZ( x, y, z ), TransXY( x, y ), z )
     val allQYZ = ForallLeftRule( allQZ, TransXY( x, y ), TransX( x ), y )
@@ -231,7 +233,7 @@ object ForallRightBlock {
    * method has to ensure the correctness of these terms, and, specifically, that
    * A[x1\y1,...,xN\yN] indeed occurs at the bottom of the proof s1.
    */
-  def apply( s1: LKProof, main: FOLFormula, eigenvariables: List[FOLVar] ): LKProof = {
+  def apply( s1: LKProof, main: FOLFormula, eigenvariables: List[Var] ): LKProof = {
     val partiallyInstantiatedMains = ( 0 to eigenvariables.length ).toList.reverse.map( n => instantiateAll( main, eigenvariables.take( n ) ) ).toList
 
     //partiallyInstantiatedMains.foreach(println)

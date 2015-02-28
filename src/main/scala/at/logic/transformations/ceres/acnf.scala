@@ -11,6 +11,7 @@ import at.logic.calculi.resolution.Clause
 import at.logic.calculi.resolution.robinson._
 import at.logic.calculi.slk._
 import at.logic.language.hol._
+import at.logic.language.lambda.{Const, Var}
 import at.logic.language.lambda.types._
 import at.logic.language.schema.{ Substitution => SchemaSubstitution, SchemaExpression, IntVar, fo2Var, foConst, SchemaAbs, SchemaVar, unfoldSFormula, indexedFOVar, Succ, sTerm, IntZero, SchemaFormula, toIntegerTerm }
 import at.logic.transformations.ceres.UnfoldProjectionTerm._
@@ -138,7 +139,7 @@ object contractionNormalForm {
 //TODO: this method does not care for bindings! Cvetan, please fix it!
 // Cvetan is no longer here, now what??
 object renameIndexedVarInProjection {
-  def apply( p: LKProof, pair: Tuple2[HOLVar, HOLExpression] ): LKProof = {
+  def apply( p: LKProof, pair: Tuple2[Var, HOLExpression] ): LKProof = {
     p match {
       case Axiom( seq )                             => Axiom( Sequent( seq.antecedent.map( fo => fo.factory.createFormulaOccurrence( renameVar( fo.formula, pair ), Nil ) ), seq.succedent.map( fo => fo.factory.createFormulaOccurrence( renameVar( fo.formula, pair ), Nil ) ) ) )
       case WeakeningLeftRule( up, _, p1 )           => WeakeningLeftRule( apply( up, pair ), renameVar( p1.formula, pair ) )
@@ -165,7 +166,7 @@ object renameIndexedVarInProjection {
 
 //renames the indexed variable in atom
 object renameVar {
-  def apply( exp: HOLExpression, pair: Tuple2[HOLVar, HOLExpression] ): HOLExpression = {
+  def apply( exp: HOLExpression, pair: Tuple2[Var, HOLExpression] ): HOLExpression = {
     exp match {
       case v: indexedFOVar => {
         if ( v == pair._1 )
@@ -174,7 +175,7 @@ object renameVar {
           return v
       }
       case foc: foConst => {
-        HOLConst( foc.name.toString, Ti )
+        Const( foc.name.toString, Ti )
       }
       case Succ( arg ) => {
         Succ( apply( arg, pair ).asInstanceOf[SchemaExpression] )
@@ -183,23 +184,20 @@ object renameVar {
         sTerm( f, i, args.map( x => apply( x, pair ).asInstanceOf[SchemaExpression] ) )
       }
       case Function( name, args, typ ) if args.size > 0 => {
-        val func = HOLConst( name.toString(), Ti -> Ti )
+        val func = Const( name.toString(), Ti -> Ti )
         Function( func, args.map( f => apply( f, pair ) ) )
       }
-      case _ => exp
-    }
-  }
-  def apply( f: HOLFormula, pair: Tuple2[HOLVar, HOLExpression] ): HOLFormula = {
-    f match {
+
       case Atom( name, args ) => {
         val new_args = args.map( f => apply( f, pair ) )
-        Atom( HOLConst( name.toString(), FunctionType( To, new_args.map( _.exptype ) ) ), new_args )
+        Atom( Const( name.toString(), FunctionType( To, new_args.map( _.exptype ) ) ), new_args )
       }
       case Neg( form )         => Neg( apply( form, pair ) )
       case Imp( form1, form2 ) => Imp( apply( form1, pair ), apply( form2, pair ) )
       case And( form1, form2 ) => And( apply( form1, pair ), apply( form2, pair ) )
       case Or( form1, form2 )  => Or( apply( form1, pair ), apply( form2, pair ) )
-      case _                   => f
+        
+      case _                   => exp
     }
   }
 }
@@ -208,7 +206,7 @@ object renameVar {
 object SubstituteProof {
   def subapp(f: HOLFormula, sub:Substitution) = sub(f)
   def subapp(f: FormulaOccurrence, sub:Substitution) = sub(f.formula)
-  def remove_from_sub(v:HOLVar, sub:Substitution) = Substitution(sub.holmap.filterNot( x => x._1 == v  ))
+  def remove_from_sub(v:Var, sub:Substitution) = Substitution(sub.holmap.filterNot( x => x._1 == v  ))
 
   def apply(proof: LKProof, sub:Substitution) : LKProof =
     proof match {

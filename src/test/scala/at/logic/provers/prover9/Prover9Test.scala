@@ -5,6 +5,7 @@
 package at.logic.provers.prover9
 
 import at.logic.calculi.lk.base.FSequent
+import at.logic.language.hol._
 import at.logic.calculi.occurrences.factory
 import at.logic.calculi.resolution.robinson.{Formatter, RobinsonResolutionProof}
 import at.logic.language.fol._

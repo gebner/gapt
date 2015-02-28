@@ -5,7 +5,7 @@
 
 package at.logic.calculi.lk
 
-import at.logic.language.lambda.Substitution
+import at.logic.language.lambda._
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -13,7 +13,7 @@ import at.logic.language.hol._
 import at.logic.language.lambda.types._
 import at.logic.language.hol.logicSymbols._
 import base._
-import at.logic.language.fol.{Atom => FOLAtom, AllVar => FOLAllVar, ExVar => FOLExVar, FOLFormula, FOLConst, FOLVar}
+import at.logic.language.fol.{FOLAtom, FOLFormula, FOLConst, FOLVar}
 
 /**
 * The following properties of each rule are tested:
@@ -29,15 +29,15 @@ import at.logic.language.fol.{Atom => FOLAtom, AllVar => FOLAllVar, ExVar => FOL
 @RunWith(classOf[JUnitRunner])
 class LKTest extends SpecificationWithJUnit {
 
-  val c1 = HOLVar("a", Ti->To)
-  val v1 = HOLVar("x", Ti)
+  val c1 = Var("a", Ti->To)
+  val v1 = Var("x", Ti)
   val f1 = Atom(c1,v1::Nil)
   val ax = Axiom(f1::Nil, f1::Nil)
   val a1 = ax // Axiom return a pair of the proof and a mapping and we want only the proof here
-  val c2 = HOLVar("b", Ti->To)
-  val v2 = HOLVar("c", Ti)
+  val c2 = Var("b", Ti->To)
+  val v2 = Var("c", Ti)
   val f2 = Atom(c1,v1::Nil)
-  val f3 = Atom(HOLVar("e", To))
+  val f3 = Atom(Var("e", To))
   val a2 = Axiom(f2::f3::Nil, f2::f3::Nil)
   val a3 = Axiom(f2::f2::f3::Nil, f2::f2::f3::Nil)
   val ap = Axiom(f1::f1::Nil, Nil)
@@ -374,15 +374,15 @@ class LKTest extends SpecificationWithJUnit {
     }
 
     "work for ForallLeftRule" in {
-      val q = HOLVar( "q", Ti -> To )
-      val x = HOLVar( "X", Ti )
-      val subst = HOLAbs( x, HOLApp( q, x ) ) // lambda x. q(x)
-      val p = HOLVar( "p", (Ti -> To) -> To )
-      val a = HOLVar( "a", Ti )
+      val q = Var( "q", Ti -> To )
+      val x = Var( "X", Ti )
+      val subst = Abs( x, App( q, x ) ) // lambda x. q(x)
+      val p = Var( "p", (Ti -> To) -> To )
+      val a = Var( "a", Ti )
       val qa = Atom( q, a::Nil )
       val pl = Atom( p, subst::Nil )
       val aux = Or( pl, qa )                  // p(lambda x. q(x)) or q(a)
-      val z = HOLVar( "Z", Ti -> To )
+      val z = Var( "Z", Ti -> To )
       val pz = Atom( p, z::Nil )
       val za = Atom( z, a::Nil )
       val main = AllVar( z, Or( pz, za ) )    // forall lambda z. p(z) or z(a)
@@ -401,13 +401,13 @@ class LKTest extends SpecificationWithJUnit {
     }
 
     "work for ForallRightRule" in {
-      val x = HOLVar( "X", Ti -> To)            // eigenvar
-      val p = HOLVar( "p", (Ti -> To) -> To )
-      val a = HOLVar( "a", Ti )
+      val x = Var( "X", Ti -> To)            // eigenvar
+      val p = Var( "p", (Ti -> To) -> To )
+      val a = Var( "a", Ti )
       val xa = Atom( x, a::Nil )
       val px = Atom( p, x::Nil )
       val aux = Or( px, xa )                  // p(x) or x(a)
-      val z = HOLVar( "Z", Ti -> To )
+      val z = Var( "Z", Ti -> To )
       val pz = Atom( p, z::Nil )
       val za = Atom( z, a::Nil )
       val main = AllVar( z, Or( pz, za ) )    // forall lambda z. p(z) or z(a)
@@ -426,10 +426,10 @@ class LKTest extends SpecificationWithJUnit {
     }
 
     "work for weak quantifier rules" in {
-      val List(x,y,z) = List(("x", Ti->Ti),("y",Ti->Ti) ,("z", Ti->Ti)) map (u => HOLVar(u._1,u._2))
+      val List(x,y,z) = List(("x", Ti->Ti),("y",Ti->Ti) ,("z", Ti->Ti)) map (u => Var(u._1,u._2))
       val List(p,a,b) = List(("P", (Ti->Ti) -> ((Ti->Ti) -> ((Ti->Ti) -> To))),
                              ("a", Ti->Ti) ,
-                             ("b", Ti->Ti)) map (u => HOLConst(u._1,u._2))
+                             ("b", Ti->Ti)) map (u => Const(u._1,u._2))
       val paba = Atom(p,List(a,b,a))
       val pxba = Atom(p,List(x,b,a))
       val expxba = ExVar(x,pxba)
@@ -450,7 +450,7 @@ class LKTest extends SpecificationWithJUnit {
       val List(x,y) = List("x","y") map (FOLVar(_))
       val p = "P"
       val pay = FOLAtom(p, List(a,y))
-      val allxpax = FOLAllVar(x,FOLAtom(p, List(a,x)))
+      val allxpax = AllVar(x,FOLAtom(p, List(a,x)))
       val ax = Axiom(List(pay), List(pay))
       val i1 = ForallLeftRule(ax, ax.root.antecedent(0), allxpax, y)
       val i2 = ForallRightRule(i1, i1.root.succedent(0), allxpax, y)
@@ -474,7 +474,7 @@ class LKTest extends SpecificationWithJUnit {
       val List(x,y) = List("x","y") map (FOLVar(_))
       val p = "P"
       val pay = FOLAtom(p, List(a,y))
-      val allxpax = FOLExVar(x,FOLAtom(p, List(a,x)))
+      val allxpax = ExVar(x,FOLAtom(p, List(a,x)))
       val ax = Axiom(List(pay), List(pay))
       val i1 = ExistsRightRule(ax, ax.root.succedent(0), allxpax, y)
       val i2 = ExistsLeftRule(i1, i1.root.antecedent(0), allxpax, y)
@@ -492,9 +492,9 @@ class LKTest extends SpecificationWithJUnit {
   }
 
   "Equality rules" should {
-    val (s, t) = (HOLConst("s", Ti), HOLConst("t", Ti))
-    val P = HOLConst("P", Ti -> To)
-    val Q = HOLConst("Q", Ti -> (Ti -> To))
+    val (s, t) = (Const("s", Ti), Const("t", Ti))
+    val P = Const("P", Ti -> To)
+    val Q = Const("Q", Ti -> (Ti -> To))
     val est = Equation(s, t)
     val Ps = Atom(P, List(s))
     val Pt = Atom (P, List(t))
@@ -615,9 +615,9 @@ class LKTest extends SpecificationWithJUnit {
   }
 
   "Equality macro rules" should {
-    val (s, t) = (HOLConst("s", Ti), HOLConst("t", Ti))
-    val P = HOLConst("P", Ti -> To)
-    val Q = HOLConst("Q", Ti -> (Ti -> To))
+    val (s, t) = (Const("s", Ti), Const("t", Ti))
+    val P = Const("P", Ti -> To)
+    val Q = Const("Q", Ti -> (Ti -> To))
     val est = Equation(s, t)
     val Ps = Atom(P, List(s))
     val Pt = Atom (P, List(t))
@@ -707,9 +707,9 @@ class LKTest extends SpecificationWithJUnit {
 /*
 
   "Unary equality rules" should {
-    val (s, t) = (HOLConst("s", Ti), HOLConst("t", Ti))
-    val P = HOLConst("P", Ti -> To)
-    val Q = HOLConst("Q", Ti -> (Ti -> To))
+    val (s, t) = (Const("s", Ti), Const("t", Ti))
+    val P = Const("P", Ti -> To)
+    val Q = Const("Q", Ti -> (Ti -> To))
     val est = Equation(s, t)
     val Ps = Atom(P, List(s))
     val Pt = Atom (P, List(t))

@@ -1,6 +1,7 @@
 package at.logic.calculi
 
 import at.logic.language.hol._
+import at.logic.language.lambda.LambdaExpression
 
 package occurrences {
 
@@ -101,6 +102,6 @@ package object occurrences {
   /**
    * Implicitly converts a [[FormulaOccurrence]] to the formula its occurrence it records.
    */
-  implicit def formulaOccurrenceToFormula( fo: FormulaOccurrence ): Formula = fo.formula
+  implicit def formulaOccurrenceToFormula( fo: FormulaOccurrence ): HOLFormula = fo.formula
 }
 

@@ -14,6 +14,8 @@ import at.logic.language.lambda.{ rename => renameLambda, freeVariables => freeV
 import at.logic.utils.logging._
 import org.slf4j.LoggerFactory
 
+import ImplicitConversions._
+
 trait EquationRuleLogger extends Logger {
   override def loggerName = "EquationRuleLogger"
 }

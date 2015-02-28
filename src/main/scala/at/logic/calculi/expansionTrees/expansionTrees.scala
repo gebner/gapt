@@ -1,6 +1,7 @@
 package at.logic.calculi.expansionTrees
 
 import at.logic.language.hol.{ Atom => AtomHOL, And => AndHOL, Or => OrHOL, Imp => ImpHOL, Neg => NegHOL, AllVar => AllVarHOL, ExVar => ExVarHOL, _ }
+import at.logic.language.lambda.{Substitution, Const, Var}
 import at.logic.utils.ds.trees._
 import at.logic.language.hol.logicSymbols._
 import at.logic.calculi.lk.base._
@@ -148,16 +149,16 @@ object WeakQuantifier {
  * @param variable u
  * @param selection E
  */
-class StrongQuantifier( val formula: HOLFormula, val variable: HOLVar, val selection: ExpansionTreeWithMerges )
+class StrongQuantifier( val formula: HOLFormula, val variable: Var, val selection: ExpansionTreeWithMerges )
     extends ExpansionTreeWithMerges with NonTerminalNodeAWithEquality[Option[HOLFormula], Option[HOLExpression]] {
   lazy val node = Some( formula )
   lazy val children = List( Tuple2( selection, Some( variable ) ) )
 }
 object StrongQuantifier {
-  def apply( formula: HOLFormula, variable: HOLVar, selection: ExpansionTree ): ExpansionTree =
+  def apply( formula: HOLFormula, variable: Var, selection: ExpansionTree ): ExpansionTree =
     // NOTE: this statement must not occur again in the other apply as it creates an own, distinct class, which scala treats as not equal even though it is exactly the same
     new StrongQuantifier( formula, variable, selection ) with ExpansionTree
-  def apply( formula: HOLFormula, variable: HOLVar, selection: ExpansionTreeWithMerges ): ExpansionTreeWithMerges = selection match {
+  def apply( formula: HOLFormula, variable: Var, selection: ExpansionTreeWithMerges ): ExpansionTreeWithMerges = selection match {
     case selectionET: ExpansionTree => StrongQuantifier( formula, variable, selectionET )
     case _                          => new StrongQuantifier( formula, variable, selection )
   }
@@ -534,7 +535,7 @@ object substitute extends at.logic.utils.logging.Logger {
     case Or( t1, t2 )  => Or( doApplySubstitution( s, t1 ), doApplySubstitution( s, t2 ) )
     case Imp( t1, t2 ) => Imp( doApplySubstitution( s, t1 ), doApplySubstitution( s, t2 ) )
     case StrongQuantifier( f, v, selection ) =>
-      StrongQuantifier( s( f ), s( v ).asInstanceOf[HOLVar], doApplySubstitution( s, selection ) )
+      StrongQuantifier( s( f ), s( v ).asInstanceOf[Var], doApplySubstitution( s, selection ) )
     case SkolemQuantifier( f, v, selection ) =>
       SkolemQuantifier( s( f ), s( v ), doApplySubstitution( s, selection ) )
     case WeakQuantifier( f, instances ) =>
@@ -742,7 +743,7 @@ object merge extends at.logic.utils.logging.Logger {
           //println(, "Can only merge Skolem Quantifier Nodes, if the skolem constants "+s1+" and "+s2+" are the same!")
           println( "Warning: merged skolem quantifiers are not equal - deep formula only valid modulo the equality " + s1 + " = " + s2 )
           ( s1, s2 ) match {
-            case ( c: HOLConst, d: HOLConst ) =>
+            case ( c: Const, d: Const ) =>
               replace( d, c, sel2 )
             case _ =>
               throw new Exception( "I have skolem terms " + s1 + " and " + s2 + " which are no consts and don't know what to do now." )
@@ -791,18 +792,7 @@ object replace {
    * @param where in which expression
    * @return the resulting expression
    */
-  def replaceAll( what: HOLConst, by: HOLConst, where: HOLFormula ): HOLFormula = {
-    replaceAll( what, by, where.asInstanceOf[HOLExpression] ).asInstanceOf[HOLFormula]
-  }
-
-  /**
-   * Replaces all occurrences of the constants what by constants by in the expression where.
-   * @param what what to replace
-   * @param by what the insert instead
-   * @param where in which expression
-   * @return the resulting expression
-   */
-  def replaceAll( what: HOLConst, by: HOLConst, where: HOLExpression ): HOLExpression = {
+  def replaceAll( what: Const, by: Const, where: HOLExpression ): HOLExpression = {
     require( what.factory == by.factory, "The replacement constant " + by +
       " must be from the same layer (factory) as the original term " + what )
 
@@ -812,7 +802,7 @@ object replace {
       where
   }
   @tailrec
-  private def replaceAllRec( what: HOLConst, by: HOLConst, where: HOLExpression ): HOLExpression = {
+  private def replaceAllRec( what: Const, by: Const, where: HOLExpression ): HOLExpression = {
     HOLPosition.getPositions( where, _ == what ) match {
       case Nil => where
       case p :: _ =>
@@ -828,7 +818,7 @@ object replace {
    * @param where expansion tree where to replace
    * @return an et with all constants what replaced by constants by
    */
-  def apply( what: HOLConst, by: HOLConst, where: ExpansionTree ): ExpansionTree = where match {
+  def apply( what: Const, by: Const, where: ExpansionTree ): ExpansionTree = where match {
     case Atom( f )   => Atom( replaceAll( what, by, f ) )
     case Neg( l )    => Neg( apply( what, by, l ) )
     case And( l, r ) => And( apply( what, by, l ), apply( what, by, r ) )
@@ -851,7 +841,7 @@ object replace {
    * @param where expansion tree where to replace
    * @return an et with all constants what replaced by constants by
    */
-  def apply( what: HOLConst, by: HOLConst, where: ExpansionTreeWithMerges ): ExpansionTreeWithMerges = where match {
+  def apply( what: Const, by: Const, where: ExpansionTreeWithMerges ): ExpansionTreeWithMerges = where match {
     case Atom( f )   => Atom( replaceAll( what, by, f ) )
     case Neg( l )    => Neg( apply( what, by, l ) )
     case And( l, r ) => And( apply( what, by, l ), apply( what, by, r ) )

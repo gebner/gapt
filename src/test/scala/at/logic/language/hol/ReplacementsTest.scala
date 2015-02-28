@@ -5,6 +5,7 @@
 
 package at.logic.language.hol.replacements
 
+import at.logic.language.lambda.Const
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -17,9 +18,9 @@ class ReplacementsTest extends SpecificationWithJUnit {
   "Replacements" should {
     "work correctly on" in {
       "Atoms" in {
-        val a = HOLConst("a", Ti)
-        val b = HOLConst("b", Ti)
-        val P = HOLConst("P", Ti -> To)
+        val a = Const("a", Ti)
+        val b = Const("b", Ti)
+        val P = Const("P", Ti -> To)
         val atom1 = Atom(P, a::Nil)
         val atom2 = Atom(P, b::Nil)
         val pos = List(1)

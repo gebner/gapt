@@ -5,6 +5,7 @@ import java.io._
 import at.logic.algorithms.resolution.{ CNFp, TseitinCNF }
 import at.logic.calculi.resolution._
 import at.logic.language.fol._
+import at.logic.language.hol.{And, Or, Imp, Neg}
 import at.logic.provers.maxsat.MaxSATSolver.MaxSATSolver
 import at.logic.utils.logging.Stopwatch
 
@@ -23,7 +24,7 @@ trait Interpretation {
     case Or( f1, f2 )  => interpret( f1 ) || interpret( f2 )
     case Imp( f1, f2 ) => !interpret( f1 ) || interpret( f2 )
     case Neg( f1 )     => !interpret( f1 )
-    case Atom( _, _ )  => interpretAtom( f )
+    case FOLAtom( _, _ )  => interpretAtom( f )
   }
 
 }
@@ -84,7 +85,7 @@ class MaxSAT( solver: MaxSATSolver ) extends at.logic.utils.logging.Logger {
    */
   def isInstalled(): Boolean = {
     try {
-      val clause = FClause( List(), List( Atom( "P" ) ) )
+      val clause = FClause( List(), List( FOLAtom( "P" ) ) )
       solve( List( clause ), List( clause -> 1 ) ) match {
         case Some( _ ) => true
         case None      => throw new IOException()

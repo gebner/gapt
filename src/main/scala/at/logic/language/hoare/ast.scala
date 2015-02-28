@@ -1,6 +1,7 @@
 package at.logic.language.hoare
 
 import at.logic.language.fol.{ FOLFormula, FOLTerm, FOLVar }
+import at.logic.language.lambda.Var
 
 abstract class Program {
   override def toString = this match {
@@ -12,9 +13,9 @@ abstract class Program {
   }
 }
 
-case class Assign( val variable: FOLVar, val term: FOLTerm ) extends Program
+case class Assign( val variable: Var, val term: FOLTerm ) extends Program
 case class IfElse( val condition: FOLFormula, val ifBranch: Program, val elseBranch: Program ) extends Program
-case class ForLoop( val indexVar: FOLVar, val limit: FOLVar, val body: Program ) extends Program
+case class ForLoop( val indexVar: Var, val limit: Var, val body: Program ) extends Program
 case class Sequence( val a: Program, val b: Program ) extends Program
 case class Skip() extends Program
 

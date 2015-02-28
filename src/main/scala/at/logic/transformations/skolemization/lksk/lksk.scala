@@ -3,6 +3,7 @@
 package at.logic.transformations.skolemization.lksk
 
 import at.logic.calculi.lk.base.{ FSequent, LKProof, Sequent }
+import at.logic.language.lambda.{Const, Var, Substitution}
 import at.logic.utils.logging.Logger
 import scala.collection.mutable.{ Map, HashMap }
 import at.logic.calculi.lksk._
@@ -76,8 +77,8 @@ object LKtoLKskc extends Logger {
         val newaux = r._2( a )
         val args = newaux.skolem_label.toList
         m.formula match {
-          case AllVar( HOLVar( _, alpha ), _ ) =>
-            val f = HOLConst( getFreshSkolemFunctionSymbol, FunctionType( alpha, args.map( _.exptype ) ) )
+          case AllVar( Var( _, alpha ), _ ) =>
+            val f = Const( getFreshSkolemFunctionSymbol, FunctionType( alpha, args.map( _.exptype ) ) )
             debug( "Using Skolem function symbol '" + f + "' for formula " + m.formula )
             val s = Function( f, args )
             val subst = Substitution( v, s )
@@ -105,8 +106,8 @@ object LKtoLKskc extends Logger {
         val newaux = r._2( a )
         val args = newaux.skolem_label.toList
         m.formula match {
-          case ExVar( HOLVar( _, alpha ), _ ) =>
-            val f = HOLConst( getFreshSkolemFunctionSymbol, FunctionType( alpha, args.map( _.exptype ) ) )
+          case ExVar( Var( _, alpha ), _ ) =>
+            val f = Const( getFreshSkolemFunctionSymbol, FunctionType( alpha, args.map( _.exptype ) ) )
             debug( "Using Skolem function symbol '" + f + "' for formula " + m.formula )
             val s = Function( f, args )
             val subst = Substitution( v, s )

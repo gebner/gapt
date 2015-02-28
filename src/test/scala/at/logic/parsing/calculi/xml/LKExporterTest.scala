@@ -4,6 +4,7 @@
 
 package at.logic.parsing.calculi.xml
 
+import at.logic.language.lambda.Const
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -24,7 +25,7 @@ class LkExporterTest extends SpecificationWithJUnit {
 
   val exporter = new LKExporter{}
 // helper to create 0-ary predicate constants
-  def pc( sym: String ) = Atom( HOLConst(StringSymbol( sym ), To), List() )
+  def pc( sym: String ) = Atom( Const(StringSymbol( sym ), To), List() )
   
   "LKExporter" should {
     "export correctly a sequent A, B :- C, D" in {
@@ -273,16 +274,16 @@ class LkExporterTest extends SpecificationWithJUnit {
     }
     "parse correctly an involved proof from a file" in {
       val proofs = (new XMLReader(new InputStreamReader(getClass.getClassLoader.getResourceAsStream("xml" + separator + "test1.xml"))) with XMLProofDatabaseParser).getProofs()
-      val X = HOLVar( new VariableStringSymbol( "X" ), i -> o )
-      val t = HOLConst( new ConstantStringSymbol( "t" ), i)
-      val s = HOLConst( new ConstantStringSymbol( "s" ), i)
-      val r = HOLConst( new ConstantStringSymbol( "r" ), i)
-      val f = HOLConst( new ConstantStringSymbol( "f" ), i -> i)
-      val x = HOLVar( new VariableStringSymbol( "x" ), i )
+      val X = Var( new VariableStringSymbol( "X" ), i -> o )
+      val t = Const( new ConstantStringSymbol( "t" ), i)
+      val s = Const( new ConstantStringSymbol( "s" ), i)
+      val r = Const( new ConstantStringSymbol( "r" ), i)
+      val f = Const( new ConstantStringSymbol( "f" ), i -> i)
+      val x = Var( new VariableStringSymbol( "x" ), i )
       val Rs = new ConstantStringSymbol( "R" )
       val f1 = AllVar( X, And( HOLAppFormula( X, t ), Neg( HOLAppFormula( X, s ) ) ) )
-      val f2 = And( Imp( Atom( Rs, r::t::Nil ), Atom( Rs, r::HOLApp( f, t )::Nil ) ),
-                    ExVar( x, And( Atom( Rs, x::s::Nil ), Neg( Atom( Rs, x::HOLApp( f, s )::Nil ) ) ) ) )
+      val f2 = And( Imp( Atom( Rs, r::t::Nil ), Atom( Rs, r::App( f, t )::Nil ) ),
+                    ExVar( x, And( Atom( Rs, x::s::Nil ), Neg( Atom( Rs, x::App( f, s )::Nil ) ) ) ) )
 
       proofs.size must beEqualTo(1)
       proofs.first.root.getSequent must beMultisetEqual( Sequent( f1::Nil, f2::Nil ) )

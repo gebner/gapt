@@ -1,5 +1,7 @@
 package at.logic.algorithms.resolution
 
+import at.logic.language.hol.{AllVar, Equation}
+import at.logic.language.lambda.Substitution
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
@@ -23,14 +25,14 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
     val v1 = FOLVar("v1")
     val v2 = FOLVar("v2")
 
-    val m01 = Function("multiply", v0::v1::Nil)
-    val m10 = Function("multiply", v1::v0::Nil)
-    val m02 = Function("multiply", v0::v2::Nil)
-    val m12 = Function("multiply", v1::v2::Nil)
-    val add01 = Function("add", v0::v1::Nil)
-    val am02m12 = Function("add", m02::m12::Nil)
-    val ma012 = Function("multiply", add01::v2::Nil)
-    val m2a01 = Function("multiply", v2::add01::Nil)
+    val m01 = FOLFunction("multiply", v0::v1::Nil)
+    val m10 = FOLFunction("multiply", v1::v0::Nil)
+    val m02 = FOLFunction("multiply", v0::v2::Nil)
+    val m12 = FOLFunction("multiply", v1::v2::Nil)
+    val add01 = FOLFunction("add", v0::v1::Nil)
+    val am02m12 = FOLFunction("add", m02::m12::Nil)
+    val ma012 = FOLFunction("multiply", add01::v2::Nil)
+    val m2a01 = FOLFunction("multiply", v2::add01::Nil)
     
     // =(multiply(v0, v1), multiply(v1, v0))
     val c1 = Equation(m01, m10)
@@ -54,14 +56,14 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
     val v1u = FOLVar("v1_")
     val v2 = FOLVar("v2")
 
-    val m01u = Function("multiply", v0u::v1u::Nil)
-    val m10u = Function("multiply", v1u::v0u::Nil)
-    val m02 = Function("multiply", v0::v2::Nil)
-    val m12 = Function("multiply", v1::v2::Nil)
-    val add01 = Function("add", v0::v1::Nil)
-    val am02m12 = Function("add", m02::m12::Nil)
-    val ma012 = Function("multiply", add01::v2::Nil)
-    val m2a01 = Function("multiply", v2::add01::Nil)
+    val m01u = FOLFunction("multiply", v0u::v1u::Nil)
+    val m10u = FOLFunction("multiply", v1u::v0u::Nil)
+    val m02 = FOLFunction("multiply", v0::v2::Nil)
+    val m12 = FOLFunction("multiply", v1::v2::Nil)
+    val add01 = FOLFunction("add", v0::v1::Nil)
+    val am02m12 = FOLFunction("add", m02::m12::Nil)
+    val ma012 = FOLFunction("multiply", add01::v2::Nil)
+    val m2a01 = FOLFunction("multiply", v2::add01::Nil)
    
     // =(multiply(v0_, v1_), multiply(v1_, v0_))
     val c1 = Equation(m01u, m10u)
@@ -85,14 +87,14 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
     val v1u = FOLVar("v1_")
     val v2 = FOLVar("v2")
 
-    val m01 = Function("multiply", v0::v1::Nil)
-    val m10 = Function("multiply", v1::v0::Nil)
-    val m02 = Function("multiply", v0::v2::Nil)
-    val m12 = Function("multiply", v1::v2::Nil)
-    val add01 = Function("add", v0::v1::Nil)
-    val am02m12 = Function("add", m02::m12::Nil)
-    val ma012 = Function("multiply", add01::v2::Nil)
-    val m2a01 = Function("multiply", v2::add01::Nil)
+    val m01 = FOLFunction("multiply", v0::v1::Nil)
+    val m10 = FOLFunction("multiply", v1::v0::Nil)
+    val m02 = FOLFunction("multiply", v0::v2::Nil)
+    val m12 = FOLFunction("multiply", v1::v2::Nil)
+    val add01 = FOLFunction("add", v0::v1::Nil)
+    val am02m12 = FOLFunction("add", m02::m12::Nil)
+    val ma012 = FOLFunction("multiply", add01::v2::Nil)
+    val m2a01 = FOLFunction("multiply", v2::add01::Nil)
    
     // =(multiply(v0, v1), multiply(v1, v0))
     val c1 = Equation(m01, m10)
@@ -115,7 +117,7 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
   "RobinsonToLK" should {
     "transform the following resolution proof into an LK proof of the empty sequent" in {
       "containing only an initial clause" in {
-        val Pa = Atom("P", FOLConst("a")::Nil)
+        val Pa = FOLAtom("P", FOLConst("a")::Nil)
         val resProof = InitialClause(Pa :: List.empty, Pa :: List.empty)
         val lkProof = Axiom(Pa :: List.empty, Pa :: List.empty)
         RobinsonToLK(resProof).toString must beEqualTo(lkProof.toString)
@@ -124,11 +126,11 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
         val a = FOLConst("a")
         val x = FOLVar("x")
         val y = FOLVar("y")
-        val fa = Function("f", a::Nil)
-        val fy = Function("f", y::Nil)
-        val Pfa = Atom("P", fa::Nil)
-        val Pfy = Atom("P", fy::Nil)
-        val Px = Atom("P", x::Nil)
+        val fa = FOLFunction("f", a::Nil)
+        val fy = FOLFunction("f", y::Nil)
+        val Pfa = FOLAtom("P", fa::Nil)
+        val Pfy = FOLAtom("P", fy::Nil)
+        val Px = FOLAtom("P", x::Nil)
 
         val p1 = InitialClause(Pfa :: Px :: Pfy :: List.empty, List.empty)
         val resProof = Factor(p1, p1.root.negative(1), List(p1.root.negative(0), p1.root.negative(2)), Substitution(new Map2(x, fa, y, a)))
@@ -141,8 +143,8 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
       "containing a variant clause" in {
         val x = FOLVar("x")
         val y = FOLVar("y")
-        val Px = Atom("P", x::Nil)
-        val Py = Atom("P", y::Nil)
+        val Px = FOLAtom("P", x::Nil)
+        val Py = FOLAtom("P", y::Nil)
 
         val p1 = InitialClause(List(Px), List.empty)
         val resProof = Variant(p1, Substitution(new Map1(x, y)))
@@ -153,13 +155,13 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
       "containing a resolution clause" in {
         val x = FOLVar("x")
         val a = FOLConst("a")
-        val fa = Function("f", a::Nil)
-        val ffa = Function("f", fa::Nil)
-        val fx = Function("f", x::Nil)
-        val Px = Atom("P", x::Nil)
-        val Pfx = Atom("P", fx::Nil)
-        val Pfa = Atom("P", fa::Nil)
-        val Pffa = Atom("P", ffa::Nil)
+        val fa = FOLFunction("f", a::Nil)
+        val ffa = FOLFunction("f", fa::Nil)
+        val fx = FOLFunction("f", x::Nil)
+        val Px = FOLAtom("P", x::Nil)
+        val Pfx = FOLAtom("P", fx::Nil)
+        val Pfa = FOLAtom("P", fa::Nil)
+        val Pffa = FOLAtom("P", ffa::Nil)
 
         val p1 = InitialClause(List(Px), List(Pfx))
         val p2 = InitialClause(List(Pffa), List(Pfa))
@@ -176,8 +178,8 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
         val x = FOLVar("x")
         val exb = Equation(x, b)
         val eab = Equation(a, b)
-        val Pfa = Atom("P", Function("f", a::Nil)::Nil)
-        val Pfb = Atom("P", Function("f", b::Nil)::Nil)
+        val Pfa = FOLAtom("P", FOLFunction("f", a::Nil)::Nil)
+        val Pfb = FOLAtom("P", FOLFunction("f", b::Nil)::Nil)
 
         val p1 = InitialClause(List(), List(exb))
         val p2 = InitialClause(List(Pfa), List())
@@ -194,8 +196,8 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
         val x = FOLVar("x")
         val ebx = Equation(b, x)
         val eba = Equation(b, a)
-        val Pfa = Atom("P", Function("f", a::Nil)::Nil)
-        val Pfb = Atom("P", Function("f", b::Nil)::Nil)
+        val Pfa = FOLAtom("P", FOLFunction("f", a::Nil)::Nil)
+        val Pfb = FOLAtom("P", FOLFunction("f", b::Nil)::Nil)
 
         val p1 = InitialClause(List(), List(ebx))
         val p2 = InitialClause(List(Pfa), List())
@@ -212,8 +214,8 @@ class ResolutionToLKTest extends SpecificationWithJUnit {
         val x = FOLVar("x")
         val y = FOLVar("y")
         val a = FOLConst("a")
-        val Px = Atom("P", x::Nil)
-        val Pa = Atom("P", a::Nil)
+        val Px = FOLAtom("P", x::Nil)
+        val Pa = FOLAtom("P", a::Nil)
         val f1 = AllVar(x, Px)
 
         val seq = FSequent(List(f1),List(Pa))

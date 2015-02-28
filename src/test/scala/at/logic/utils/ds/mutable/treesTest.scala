@@ -41,10 +41,10 @@ class treesTest extends SpecificationWithJUnit {
 
 
       /*
-      val a = HOLConst(new ConstantSymbolA("a"), i)
-      val b = HOLConst(new ConstantSymbolA("b"), i)
-      val p = HOLConst(new ConstantSymbolA("p"), i->o)
-      val X = HOLVar(new VariableSymbolA("X"), i)
+      val a = Const(new ConstantSymbolA("a"), i)
+      val b = Const(new ConstantSymbolA("b"), i)
+      val p = Const(new ConstantSymbolA("p"), i->o)
+      val X = Var(new VariableSymbolA("X"), i)
 
 
       val pa = App(p,a).asInstanceOf[HOLFormula]

@@ -1,8 +1,9 @@
 package at.logic.language.hol
 
-import at.logic.language.lambda.LambdaPosition
+import at.logic.language.lambda.{Abs, App, LambdaPosition}
 
 object HOLPosition {
+
   implicit def apply( list: List[Int] ) = new HOLPosition( list )
 
   def apply( is: Int* ) = new HOLPosition( is.toList )
@@ -102,17 +103,17 @@ object HOLPosition {
 
         case ( _, BinaryConnective( _, _ ) ) => None
 
-        case ( 1, HOLApp( f, _ ) ) => toLambdaPositionOption( f )( rest ) match {
+        case ( 1, App( f, _ ) ) => toLambdaPositionOption( f )( rest ) match {
           case Some( subPos ) => Some( 1 :: subPos )
           case None           => None
         }
 
-        case ( 2, HOLApp( _, arg ) ) => toLambdaPositionOption( arg )( rest ) match {
+        case ( 2, App( _, arg ) ) => toLambdaPositionOption( arg )( rest ) match {
           case Some( subPos ) => Some( 2 :: subPos )
           case None           => None
         }
 
-        case ( 1, HOLAbs( _, term ) ) => toLambdaPositionOption( term )( rest ) match {
+        case ( 1, Abs( _, term ) ) => toLambdaPositionOption( term )( rest ) match {
           case Some( subPos ) => Some( 1 :: subPos )
           case None           => None
         }
@@ -158,14 +159,14 @@ object HOLPosition {
             1 :: toHOLPosition( subExp )( rest.tail )
           else throw new Exception( "Can't convert position " + pos + " for expression " + exp + " to HOLPosition." )
 
-        case HOLApp( f, arg ) =>
+        case App( f, arg ) =>
           if ( pos.head == 1 )
             1 :: toHOLPosition( f )( rest )
           else if ( pos.head == 2 )
             2 :: toHOLPosition( arg )( rest )
           else throw new Exception( "Can't convert position " + pos + " for expression " + exp + " to HOLPosition." )
 
-        case HOLAbs( _, term ) =>
+        case Abs( _, term ) =>
           if ( pos.head == 1 )
             1 :: toHOLPosition( term )( rest )
           else throw new Exception( "Can't convert position " + pos + " for expression " + exp + " to HOLPosition." )
@@ -210,14 +211,14 @@ object HOLPosition {
             definesHOLPosition( subExp )( rest.tail )
           else false
 
-        case HOLApp( f, arg ) =>
+        case App( f, arg ) =>
           if ( pos.head == 1 )
             definesHOLPosition( f )( rest )
           else if ( pos.head == 2 )
             definesHOLPosition( arg )( rest )
           else false
 
-        case HOLAbs( _, term ) =>
+        case Abs( _, term ) =>
           if ( pos.head == 1 )
             definesHOLPosition( term )( rest )
           else false

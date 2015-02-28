@@ -1,5 +1,6 @@
 package at.logic.algorithms.lksk
 
+import at.logic.language.lambda.{Substitution, Const, Var, App}
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -11,15 +12,17 @@ import at.logic.calculi.lksk._
 import at.logic.calculi.lksk.TypeSynonyms._
 import at.logic.language.lambda.types._
 
+import scala.App
+
 @RunWith(classOf[JUnitRunner])
 class SubstitutionTest extends SpecificationWithJUnit {
   "Substitutions" should {
-    val f = HOLConst("f", Ti -> Ti)
-    val y = HOLVar("y", Ti)
-    val x = HOLVar("x", Ti)
-    val a = HOLVar("a", Ti)
-    val fa = HOLApp(f, a)
-    val R = HOLConst("R", Ti -> (Ti -> To))
+    val f = Const("f", Ti -> Ti)
+    val y = Var("y", Ti)
+    val x = Var("x", Ti)
+    val a = Var("a", Ti)
+    val fa = App(f, a)
+    val R = Const("R", Ti -> (Ti -> To))
     val Rafa = Atom(R, a::fa::Nil)
     val exyRay = ExVar(y, Atom(R, a::y::Nil ))
     val allxexy = AllVar(x, ExVar( y, Atom(R, x::y::Nil ) ) )
@@ -31,9 +34,9 @@ class SubstitutionTest extends SpecificationWithJUnit {
     r2.root.succedent.toList.head must beLike {case o: LabelledFormulaOccurrence => ok}
 
     "work for an axiom" in {
-      val P = HOLConst("P", Ti -> To)
+      val P = Const("P", Ti -> To)
       val Px = Atom(P, x::Nil)
-      val c : HOLExpression = HOLConst("c", Ti)
+      val c : HOLExpression = Const("c", Ti)
       val Pc = Atom(P, c::Nil)
 
       val a = Axiom.createDefault(new FSequent( Px::Nil, Px::Nil ), Tuple2( (EmptyLabel() + x)::Nil, (EmptyLabel() + y)::Nil ) )
@@ -44,11 +47,11 @@ class SubstitutionTest extends SpecificationWithJUnit {
     }
 
     "apply correctly to a simple proof" in {
-      val c = HOLConst("c", Ti)
-      val g = HOLConst("g", Ti -> Ti)
-      val gc = HOLApp(g, c)
-      val fgc = HOLApp(f, gc)
-      val R = HOLConst("R", Ti -> (Ti -> To))
+      val c = Const("c", Ti)
+      val g = Const("g", Ti -> Ti)
+      val gc = App(g, c)
+      val fgc = App(f, gc)
+      val R = Const("R", Ti -> (Ti -> To))
       val Rgcfgc = Atom(R, gc::fgc::Nil )
       val exyRgcy = ExVar(y, Atom(R, gc::y::Nil ) )
       val subst = Substitution( a, gc ) // a <- g(c)

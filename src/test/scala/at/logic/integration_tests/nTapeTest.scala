@@ -13,7 +13,9 @@ import at.logic.calculi.lk.base.LKProof
 import at.logic.calculi.lksk.sequentToLabelledSequent
 import at.logic.language.fol.{FOLVar, FOLFormula, FOLExpression}
 import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.language.lambda.symbols.{StringSymbol, SymbolA}
+import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
 
 import at.logic.provers.prover9._
 import at.logic.transformations.ceres.clauseSets.AlternativeStandardClauseSet
@@ -41,8 +43,8 @@ class nTapeTest extends SpecificationWithJUnit with ClasspathFileCopier {
 
   //sequential //skolemization is not thread safe - it shouldnt't make problems here, but in case there are issues, please uncomment
 
-  class Robinson2RalAndUndoHOL2Fol(sig_vars : Map[String, List[HOLVar]],
-                                   sig_consts : Map[String, List[HOLConst]],
+  class Robinson2RalAndUndoHOL2Fol(sig_vars : Map[String, List[Var]],
+                                   sig_consts : Map[String, List[Const]],
                                    cmap : replaceAbstractions.ConstantsMap) extends RobinsonToRal {
     val absmap = Map[String, HOLExpression]() ++ (cmap.toList.map(x => (x._2.toString, x._1)))
     val cache = Map[HOLExpression, HOLExpression]()
@@ -50,26 +52,23 @@ class nTapeTest extends SpecificationWithJUnit with ClasspathFileCopier {
     override def convert_formula(e:HOLFormula) : HOLFormula = {
       //require(e.isInstanceOf[FOLFormula], "Expecting prover 9 formula "+e+" to be from the FOL layer, but it is not.")
 
-      BetaReduction.betaNormalize(
-        recreateWithFactory( undoHol2Fol.backtranslate(e, sig_vars, sig_consts, absmap)(HOLFactory), HOLFactory).asInstanceOf[HOLFormula]
-      )
+      BetaReduction.betaNormalize(undoHol2Fol.backtranslate(e, sig_vars, sig_consts, absmap))
     }
 
     override def convert_substitution(s:Substitution) : Substitution = {
       val mapping = s.map.toList.map(x =>
         (
-          BetaReduction.betaNormalize(recreateWithFactory(undoHol2Fol.backtranslate(x._1.asInstanceOf[HOLExpression], sig_vars, sig_consts, absmap, None)(HOLFactory), HOLFactory).asInstanceOf[HOLExpression]).asInstanceOf[HOLVar],
-          BetaReduction.betaNormalize(recreateWithFactory(undoHol2Fol.backtranslate(x._2.asInstanceOf[HOLExpression], sig_vars, sig_consts, absmap, None)(HOLFactory), HOLFactory).asInstanceOf[HOLExpression])
-          )
-      )
+          BetaReduction.betaNormalize(undoHol2Fol.backtranslate(x._1.asInstanceOf[HOLExpression], sig_vars, sig_consts, absmap, None)).asInstanceOf[Var],
+          BetaReduction.betaNormalize(undoHol2Fol.backtranslate(x._2.asInstanceOf[HOLExpression], sig_vars, sig_consts, absmap, None))
+      ))
 
       Substitution(mapping)
     }
   }
 
   object Robinson2RalAndUndoHOL2Fol {
-    def apply(sig_vars : Map[String, List[HOLVar]],
-              sig_consts : Map[String, List[HOLConst]],
+    def apply(sig_vars : Map[String, List[Var]],
+              sig_consts : Map[String, List[Const]],
               cmap : replaceAbstractions.ConstantsMap) =
       new Robinson2RalAndUndoHOL2Fol(sig_vars, sig_consts, cmap)
   }
@@ -110,7 +109,7 @@ class nTapeTest extends SpecificationWithJUnit with ClasspathFileCopier {
     }
 
     (ind1base, ind1step, ind2base, ind2step) match {
-      case (HOLAbs(xb,sb), HOLAbs(xs,ss), HOLAbs(yb,tb), HOLAbs(ys,ts)) =>
+      case (Abs(xb,sb), Abs(xs,ss), Abs(yb,tb), Abs(ys,ts)) =>
         val map = Map[HOLExpression, StringSymbol]()
         val counter = new {private var state = 0; def nextId = { state = state +1; state}}
 
@@ -119,10 +118,10 @@ class nTapeTest extends SpecificationWithJUnit with ClasspathFileCopier {
         val (map3, tb1) = replaceAbstractions(tb, map2, counter)
         val (map4, ts1) = replaceAbstractions(ts, map3, counter)
 
-        println("base 1 simplified: "+ f(HOLAbs(xb,sb1)))
-        println("base 2 simplified: "+ f(HOLAbs(yb,tb1)))
-        println("step 1 simplified: "+ f(HOLAbs(xs,ss1)))
-        println("step 2 simplified: "+ f(HOLAbs(ys,ts1)))
+        println("base 1 simplified: "+ f(Abs(xb,sb1)))
+        println("base 2 simplified: "+ f(Abs(yb,tb1)))
+        println("step 1 simplified: "+ f(Abs(xs,ss1)))
+        println("step 2 simplified: "+ f(Abs(ys,ts1)))
 
         println("With shortcuts:")
         for ((term, sym) <- map4) {

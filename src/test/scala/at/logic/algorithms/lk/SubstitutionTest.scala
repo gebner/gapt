@@ -4,41 +4,44 @@ package at.logic.algorithms.lk
 import at.logic.language.hol._
 import at.logic.calculi.lk.base.FSequent
 import at.logic.calculi.lk._
+import at.logic.language.lambda.{Substitution, App, Const, Var}
 import at.logic.language.lambda.types._
 
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
 
+import scala.App
+
 @RunWith(classOf[JUnitRunner])
 class SubstitutionTest extends SpecificationWithJUnit {
   "Substitutions" should {
     object proof1 {
-      val x = HOLVar( "x", Ti )
-      val p = HOLConst("P", Ti -> To)
+      val x = Var( "x", Ti )
+      val p = Const("P", Ti -> To)
       val px = Atom(p, x::Nil )
       val ax1 = Axiom( px::Nil, px::Nil )
       val ax2 = Axiom( px::Nil, px::Nil )
       val proof = CutRule( ax1, ax2, ax1.root.succedent.toList.head, ax2.root.antecedent.toList.head )
-      val a = HOLConst("a", Ti)
-      val f = HOLConst("f", Ti -> Ti)
-      val fa = HOLApp(f, a)
+      val a = Const("a", Ti)
+      val f = Const("f", Ti -> Ti)
+      val fa = App(f, a)
       val subst = Substitution( x, fa )
     }
 
     object proof2 {
-      val x = HOLVar( "x", Ti )
-      val y = HOLVar( "y", Ti )
-      val p = HOLConst("P", Ti -> (Ti -> To))
+      val x = Var( "x", Ti )
+      val y = Var( "y", Ti )
+      val p = Const("P", Ti -> (Ti -> To))
       val pxy = Atom(p, List(x,y))
       val allxpx = AllVar(x,pxy)
       val ax1 = Axiom( pxy::Nil, pxy::Nil )
       val r1 = ForallLeftRule(ax1, ax1.root.antecedent(0), allxpx, x )
       val proof = ForallRightRule(r1, r1.root.succedent(0), allxpx, x)
 
-      val a = HOLConst("a", Ti)
-      val f = HOLConst("f", Ti -> Ti)
-      val fa = HOLApp(f, a)
+      val a = Const("a", Ti)
+      val f = Const("f", Ti -> Ti)
+      val fa = App(f, a)
       val subst = Substitution( y, fa )
       val subst2 = Substitution( y, x ) //test for overbinding
     }

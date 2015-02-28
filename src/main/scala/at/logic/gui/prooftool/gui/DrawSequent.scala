@@ -10,6 +10,7 @@ package at.logic.gui.prooftool.gui
 import at.logic.calculi.lk.base.{ FSequent, Sequent }
 import at.logic.language.hol._
 import at.logic.calculi.occurrences.{ FormulaOccurrence, defaultFormulaOccurrenceFactory }
+import at.logic.language.lambda.{App, Abs, Const, Var}
 import at.logic.language.schema.{ BiggerThanC, BigAnd, BigOr, IndexedPredicate, indexedFOVar, indexedOmegaVar, IntegerTerm, IntVar, IntConst, Succ }
 import at.logic.transformations.ceres.struct.ClauseSetSymbol
 import at.logic.transformations.ceres.PStructToExpressionTree.ProjectionSetSymbol
@@ -146,8 +147,8 @@ object DrawSequent {
     case t: IntegerTerm => parseIntegerTerm( t, 0 )
     case Atom( pred, args ) =>
       val name = pred match {
-        case HOLConst( n, _ ) => n
-        case HOLVar( n, _ )   => n
+        case Const( n, _ ) => n
+        case Var( n, _ )   => n
         case _                => throw new Exception( "An atom can only contain a const or a var on the outermost level!" )
       }
       if ( args.size == 2 && name.toString.matches( """(=|!=|\\neq|<|>|\\leq|\\geq|\\in|\+|-|\*|/)""" ) ) { //!name.toString.matches("""[\w\p{InGreek}]*""")) {
@@ -164,19 +165,19 @@ object DrawSequent {
       }
     case vi: indexedFOVar    => vi.name.toString + "_{" + formulaToLatexString( vi.index, outermost = false ) + "}"
     case vi: indexedOmegaVar => vi.name.toString + "_{" + formulaToLatexString( vi.index, outermost = false ) + "}"
-    case v: HOLVar if v.sym.isInstanceOf[ClauseSetSymbol] => //Fixme: never enters here because type of ClauseSetSymbol is changed
+    case v: Var if v.sym.isInstanceOf[ClauseSetSymbol] => //Fixme: never enters here because type of ClauseSetSymbol is changed
       //parse cl variables to display cut-configuration.
       val cl = v.sym.asInstanceOf[ClauseSetSymbol]
       "cl^{" + cl.name + ",(" + cl.cut_occs._1.foldLeft( "" )( ( s, f ) => s + { if ( s != "" ) ", " else "" } + formulaToLatexString( f ) ) + " | " +
         cl.cut_occs._2.foldLeft( "" )( ( s, f ) => s + { if ( s != "" ) ", " else "" } + formulaToLatexString( f, outermost = false ) ) + ")}"
-    case HOLVar( name, _ ) if t.exptype == Tindex -> Tindex =>
+    case Var( name, _ ) if t.exptype == Tindex -> Tindex =>
       "\\textbf {" + name.toString + "}"
-    case HOLVar( name, _ )   => name
-    case HOLConst( name, _ ) => name
+    case Var( name, _ )   => name
+    case Const( name, _ ) => name
     case Function( f, args, _ ) =>
       val name = f match {
-        case HOLConst( n, _ ) => n
-        case HOLVar( n, _ )   => n
+        case Const( n, _ ) => n
+        case Var( n, _ )   => n
         case _                => throw new Exception( "An atom can only contain a const or a var on the outermost level!" )
       }
 
@@ -186,8 +187,8 @@ object DrawSequent {
       else if ( args.size == 2 && name.toString.matches( """(=|!=|\\neq|<|>|\\leq|\\geq|\\in|\+|-|\*|/)""" ) ) //!name.toString.matches("""[\w\p{InGreek}]*"""))
         "(" + formulaToLatexString( args.head, outermost = false ) + " " + nameToLatexString( name.toString ) + " " + formulaToLatexString( args.last, outermost = false ) + ")"
       else nameToLatexString( name.toString ) + { if ( args.isEmpty ) "" else args.map( x => formulaToLatexString( x, outermost = false ) ).mkString( "(", ",", ")" ) }
-    case HOLAbs( v, s ) => "(" + """ \lambda """ + formulaToLatexString( v, outermost = false ) + """.""" + formulaToLatexString( s, outermost = false ) + ")"
-    case HOLApp( s, t ) => formulaToLatexString( s, outermost = false ) + "(" + formulaToLatexString( t, outermost = false ) + ")"
+    case Abs( v, s ) => "(" + """ \lambda """ + formulaToLatexString( v, outermost = false ) + """.""" + formulaToLatexString( s, outermost = false ) + ")"
+    case App( s, t ) => formulaToLatexString( s, outermost = false ) + "(" + formulaToLatexString( t, outermost = false ) + ")"
   }
 
   def parseIntegerTerm( t: IntegerTerm, n: Int ): String = t match {
@@ -196,9 +197,11 @@ object DrawSequent {
     case z: IntConst => n.toString
     case IntZero()   => n.toString
     case v: IntVar => if ( n > 0 )
-      v.toPrettyString + "+" + n.toString
+// FIXME: v.toPrettyString + "+" + n.toString
+        s"$v+$n"
     else
-      v.toPrettyString
+// FIXME:      v.toPrettyString
+        s"$v"
     case Succ( s ) => parseIntegerTerm( s, n + 1 )
     case _         => throw new Exception( "Error in parseIntegerTerm(..) in gui" )
   }

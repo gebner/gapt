@@ -1,5 +1,6 @@
 package at.logic.transformations.herbrandSequent
 
+import at.logic.language.lambda.{Const, Var}
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -9,7 +10,7 @@ import at.logic.calculi.lk._
 import at.logic.transformations.herbrandExtraction._
 import at.logic.calculi.expansionTrees.{StrongQuantifier => StrongQuantifierET, WeakQuantifier => WeakQuantifierET, Atom => AtomET, Imp => ImpET}
 import at.logic.calculi.lk.base.LKProof
-import at.logic.language.fol.{Atom => FOLAtom, Function => FOLFunction, FOLConst, FOLVar, Utils}
+import at.logic.language.fol.{FOLAtom, FOLFunction, FOLConst, FOLVar, Utils}
 
 @RunWith(classOf[JUnitRunner])
 class ExtractExpansionTreesTest extends SpecificationWithJUnit {
@@ -66,16 +67,16 @@ class ExtractExpansionTreesTest extends SpecificationWithJUnit {
 
     "do merge triggering a substitution triggering a merge" in {
 
-      val alpha = HOLVar("\\alpha", Ti)
-      val beta = HOLVar("\\beta", Ti)
-      val c = HOLConst("c", Ti)
-      val d = HOLConst("d", Ti)
-      val f = HOLConst("f", Ti->Ti)
-      val x = HOLVar("x", Ti)
-      val y = HOLVar("y", Ti)
-      val z = HOLVar("z", Ti)
-      val P = HOLConst("P", Ti->To)
-      val Q = HOLConst("Q", Ti->(Ti->To))
+      val alpha = Var("\\alpha", Ti)
+      val beta = Var("\\beta", Ti)
+      val c = Const("c", Ti)
+      val d = Const("d", Ti)
+      val f = Const("f", Ti->Ti)
+      val x = Var("x", Ti)
+      val y = Var("y", Ti)
+      val z = Var("z", Ti)
+      val P = Const("P", Ti->To)
+      val Q = Const("Q", Ti->(Ti->To))
 
       val p0 = Axiom(List(Atom(P, alpha::Nil), Atom(P, beta::Nil)), // P(a), P(b)
                      List(Atom(Q, Function(f, alpha::Nil)::c::Nil), Atom(Q, Function(f, beta::Nil)::d::Nil))) // Q(f(a), c), Q(f(b), d)

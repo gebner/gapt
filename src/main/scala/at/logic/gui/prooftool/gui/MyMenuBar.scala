@@ -8,6 +8,7 @@ import at.logic.calculi.lk.base.LKProof
 import at.logic.calculi.proofs.TreeProof
 import at.logic.gui.prooftool.parser._
 import at.logic.language.hol._
+import at.logic.language.lambda.Var
 import at.logic.language.lambda.types.{ To, Ti }
 
 import scala.swing.event.Key
@@ -407,11 +408,11 @@ class MyMenubar extends MenuBar {
   contents += new Menu( "Tests" ) {
     mnemonic = Key.T
     contents += new MenuItem( Action( "Non-Prenex Proof 1" ) {
-      val p = HOLVar( "p", Ti -> To )
-      val a = HOLVar( "a", Ti )
-      val b = HOLVar( "b", Ti )
-      val q = HOLVar( "q", Ti -> To )
-      val x = HOLVar( "x", Ti )
+      val p = Var( "p", Ti -> To )
+      val a = Var( "a", Ti )
+      val b = Var( "b", Ti )
+      val q = Var( "q", Ti -> To )
+      val x = Var( "x", Ti )
       val px = Atom( p, x :: Nil ) // p(x)
       val pa = Atom( p, a :: Nil ) // p(a)
       val pb = Atom( p, b :: Nil ) // p(b)
@@ -432,12 +433,12 @@ class MyMenubar extends MenuBar {
       ProofToolPublisher.publish( EnableMenus )
     } ) { border = customBorder }
     contents += new MenuItem( Action( "Non-Prenex Proof 2" ) {
-      val p = HOLVar( "p", Ti -> To )
-      val a = HOLVar( "a", Ti )
-      val b = HOLVar( "b", Ti )
-      val q = HOLVar( "q", Ti -> To )
-      val x = HOLVar( "x", Ti )
-      val y = HOLVar( "y", Ti )
+      val p = Var( "p", Ti -> To )
+      val a = Var( "a", Ti )
+      val b = Var( "b", Ti )
+      val q = Var( "q", Ti -> To )
+      val x = Var( "x", Ti )
+      val y = Var( "y", Ti )
       val px = Atom( p, x :: Nil ) // p(x)
       val pa = Atom( p, a :: Nil ) // p(a)
       val pb = Atom( p, b :: Nil ) // p(b)
@@ -459,12 +460,12 @@ class MyMenubar extends MenuBar {
       ProofToolPublisher.publish( EnableMenus )
     } ) { border = customBorder }
     contents += new MenuItem( Action( "Nested Proof 1" ) {
-      val p = HOLVar( "p", Ti -> To )
-      val a = HOLVar( "a", Ti )
-      val b = HOLVar( "b", Ti )
-      val q = HOLVar( "q", Ti -> To )
-      val x = HOLVar( "x", Ti )
-      val y = HOLVar( "y", Ti )
+      val p = Var( "p", Ti -> To )
+      val a = Var( "a", Ti )
+      val b = Var( "b", Ti )
+      val q = Var( "q", Ti -> To )
+      val x = Var( "x", Ti )
+      val y = Var( "y", Ti )
       val px = Atom( p, x :: Nil ) // p(x)
       val pa = Atom( p, a :: Nil ) // p(a)
       val pb = Atom( p, b :: Nil ) // p(b)

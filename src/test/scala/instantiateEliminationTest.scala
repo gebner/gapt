@@ -1,5 +1,7 @@
 package at.logic.algorithms.resolution
 
+import at.logic.language.hol.Equation
+import at.logic.language.lambda.Substitution
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
@@ -19,14 +21,14 @@ class instantiateEliminationTest extends SpecificationWithJUnit {
     val b = FOLConst("b")
     val c = FOLConst("c")
 
-    val m01 = Function("multiply", v0::v1::Nil)
-    val m10 = Function("multiply", v1::v0::Nil)
-    val m02 = Function("multiply", v0::v2::Nil)
-    val m12 = Function("multiply", v1::v2::Nil)
-    val add01 = Function("add", v0::v1::Nil)
-    val am02m12 = Function("add", m02::m12::Nil)
-    val ma012 = Function("multiply", add01::v2::Nil)
-    val m2a01 = Function("multiply", v2::add01::Nil)
+    val m01 = FOLFunction("multiply", v0::v1::Nil)
+    val m10 = FOLFunction("multiply", v1::v0::Nil)
+    val m02 = FOLFunction("multiply", v0::v2::Nil)
+    val m12 = FOLFunction("multiply", v1::v2::Nil)
+    val add01 = FOLFunction("add", v0::v1::Nil)
+    val am02m12 = FOLFunction("add", m02::m12::Nil)
+    val ma012 = FOLFunction("multiply", add01::v2::Nil)
+    val m2a01 = FOLFunction("multiply", v2::add01::Nil)
    
     // =(multiply(v0, v1), multiply(v1, v0))
     val c1 = Equation(m01, m10)
@@ -55,14 +57,14 @@ class instantiateEliminationTest extends SpecificationWithJUnit {
     val v1 = FOLVar("v1")
     val v2 = FOLVar("v2")
 
-    val m01 = Function("multiply", v0::v1::Nil)
-    val m10 = Function("multiply", v1::v0::Nil)
-    val m02 = Function("multiply", v0::v2::Nil)
-    val m12 = Function("multiply", v1::v2::Nil)
-    val add01 = Function("add", v0::v1::Nil)
-    val am02m12 = Function("add", m02::m12::Nil)
-    val ma012 = Function("multiply", add01::v2::Nil)
-    val m2a01 = Function("multiply", v2::add01::Nil)
+    val m01 = FOLFunction("multiply", v0::v1::Nil)
+    val m10 = FOLFunction("multiply", v1::v0::Nil)
+    val m02 = FOLFunction("multiply", v0::v2::Nil)
+    val m12 = FOLFunction("multiply", v1::v2::Nil)
+    val add01 = FOLFunction("add", v0::v1::Nil)
+    val am02m12 = FOLFunction("add", m02::m12::Nil)
+    val ma012 = FOLFunction("multiply", add01::v2::Nil)
+    val m2a01 = FOLFunction("multiply", v2::add01::Nil)
     
     // =(multiply(v0, v1), multiply(v1, v0))
     val c1 = Equation(m01, m10)

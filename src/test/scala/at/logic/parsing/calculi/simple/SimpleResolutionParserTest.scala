@@ -8,11 +8,12 @@
 package at.logic.parsing.calculi.simple
 
 import at.logic.calculi.lk.base.FSequent
+import at.logic.language.lambda.{Var, Const}
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
 import at.logic.language.hol._
-import at.logic.language.fol.{FOLVar, FOLConst, Atom => FOLAtom, Function => FOLFunction}
+import at.logic.language.fol.{FOLVar, FOLConst, FOLAtom, FOLFunction}
 import at.logic.parsing.readers.StringReader
 import at.logic.calculi.resolution._
 import at.logic.calculi.resolution.robinson._
@@ -24,17 +25,17 @@ class SimpleResolutionParserTest extends SpecificationWithJUnit {
 //  private class MyParser(input: String) extends StringReader(input) with SimpleResolutionParserHOL
   private class MyParser2(input: String) extends StringReader(input) with SimpleResolutionParserFOL
 
-  val pa = Atom(HOLConst(StringSymbol("p"), Ti -> To),HOLConst(StringSymbol("a"), Ti)::Nil)
-  val pfx = Atom(HOLConst(StringSymbol("p"), Ti->To),Function(HOLConst(StringSymbol("f"), Ti -> Ti), HOLVar(StringSymbol("x"), Ti)::Nil)::Nil)
-  val px = Atom(HOLConst(StringSymbol("p"), Ti->To), HOLVar(StringSymbol("x"), Ti)::Nil)
-  val pffa = Atom(HOLConst(StringSymbol("p"), Ti -> To),Function(HOLConst(StringSymbol("f"),Ti->Ti),Function(HOLConst(StringSymbol("f"), Ti->Ti), HOLConst(StringSymbol("a"), Ti)::Nil)::Nil)::Nil)
+  val pa = Atom(Const(StringSymbol("p"), Ti -> To),Const(StringSymbol("a"), Ti)::Nil)
+  val pfx = Atom(Const(StringSymbol("p"), Ti->To),Function(Const(StringSymbol("f"), Ti -> Ti), Var(StringSymbol("x"), Ti)::Nil)::Nil)
+  val px = Atom(Const(StringSymbol("p"), Ti->To), Var(StringSymbol("x"), Ti)::Nil)
+  val pffa = Atom(Const(StringSymbol("p"), Ti -> To),Function(Const(StringSymbol("f"),Ti->Ti),Function(Const(StringSymbol("f"), Ti->Ti), Const(StringSymbol("a"), Ti)::Nil)::Nil)::Nil)
 
   val pa_fol = FOLAtom(StringSymbol("P"),FOLConst(StringSymbol("a"))::Nil)
   val pfx_fol = FOLAtom(StringSymbol("P"),FOLFunction("f", FOLVar(StringSymbol("x"))::Nil)::Nil)
   val px_fol = FOLAtom(StringSymbol("P"),FOLVar(StringSymbol("x"))::Nil)
   val pffa_fol = FOLAtom(StringSymbol("P"),FOLFunction("f",FOLFunction("f", FOLConst("a")::Nil)::Nil)::Nil)
 
-  def clause_to_lists(cl : Clause) : (Seq[Formula], Seq[Formula]) = (cl.negative map (_.formula), cl.positive map (_.formula))
+  def clause_to_lists(cl : Clause) : (Seq[HOLFormula], Seq[HOLFormula]) = (cl.negative map (_.formula), cl.positive map (_.formula))
 
 
   "SimpleResolutionParser" should {

@@ -1,31 +1,32 @@
 
 package at.logic.algorithms.lk
 
+import at.logic.language.lambda.{Const, Var}
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
 
 import at.logic.language.fol.{FOLFormula, FOLExpression}
 import at.logic.language.hol._
-import at.logic.language.fol.{Function => FOLFunction, Atom => FOLAtom, FOLVar, FOLConst}
+import at.logic.language.fol.{FOLFunction, FOLAtom, FOLVar, FOLConst}
 import at.logic.language.lambda.types._
 import at.logic.calculi.lk.base.FSequent
 
 @RunWith(classOf[JUnitRunner])
 class SimplificationTest extends SpecificationWithJUnit {
   "Simplifications" should {
-      val a = Atom(HOLVar("a", To))
-      val b = Atom(HOLVar("b", To))
+      val a = Atom(Var("a", To), List())
+      val b = Atom(Var("b", To), List())
       val s1 = FSequent( a::Nil, a::Nil )
       val s2 = FSequent( b::a::b::Nil, b::b::b::a::b::Nil )
       val s3 = FSequent( a::Nil, b::Nil )
       val s4 = FSequent( b::Nil, a::Nil )
 
-      val P = HOLConst("P", (Ti ->Ti) -> To)
-      val Q = HOLConst("Q", (Ti -> Ti)-> To)
-      val z = HOLVar("z", Ti -> Ti)
-      val z2 = HOLVar("z2", Ti -> Ti)
-      val b1 = HOLConst("b", Ti -> Ti)
+      val P = Const("P", (Ti ->Ti) -> To)
+      val Q = Const("Q", (Ti -> Ti)-> To)
+      val z = Var("z", Ti -> Ti)
+      val z2 = Var("z2", Ti -> Ti)
+      val b1 = Const("b", Ti -> Ti)
       val Pz = Atom(P, z::Nil)
       val Pz2 = Atom(P, z2::Nil)
       val Qb1 = Atom(Q, b1::Nil)
@@ -33,12 +34,12 @@ class SimplificationTest extends SpecificationWithJUnit {
       val f1a = And(Pz, Qb1)
       val f1b = And(Pz2, Qb1)
       
-      val P1 = HOLConst("P", Ti -> To)
-      val x = HOLVar("x", Ti)
-      val y = HOLVar("y", Ti)
-      val ai = HOLConst("a", Ti)
-      val b2 = HOLConst("b", Ti)
-      val f = HOLConst("f", Ti -> (Ti -> Ti))
+      val P1 = Const("P", Ti -> To)
+      val x = Var("x", Ti)
+      val y = Var("y", Ti)
+      val ai = Const("a", Ti)
+      val b2 = Const("b", Ti)
+      val f = Const("f", Ti -> (Ti -> Ti))
       val fxy = Function(f, x::y::Nil)
       val fba = Function(f, b2::ai::Nil)
 

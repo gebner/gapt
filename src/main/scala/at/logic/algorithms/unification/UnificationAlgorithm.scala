@@ -6,7 +6,7 @@
 package at.logic.algorithms.unification
 
 import at.logic.language.fol.FOLExpression
-import at.logic.language.fol.Substitution
+import at.logic.language.lambda.Substitution
 
 /**
  * The interface for an unification algorithm of finitary type, i.e.

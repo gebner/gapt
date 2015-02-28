@@ -1,12 +1,13 @@
 package at.logic.algorithms.resolution
 
 import scala.collection.immutable.HashMap
-import at.logic.calculi.lk._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.resolution.robinson._
-import at.logic.language.fol.{ Equation => FOLEquation, FOLTerm, FOLFormula, FOLExpression, Substitution }
 import at.logic.calculi.resolution.{ FClause, Clause }
 import at.logic.algorithms.lk.{ applySubstitution => applySub, CleanStructuralRules, CloneLKProof }
+import at.logic.language.hol._
+import at.logic.language.lambda._
+import at.logic.language.fol._
 import at.logic.provers.atp.SearchDerivation
 import at.logic.algorithms.subsumption.StillmanSubsumptionAlgorithmFOL
 
@@ -38,7 +39,7 @@ object fixDerivation extends at.logic.utils.logging.Logger {
     def createMap( from: Seq[FOLFormula], to: Seq[FOLFormula] ) = {
       from.foldLeft( HashMap[FOLFormula, FOLFormula]() )( ( map, from_f ) => {
         val to_f = to.find( to_f => ( from_f == to_f ) || ( ( from_f, to_f ) match {
-          case ( FOLEquation( from_l, from_r ), FOLEquation( to_l, to_r ) ) if from_l == to_r && from_r == to_l => true
+          case ( Equation( from_l, from_r ), Equation( to_l, to_r ) ) if from_l == to_r && from_r == to_l => true
           case _ => false
         } ) )
 
@@ -71,10 +72,10 @@ object fixDerivation extends at.logic.utils.logging.Logger {
   private def applySymm( p: RobinsonResolutionProof, f: FOLFormula, pos: Boolean ) =
     {
       val ( left, right ) = f match {
-        case FOLEquation( l, r ) => ( l, r )
+        case Equation( l, r ) => ( l, r )
       }
-      val newe = FOLEquation( right, left )
-      val refl = FOLEquation( left, left )
+      val newe = Equation( right, left )
+      val refl = Equation( left, left )
       val s = Substitution()
 
       if ( pos ) {
@@ -96,12 +97,12 @@ object fixDerivation extends at.logic.utils.logging.Logger {
 
     val init = InitialClause( from.antecedent.map( _.asInstanceOf[FOLFormula] ), from.succedent.map( _.asInstanceOf[FOLFormula] ) )
     val s_neg = neg_map.keySet.foldLeft( init )( ( p, f ) => f match {
-      case FOLEquation( _, _ ) if neg_map( f ) != f => applySymm( p, f, false )
+      case Equation( _, _ ) if neg_map( f ) != f => applySymm( p, f, false )
       case _                                        => p
     } )
 
     pos_map.keySet.foldLeft( s_neg )( ( p, f ) => f match {
-      case FOLEquation( _, _ ) if pos_map( f ) != f => applySymm( p, f, true )
+      case Equation( _, _ ) if pos_map( f ) != f => applySymm( p, f, true )
       case _                                        => p
     } )
   }
@@ -142,7 +143,7 @@ object fixDerivation extends at.logic.utils.logging.Logger {
 
   private def isReflexivity( c: FClause ) =
     c.pos.exists( a => a match {
-      case FOLEquation( x, y ) if x == y => true
+      case Equation( x, y ) if x == y => true
       case _                             => false
     } )
 

@@ -7,9 +7,12 @@ package at.logic.algorithms.cutIntroduction
 
 import at.logic.algorithms.cutIntroduction.MCSMethod.MCSMethod
 import at.logic.language.fol._
-import at.logic.language.fol.Atom
+import at.logic.language.hol._
 import at.logic.algorithms.cutIntroduction.Deltas._
+import at.logic.language.hol.Neg
 import at.logic.language.hol.logicSymbols._
+import at.logic.language.hol.replacements.getAtPosition
+import at.logic.language.lambda.{Var, Substitution}
 import at.logic.provers.maxsat.MaxSATSolver.MaxSATSolver
 import at.logic.utils.dssupport.ListSupport
 import at.logic.utils.logging.Stopwatch
@@ -304,7 +307,7 @@ abstract class TreeGrammarDecomposition( val termset: List[FOLTerm], val n: Int 
         // get the current positions, we want to substitute
         val positionSet = partition( i )
         // since the rest fragments of all positions are the same, we can take an arbitrary one
-        val r = at.logic.language.fol.replacements.getAtPositionFOL( k, positionSet( 0 ) )
+        val r = getAtPosition( k, positionSet( 0 ) )
         // do the substitutions at the corresponding positions
         new_key = positionSet.foldLeft( new_key )( ( acc, pos ) => replaceAtPosition( acc, nonterminal_a, pos, i + 1 ) )
         // if we were able to substitute anything
@@ -361,7 +364,7 @@ abstract class TreeGrammarDecomposition( val termset: List[FOLTerm], val n: Int 
    */
   def getGrammar( rules: Set[Tuple2[Int, FOLTerm]] ): Grammar = {
 
-    val slist = mutable.MutableList[( List[FOLVar], Set[List[FOLTerm]] )]()
+    val slist = mutable.MutableList[( List[Var], Set[List[FOLTerm]] )]()
 
     // get all nonterminals in rules
     val evs = rules.foldLeft( List[String]() )( ( acc, r ) => getNonterminals( r._2, nonterminal_a + "_" ) ::: acc ).distinct.sorted
@@ -505,8 +508,8 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
     // generate the formula \neg x_{t_0,i,q} \lor \neg x_{t_1,i,q}
     And( pairs.foldLeft( List[FOLFormula]() )( ( acc1, t ) => {
       Range( 1, n + 1 ).foldLeft( List[FOLFormula]() )( ( acc2, i ) => {
-        val co1 = Atom( t._1 + "_" + i + "_" + qindex, Nil )
-        val co2 = Atom( t._2 + "_" + i + "_" + qindex, Nil )
+        val co1 = FOLAtom( t._1 + "_" + i + "_" + qindex, Nil )
+        val co2 = FOLAtom( t._2 + "_" + i + "_" + qindex, Nil )
         propRests( co1 ) = ( t._1, i, qindex )
         propRests( co2 ) = ( t._2, i, qindex )
         List( Or( Neg( co1 ), Neg( co2 ) ) ) ++ acc2
@@ -527,7 +530,7 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
     val p = pretty( e )
 
     val r: String = e match {
-      case Function( x, args ) => {
+      case FOLFunction( x, args ) => {
         //if(p._1 != p._2 && p._2 != "tuple1")
         if ( p._3 > 1 )
           return p._2 + "^{" + ( p._3 ) + "}(" + p._1 + ") "
@@ -555,9 +558,9 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
     val s: ( String, String, Int ) = exp match {
       case null                                   => ( "null", "null", -2 )
       case FOLVar( x )                            => ( x.toString(), x.toString(), 0 )
-      case atom @ Atom( x, args ) if args.isEmpty => ( pA( atom.asInstanceOf[FOLFormula] ), x.toString, 0 ) //(PrettyPrinter(args(0)),PrettyPrinter(args(0)),0)
-      case Atom( x, args )                        => ( x.toString() + "(" + ListSupport.lst2string( PrettyPrinter, ", ", args ) + ")", x.toString(), 0 )
-      case Function( x, args ) => {
+      case atom @ FOLAtom( x, args ) if args.isEmpty => ( pA( atom.asInstanceOf[FOLFormula] ), x.toString, 0 ) //(PrettyPrinter(args(0)),PrettyPrinter(args(0)),0)
+      case FOLAtom( x, args )                        => ( x.toString() + "(" + ListSupport.lst2string( PrettyPrinter, ", ", args ) + ")", x.toString(), 0 )
+      case FOLFunction( x, args ) => {
         // if only 1 argument is provided
         // check if abbreviating of recursive function calls is possible
         if ( args.size == 1 ) {
@@ -616,9 +619,9 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
       case Imp( a, b )         => printExpression( a ) + " \\to " + printExpression( b )
       case FOLVar( x )         => x.toString
       case FOLConst( x )       => x.toString //pA(FOLConst(x))
-      case Function( f, l )    => f + "(" + ListSupport.lst2string( printExpression, ",", l ) + ")"
-      //case Atom(a,l) => a+"("+l.foldLeft("")((acc:String,x:FOLExpression) => printExpression(x) + ", " + acc ).dropRight(2)+")"
-      case atom @ Atom( a, l ) => pA( atom.asInstanceOf[FOLFormula] ) //l.foldLeft("")((acc:String,x:FOLExpression) => printExpression(x) + ", " + acc ).dropRight(2)
+      case FOLFunction( f, l )    => f + "(" + ListSupport.lst2string( printExpression, ",", l ) + ")"
+      //case FOLAtom(a,l) => a+"("+l.foldLeft("")((acc:String,x:FOLExpression) => printExpression(x) + ", " + acc ).dropRight(2)+")"
+      case atom @ FOLAtom( a, l ) => pA( atom.asInstanceOf[FOLFormula] ) //l.foldLeft("")((acc:String,x:FOLExpression) => printExpression(x) + ", " + acc ).dropRight(2)
     }
   }
 
@@ -630,7 +633,7 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
    * @return latex representation of atom
    */
   def pA( atom: FOLFormula ): String = atom match {
-    case a @ Atom( aSymbol, args ) => {
+    case a @ FOLAtom( aSymbol, args ) => {
       val astr = aSymbol.toString
       val s = astr.split( "_" )
       if ( astr( 0 ).isDigit && s.size == 2 ) {
@@ -661,7 +664,7 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
     val disjunctionList = keyMap( t ).foldLeft( List[FOLFormula]() )( ( acc1, klistindex ) => {
       // add the propositional variable x_{k_j}
       // and create the corresponding propositional variable for this rule
-      val ruleVar = Atom( l + "_" + klistindex, Nil )
+      val ruleVar = FOLAtom( l + "_" + klistindex, Nil )
       propRules( ruleVar ) = ( l, klistindex )
 
       // get the key we are currently observing
@@ -690,7 +693,7 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
               restTuples.foldLeft( List[FOLFormula]() )( ( acc3, rt ) => {
                 val evindex = rt._1
                 val rindex = addToTermMap( rt._2 )
-                val restvar = Atom( rindex + "_" + evindex + "_" + qindex, Nil )
+                val restvar = FOLAtom( rindex + "_" + evindex + "_" + qindex, Nil )
                 // create rest if it does not already exist
                 propRests( restvar ) = ( rindex, evindex, qindex )
                 // take the rest of the particular nonterminal
@@ -747,11 +750,11 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
       // For t \in st({q})
       // 1 <= i <= n
       Range( 1, n + 1 ).foldLeft( List[FOLFormula]() )( ( acc2, i ) => {
-        val co = Atom( tindex + "_" + i + "_" + qindex, Nil )
+        val co = FOLAtom( tindex + "_" + i + "_" + qindex, Nil )
         propRests( co ) = ( tindex, i, qindex )
 
         val trivialKeyIndex = addKey( t )
-        val trivialKeyRule = Atom( i + "_" + trivialKeyIndex, Nil )
+        val trivialKeyRule = FOLAtom( i + "_" + trivialKeyIndex, Nil )
 
         propRules( trivialKeyRule ) = ( i, trivialKeyIndex )
         // add the trivial keys to the rhs of the implication
@@ -769,7 +772,7 @@ class TreeGrammarDecompositionPWM( override val termset: List[FOLTerm], override
     // don't forget to add the possibility to the disjunctions
     // that \alpha_0 => trivialkey
     val trivialKeyIndex = addKey( q )
-    val trivialKeyRule = Atom( 0 + "_" + trivialKeyIndex, Nil )
+    val trivialKeyRule = FOLAtom( 0 + "_" + trivialKeyIndex, Nil )
     propRules( trivialKeyRule ) = ( 0, trivialKeyIndex )
     val d2 = d match {
       case Some( disjunction ) => Or( trivialKeyRule, disjunction )

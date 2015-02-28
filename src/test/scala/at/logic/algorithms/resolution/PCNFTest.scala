@@ -1,5 +1,6 @@
 package at.logic.algorithms.resolution
 
+import at.logic.language.hol._
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
@@ -17,8 +18,8 @@ import at.logic.calculi.lk.base.FSequent
 class projectionsTest extends SpecificationWithJUnit {
   "PCNF" should {
     "create the projection of" in {
-      val Pa = Atom("P", FOLConst("a")::Nil)
-      val Qa = Atom("Q", FOLConst("a")::Nil)
+      val Pa = FOLAtom("P", FOLConst("a")::Nil)
+      val Qa = FOLAtom("Q", FOLConst("a")::Nil)
       val nPa = Neg(Pa)
       val cPa = FClause(List(), List(Pa))
       "an atom Pa in the CNF(-s) where s is the sequent" in {
@@ -57,8 +58,8 @@ class projectionsTest extends SpecificationWithJUnit {
           PCNF(FSequent(List(QawPa), List()), cPa).toString must beEqualTo (lkProof.toString)
         }
         "Sa, Qa ∧ Pa |- Ra" in {
-          val Sa = Atom("S", FOLConst("a")::Nil)
-          val Ra = Atom("R", FOLConst("a")::Nil)
+          val Sa = FOLAtom("S", FOLConst("a")::Nil)
+          val Ra = FOLAtom("R", FOLConst("a")::Nil)
           val QawPa = And(Qa,Pa)
           val lkProof = WeakeningRightRule(WeakeningLeftRule(AndLeft2Rule(Axiom(List(Pa),List(Pa)), Qa, Pa),Sa),Ra)
           PCNF(FSequent(List(Sa,QawPa), List(Ra)), cPa).toString must beEqualTo (lkProof.toString)
@@ -74,7 +75,7 @@ class projectionsTest extends SpecificationWithJUnit {
       }
       "an atom Px in the CNF(-f(s)) where s is the sequent" in {
         "∀xPx |-" in {
-          val Px = Atom("P", FOLVar("x")::Nil)
+          val Px = FOLAtom("P", FOLVar("x")::Nil)
           val x = FOLVar("x")
           val axPx = AllVar(x,Px)
           val lkProof = ForallLeftRule(Axiom(List(Px),List(Px)),Px, axPx, x)
@@ -82,7 +83,7 @@ class projectionsTest extends SpecificationWithJUnit {
           PCNF(FSequent(List(axPx),List()),cPx).toString must beEqualTo (lkProof.toString)
         }
         "|- ∃xPx" in {
-          val Px = Atom("P", FOLVar("x")::Nil)
+          val Px = FOLAtom("P", FOLVar("x")::Nil)
           val x = FOLVar("x")
           val exPx = ExVar(x,Px)
           val lkProof = ExistsRightRule(Axiom(List(Px),List(Px)),Px, exPx, x)
@@ -91,7 +92,7 @@ class projectionsTest extends SpecificationWithJUnit {
         }
       }
       /*"a negation ¬Pa in the CNF(-s) where s is the sequent" in {
-        val Pa = Atom("P", FOLConst("a")::Nil)
+        val Pa = FOLAtom("P", FOLConst("a")::Nil)
         val nPa = Neg(Pa)
         "|- Pa" in {
 
@@ -125,7 +126,7 @@ class projectionsTest extends SpecificationWithJUnit {
         }
       }
       "a disjunction Pa ∨ Qa in the CNF(-s) where s is the sequent" in {
-        val Pa = Atom("P", FOLConst("a")::Nil)
+        val Pa = FOLAtom("P", FOLConst("a")::Nil)
         "|- Pa" in {
 
         }

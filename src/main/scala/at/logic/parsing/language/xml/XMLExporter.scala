@@ -1,12 +1,14 @@
 package at.logic.parsing.language.xml
 
+import at.logic.language.lambda.{Abs, Var, Const}
+
 import scala.xml._
 import dtd._
 import at.logic.parsing.ExportingException
 import at.logic.calculi.lk.base._
 import at.logic.calculi.lk._
 import at.logic.language.hol._
-import at.logic.language.fol.{ Atom => FOLAtom }
+import at.logic.language.fol.FOLAtom
 import at.logic.language.lambda.types.Ti
 
 object XMLExporter {
@@ -51,8 +53,8 @@ object XMLExporter {
       <rule symbol={ p.name } type={ ruleType }>
         { exportSequent( p.root ) }
         { exportRule( p.uProof ) }
-        { if ( ruleType == "foralll2" ) exportLambdaSubstitution( ForallLeftRule.unapply( proof ).get._5.asInstanceOf[HOLAbs] ) }
-        { if ( ruleType == "existsr2" ) exportLambdaSubstitution( ExistsRightRule.unapply( proof ).get._5.asInstanceOf[HOLAbs] ) }
+        { if ( ruleType == "foralll2" ) exportLambdaSubstitution( ForallLeftRule.unapply( proof ).get._5.asInstanceOf[Abs] ) }
+        { if ( ruleType == "existsr2" ) exportLambdaSubstitution( ExistsRightRule.unapply( proof ).get._5.asInstanceOf[Abs] ) }
       </rule>
     case p: BinaryLKProof =>
       <rule symbol={ p.name } type={ getRuleType( p ) }>
@@ -129,13 +131,13 @@ object XMLExporter {
           { exportFormula( f ) }
         </secondorderquantifiedformula>
     }
-    case Atom( name: HOLConst, args ) =>
+    case Atom( name: Const, args ) =>
       println( "FOLAtom: " + name.toString )
       if ( args.isEmpty ) <constantatomformula symbol={ name.toString }/>
       else <constantatomformula symbol={ name.toString }>
              { args.map( x => exportTerm( x ) ) }
            </constantatomformula>
-    case Atom( name: HOLVar, args ) =>
+    case Atom( name: Var, args ) =>
       println( "Atom: " + name.toString )
       <variableatomformula>
         <secondordervariable symbol={ name.toString }/>
@@ -145,11 +147,11 @@ object XMLExporter {
   }
 
   def exportTerm( term: HOLExpression ): Node = term match {
-    case HOLVar( name, t ) => t match {
+    case Var( name, t ) => t match {
       case Ti => <variable symbol={ name.toString }/>
       case _  => <secondordervariable symbol={ name.toString }/>
     }
-    case HOLConst( name, _ ) => <constant symbol={ name.toString }/>
+    case Const( name, _ ) => <constant symbol={ name.toString }/>
     case Function( name, args, _ ) =>
       <function symbol={ name.toString }>
         { args.map( x => exportTerm( x ) ) }
@@ -157,14 +159,14 @@ object XMLExporter {
     case _ => throw new ExportingException( "Can't match term: " + term.toString )
   }
 
-  private def decompose( a: HOLExpression, vars: List[HOLVar] ): ( HOLExpression, List[HOLVar] ) = a match {
-    case HOLAbs( v, f ) => decompose( f, v :: vars )
+  private def decompose( a: HOLExpression, vars: List[Var] ): ( HOLExpression, List[Var] ) = a match {
+    case Abs( v, f ) => decompose( f, v :: vars )
     case _              => ( a, vars )
   }
 
-  private def decompose( a: HOLAbs ): ( HOLExpression, List[HOLVar] ) = decompose( a, Nil )
+  private def decompose( a: Abs ): ( HOLExpression, List[Var] ) = decompose( a, Nil )
 
-  def exportLambdaSubstitution( subst: HOLAbs ) = {
+  def exportLambdaSubstitution( subst: Abs ) = {
     val ( formula, vars ) = decompose( subst )
     <lambdasubstitution>
       { exportVariableList( vars ) }
@@ -172,7 +174,7 @@ object XMLExporter {
     </lambdasubstitution>
   }
 
-  def exportVariableList( vl: List[HOLVar] ) =
+  def exportVariableList( vl: List[Var] ) =
     <variablelist>
       { vl.map( x => <variable symbol={ x.name.toString }/> ) }
     </variablelist>

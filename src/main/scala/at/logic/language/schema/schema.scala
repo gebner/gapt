@@ -17,8 +17,7 @@ trait SchemaExpression extends HOLExpression {
   override def factory: FactoryA = SchemaFactory
 }
 
-trait SchemaFormula extends SchemaExpression with HOLFormula {
-}
+trait SchemaFormula extends SchemaExpression
 
 /******************** SPECIAL INTEGERS ************************************/
 

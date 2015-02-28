@@ -12,6 +12,7 @@ package at.logic.algorithms.cutIntroduction
 import at.logic.language.fol._
 import at.logic.language.fol.Utils._
 import at.logic.calculi.occurrences._
+import at.logic.language.lambda.Var
 import at.logic.utils.dssupport.ListSupport._
 import at.logic.utils.dssupport.MapSupport._
 import at.logic.utils.executionModels.searchAlgorithms.SetNode
@@ -23,7 +24,7 @@ import Deltas._
  * @param u0 set U
  * @param slist0 list of non-terminals and their corresponding sets (((a1,...,am1), S,,1,,), ..., (z1,...,zmn, S,,n,,))
  */
-class Grammar( u0: List[FOLTerm], slist0: List[( List[FOLVar], Set[List[FOLTerm]] )] ) {
+class Grammar( u0: List[FOLTerm], slist0: List[( List[Var], Set[List[FOLTerm]] )] ) {
 
   val u = u0
   val slist = slist0

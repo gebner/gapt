@@ -1,6 +1,7 @@
 package at.logic.parsing.shlk
 
-import at.logic.language.hol.{ Formula, HOLVar, HOLFormula, HOLExpression }
+import at.logic.language.hol.{ HOLFormula, HOLExpression }
+import at.logic.language.lambda.Var
 import at.logic.language.lambda.types.{ To, FunctionType, Tindex }
 import at.logic.language.schema._
 import at.logic.parsing.language.HOLParser
@@ -12,7 +13,7 @@ abstract trait HLKFormulaParser extends Parsers {
   //abstract parsers for formulas
   def term: Parser[HOLExpression];
   def formula: Parser[HOLFormula];
-  def variable: Parser[HOLVar];
+  def variable: Parser[Var];
 
 }
 
@@ -26,7 +27,7 @@ trait SchemaFormulaParser extends HLKFormulaParser with HOLParser {
   def intVar: Parser[IntVar] = "[ijmnkx]".r ^^ { x => IntVar( x ) }
 
   def term: Parser[SchemaExpression] = ( non_formula | formula )
-  def formula: Parser[SchemaFormula] = ( atom | neg | big | and | or | indPred | imp | forall | exists | variable | constant ) ^? { case trm: Formula => trm.asInstanceOf[SchemaFormula] }
+  def formula: Parser[SchemaFormula] = ( atom | neg | big | and | or | indPred | imp | forall | exists | variable | constant ) ^? { case trm: HOLFormula => trm.asInstanceOf[SchemaFormula] }
   def intTerm: Parser[SchemaExpression] = index //| schemaFormula
   def index: Parser[IntegerTerm] = ( sum | intConst | intVar | succ )
 

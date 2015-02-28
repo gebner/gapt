@@ -3,6 +3,8 @@ package at.logic.language.hoare
 import at.logic.calculi.lk.base.FSequent
 import at.logic.language.fol._
 import at.logic.language.fol.Utils.numeral
+import at.logic.language.hol.{AllVar, Equation, And}
+import at.logic.language.lambda.{Var, Substitution}
 
 object unrollLoop {
   def apply( p: Program, actualN: Int ): Program = p match {
@@ -12,7 +14,7 @@ object unrollLoop {
   }
 }
 
-case class SimpleInductionProblem( val gamma: Seq[FOLFormula], val alphaVar: FOLVar, val B: FOLFormula ) {
+case class SimpleInductionProblem( val gamma: Seq[FOLFormula], val alphaVar: Var, val B: FOLFormula ) {
   def sequent = FSequent( gamma, List( B ) )
 
   def instanceSequent( n: Int ) = {
@@ -24,15 +26,15 @@ case class SimpleInductionProblem( val gamma: Seq[FOLFormula], val alphaVar: FOL
 case class SimpleLoopProblem( val loop: ForLoop, val gamma: Seq[FOLFormula], val precondition: FOLFormula, val postcondition: FOLFormula ) {
   val programVariables = usedVariables( loop.body ).distinct diff List( loop.indexVar, loop.limit )
 
-  def stateFunctionSymbol( programVariable: FOLVar ): String = programVariable match { case FOLVar( sym ) => s"sigma_$sym" }
+  def stateFunctionSymbol( programVariable: Var ): String = programVariable match { case FOLVar( sym ) => s"sigma_$sym" }
 
-  def varsAtTime( i: FOLTerm ): List[( FOLVar, FOLTerm )] =
-    programVariables map { v => v -> Function( stateFunctionSymbol( v ), List( i ) ) }
+  def varsAtTime( i: FOLTerm ): List[( Var, FOLTerm )] =
+    programVariables map { v => v -> FOLFunction( stateFunctionSymbol( v ), List( i ) ) }
 
   def pi: FOLFormula =
     Substitution( varsAtTime( loop.indexVar ) )(
       weakestPrecondition( loop.body,
-        And( varsAtTime( Function( "s", List( loop.indexVar ) ) ) map {
+        And( varsAtTime( FOLFunction( "s", List( loop.indexVar ) ) ) map {
           case ( v, s ) => Equation( s, v )
         } ) ) )
 

@@ -1,5 +1,6 @@
 package at.logic.transformations.herbrandSequent.lksk
 
+import at.logic.language.lambda.{Abs, Var, Const}
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -19,8 +20,8 @@ import at.logic.transformations.skolemization.lksk.{LKtoLKskc => skolemize }
 @RunWith(classOf[JUnitRunner])
 class extractLKSKExpansionSequentTest extends SpecificationWithJUnit {
   object simpleHOLProof {
-    val p = Atom(HOLConst("P", To), Nil)
-    val x = HOLVar("X", To)
+    val p = Atom(Const("P", To), Nil)
+    val x = Var("X", To)
     val xatom = Atom(x, Nil)
     val existsx = ExVar(x,xatom)
 
@@ -33,8 +34,8 @@ class extractLKSKExpansionSequentTest extends SpecificationWithJUnit {
   }
 
   object simpleLKSKProof {
-    val p = Atom(HOLConst("P", To), Nil)
-    val x = HOLVar("X", To)
+    val p = Atom(Const("P", To), Nil)
+    val x = Var("X", To)
     val xatom = Atom(x, Nil)
     val existsx = ExVar(x,xatom)
 
@@ -47,11 +48,11 @@ class extractLKSKExpansionSequentTest extends SpecificationWithJUnit {
 
 
   object simpleHOLProof2 {
-    val x = HOLVar("X", Ti -> To)
-    val a = HOLVar("\\alpha", Ti)
-    val u = HOLVar("u", Ti)
+    val x = Var("X", Ti -> To)
+    val a = Var("\\alpha", Ti)
+    val u = Var("u", Ti)
 
-    val p = HOLConst("P", Ti -> To)
+    val p = Const("P", Ti -> To)
     val pa = Atom(p, List(a))
     val pu = Atom(p, List(u))
     val xatoma = Atom(x, List(a))
@@ -61,9 +62,9 @@ class extractLKSKExpansionSequentTest extends SpecificationWithJUnit {
     val alluexistsx = AllVar(u,ExVar(x,xatomu))
 
     val ax = Axiom(List(pa), List(pa))
-    val i1 = ExistsRightRule(ax, ax.root.succedent(0), existsx, HOLAbs(u,pu) )
+    val i1 = ExistsRightRule(ax, ax.root.succedent(0), existsx, Abs(u,pu) )
     val i2 = NegRightRule(i1, i1.root.antecedent(0))
-    val i3 = ExistsRightRule(i2, i2.root.succedent(1), existsx, HOLAbs(u, Neg(pu)))
+    val i3 = ExistsRightRule(i2, i2.root.succedent(1), existsx, Abs(u, Neg(pu)))
     val i4 = ContractionRightRule(i3, i3.root.succedent(0), i3.root.succedent(1))
     val i5 = ForallRightRule(i4, i4.root.succedent(0), alluexistsx, a)
 
@@ -71,15 +72,15 @@ class extractLKSKExpansionSequentTest extends SpecificationWithJUnit {
   }
 
   object simpleHOLProof3 {
-    val p = HOLConst("P", Ti -> To)
-    val a = HOLVar("\\alpha", Ti)
-    val u = HOLVar("u", Ti)
+    val p = Const("P", Ti -> To)
+    val a = Var("\\alpha", Ti)
+    val u = Var("u", Ti)
 
     val pa = Atom(p, a::Nil)
     val pu = Atom(p, u::Nil)
     val allpu = AllVar(u, pu)
 
-    val x = HOLVar("X", To)
+    val x = Var("X", To)
     val xatom = Atom(x, Nil)
     val existsx = ExVar(x,xatom)
 
@@ -95,15 +96,15 @@ class extractLKSKExpansionSequentTest extends SpecificationWithJUnit {
 
 
   object simpleHOLProof4 {
-    val p = HOLConst("P", Ti -> To)
-    val a = HOLVar("\\alpha", Ti)
-    val u = HOLVar("u", Ti)
+    val p = Const("P", Ti -> To)
+    val a = Var("\\alpha", Ti)
+    val u = Var("u", Ti)
 
     val pa = Atom(p, a::Nil)
     val pu = Atom(p, u::Nil)
     val allpu = AllVar(u, pu)
 
-    val x = HOLVar("X", To)
+    val x = Var("X", To)
     val xatom = Atom(x, Nil)
     val existsx = ExVar(x,xatom)
 

@@ -3,11 +3,11 @@ package at.logic.parsing.language.hlk
 import util.parsing.combinator.JavaTokenParsers
 import scala.util.parsing.combinator.PackratParsers
 
-import at.logic.language.lambda.symbols._
-import at.logic.language.lambda.types._
+import at.logic.language.lambda._
 import at.logic.language.hol._
 import at.logic.language.lambda.types._
 import at.logic.language.fol
+import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
 
 /**
  * Extension of prover9 parser to hol
@@ -168,11 +168,11 @@ class DeclarationParser extends HOLASTParser {
   lazy val complexType: PackratParser[TA] = ( ( complexType | parens( complexType ) ) ~ ">" ~ ( complexType | parens( complexType ) ) ) ^^ { case t1 ~ _ ~ t2 => t1 -> t2 } | simpleType
 
   lazy val constdecl: PackratParser[Map[String, HOLExpression]] = "const" ~ rep1sep( symbolnames, "," ) ~ ":" ~ complexType ^^ {
-    case _ ~ varnames ~ _ ~ exptype => Map[String, HOLExpression]() ++ ( varnames map ( x => ( x, HOLConst( x, exptype ) ) ) )
+    case _ ~ varnames ~ _ ~ exptype => Map[String, HOLExpression]() ++ ( varnames map ( x => ( x, Const( x, exptype ) ) ) )
   }
 
   lazy val vardecl: PackratParser[Map[String, HOLExpression]] = "var" ~ rep1sep( symbolnames, "," ) ~ ":" ~ complexType ^^ {
-    case _ ~ varnames ~ _ ~ exptype => Map[String, HOLExpression]() ++ ( varnames map ( x => ( x, HOLVar( x, exptype ) ) ) )
+    case _ ~ varnames ~ _ ~ exptype => Map[String, HOLExpression]() ++ ( varnames map ( x => ( x, Var( x, exptype ) ) ) )
   }
 
   //declaration lists e.g.: var x,y :i; const a,b : i; const P : i > i > o
@@ -200,9 +200,9 @@ class HLKHOLParser {
     require( e.isInstanceOf[HOLFormula], "The expression " + e + " is supposed to be a formula!" )
     e.asInstanceOf[HOLFormula]
   }
-  private def v( e: HOLExpression ): HOLVar = {
-    require( e.isInstanceOf[HOLVar], "The expression " + e + " is supposed to be a variable!" )
-    e.asInstanceOf[HOLVar]
+  private def v( e: HOLExpression ): Var = {
+    require( e.isInstanceOf[Var], "The expression " + e + " is supposed to be a variable!" )
+    e.asInstanceOf[Var]
   }
 
   def ASTtoHOLnormalized( create: String => HOLExpression, exp: ast.LambdaAST ): HOLExpression =
@@ -211,7 +211,7 @@ class HLKHOLParser {
   //converts an ast to a holformula. create decides if the string represents a constant or variable of appropriate type
   // and returns the matching hol expression
   def ASTtoHOL( create: String => HOLExpression, exp: ast.LambdaAST ): HOLExpression = exp match {
-    case ast.Abs( ast.Var( x ), t )    => HOLAbs( v( create( x ) ), ASTtoHOL( create, t ) )
+    case ast.Abs( ast.Var( x ), t )    => Abs( v( create( x ) ), ASTtoHOL( create, t ) )
     case ast.All( ast.Var( x ), t )    => AllVar( v( create( x ) ), f( ASTtoHOL( create, t ) ) )
     case ast.Exists( ast.Var( x ), t ) => ExVar( v( create( x ) ), f( ASTtoHOL( create, t ) ) )
 
@@ -221,7 +221,7 @@ class HLKHOLParser {
     case ast.App( first :: Nil )       => ASTtoHOL( create, first )
     case ast.App( first :: rest ) =>
       //require(! rest.isEmpty, "Empty applications are not accepted!");
-      rest.foldLeft( ASTtoHOL( create, first ) )( ( exp, a ) => HOLApp( exp, ASTtoHOL( create, a ) ) )
+      rest.foldLeft( ASTtoHOL( create, first ) )( ( exp, a ) => App( exp, ASTtoHOL( create, a ) ) )
 
     case ast.And( l, r ) => And( f( ASTtoHOL( create, l ) ), f( ASTtoHOL( create, r ) ) )
     case ast.Or( l, r )  => Or( f( ASTtoHOL( create, l ) ), f( ASTtoHOL( create, r ) ) )
@@ -234,7 +234,7 @@ class HLKHOLParser {
     case ast.Bottom()    => Atom( BottomC, Nil )
   }
 
-  def parse( create: String => HOLVar, s: CharSequence ): HOLExpression = {
+  def parse( create: String => Var, s: CharSequence ): HOLExpression = {
     DeclarationParser.parseAll( DeclarationParser.formula, s ) match {
       case DeclarationParser.Success( result, _ ) => ASTtoHOL( create, result )
       case DeclarationParser.NoSuccess( msg, input ) =>

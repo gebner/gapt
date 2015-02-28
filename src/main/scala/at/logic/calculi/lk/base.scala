@@ -3,6 +3,7 @@ package at.logic.calculi.lk.base
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.hol._
+import at.logic.language.lambda.Var
 import at.logic.utils.ds.trees._
 
 /**
@@ -286,7 +287,7 @@ trait SubstitutionTerm {
   def subst: HOLExpression
 }
 trait Eigenvariable {
-  def eigenvar: HOLVar
+  def eigenvar: Var
 }
 
 trait TermPositions {

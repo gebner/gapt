@@ -213,7 +213,7 @@ object dbTRSclauseSchema {
 }
 
 // unfolds terms of the form : σ(k+1, x, l)
-//k : IntVar, x: HOLVar of type ind->i, l: IntVar
+//k : IntVar, x: Var of type ind->i, l: IntVar
 object unfoldSTermN {
   //for ground term
   def apply( t: SchemaExpression, trs: dbTRSsTermN ): SchemaExpression = {

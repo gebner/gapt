@@ -1,7 +1,7 @@
 package at.logic.algorithms.fol
 
-import at.logic.language.fol.{ FOLVar, FOLFormula, FOLExpression, Substitution => FOLSubstitution }
-import at.logic.language.hol.{ Substitution => HOLSubstitution, _ }
+import at.logic.language.fol.{ FOLVar, FOLFormula, FOLExpression}
+import at.logic.language.hol._
 import at.logic.language.lambda._
 import at.logic.calculi.lk.base.FSequent
 
@@ -12,9 +12,7 @@ import at.logic.calculi.lk.base.FSequent
  * work if the result is not in FOL.)
  */
 object fol2hol {
-  def apply( e: FOLExpression ): HOLExpression = recreateWithFactory( e, HOLFactory ).asInstanceOf[HOLExpression]
-
-  def apply( f: FOLFormula ): HOLFormula = fol2hol( f.asInstanceOf[FOLExpression] ).asInstanceOf[HOLFormula]
+  def apply( e: FOLExpression ): HOLExpression = e
 
   def apply( f: FSequent ): FSequent =
     FSequent( f.antecedent.map( _ match {
@@ -25,8 +23,7 @@ object fol2hol {
       case holf: HOLFormula => holf
     } ) )
 
-  def apply( sub: FOLSubstitution ): HOLSubstitution = HOLSubstitution( sub.folmap.map( x =>
-    ( fol2hol( x._1 ).asInstanceOf[HOLVar], fol2hol( x._2 ) ) ) )
+  def apply( sub: Substitution ): Substitution = sub
 }
 
 /**

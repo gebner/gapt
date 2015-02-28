@@ -7,6 +7,8 @@ package at.logic.algorithms.unification.fol
 
 import at.logic.algorithms.unification.UnificationAlgorithm
 import at.logic.language.fol._
+import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.calculi.lk.base.{ Sequent, FSequent }
 
 object FOLUnificationAlgorithm extends UnificationAlgorithm {
@@ -22,7 +24,7 @@ object FOLUnificationAlgorithm extends UnificationAlgorithm {
 
   def unify( term1: FOLExpression, term2: FOLExpression ): List[Substitution] =
     unifySetOfTuples( Tuple2( term1.asInstanceOf[FOLExpression], term2.asInstanceOf[FOLExpression] ) :: Nil, Nil ) match {
-      case Some( ( Nil, ls ) ) => List( Substitution( ls.map( x => ( x._1.asInstanceOf[FOLVar], x._2 ) ) ) )
+      case Some( ( Nil, ls ) ) => List( Substitution( ls.map( x => ( x._1.asInstanceOf[Var], x._2 ) ) ) )
       case _                   => Nil
     }
 
@@ -30,18 +32,18 @@ object FOLUnificationAlgorithm extends UnificationAlgorithm {
     return l.map( a => ( s.apply( a._1 ), s.apply( a._2 ) ) )
   }
 
-  def isSolvedVarIn( x: FOLVar, l: List[Tuple2[FOLExpression, FOLExpression]] ): Boolean = {
+  def isSolvedVarIn( x: Var, l: List[Tuple2[FOLExpression, FOLExpression]] ): Boolean = {
     for ( term <- ( ( l.map( ( a ) => a._1 ) ) ::: ( l.map( ( a ) => a._2 ) ) ) )
       if ( getVars( term ).contains( x ) )
         false
     true
   }
 
-  def getVars( f: FOLExpression ): List[FOLVar] = f match {
+  def getVars( f: FOLExpression ): List[Var] = f match {
     case ( FOLConst( c ) )   => Nil
-    case FOLVar( x )         => f.asInstanceOf[FOLVar] :: Nil
-    case Function( _, args ) => args.flatMap( a => getVars( a ) )
-    case Atom( _, args )     => args.flatMap( a => getVars( a ) )
+    case FOLVar( x )         => f.asInstanceOf[Var] :: Nil
+    case FOLFunction( _, args ) => args.flatMap( a => getVars( a ) )
+    case FOLAtom( _, args )     => args.flatMap( a => getVars( a ) )
     case Neg( f )            => getVars( f )
     case And( l, r )         => getVars( l ) ++ getVars( r )
     case Or( l, r )          => getVars( l ) ++ getVars( r )
@@ -54,18 +56,18 @@ object FOLUnificationAlgorithm extends UnificationAlgorithm {
 
       case ( ( FOLConst( name1 ), FOLConst( name2 ) ) :: s, s2 ) if name1 != name2 => None
 
-      case ( ( ( Function( f1, args1 ), Function( f2, args2 ) ) :: s ), s2 ) if args1.length == args2.length && f1 == f2 => unifySetOfTuples( args1.zip( args2 ) ::: s, s2 )
+      case ( ( ( FOLFunction( f1, args1 ), FOLFunction( f2, args2 ) ) :: s ), s2 ) if args1.length == args2.length && f1 == f2 => unifySetOfTuples( args1.zip( args2 ) ::: s, s2 )
 
       case ( ( ( Atom( f1, args1 ), Atom( f2, args2 ) ) :: s ), s2 ) if args1.length == args2.length && f1 == f2 => unifySetOfTuples( args1.zip( args2 ) ::: s, s2 )
 
       case ( ( ( Neg( f1 ), Neg( f2 ) ) :: s ), s2 ) => unifySetOfTuples( ( f1, f2 ) :: s, s2 )
 
-      case ( ( ( x: FOLVar, v ) :: s ), s2 ) if !getVars( v ).contains( x ) => {
+      case ( ( ( x: Var, v ) :: s ), s2 ) if !getVars( v ).contains( x ) => {
         val sub = Substitution( x, v )
         unifySetOfTuples( applySubToListOfPairs( s, sub ), ( x, v ) :: applySubToListOfPairs( s2, sub ) )
       }
 
-      case ( ( ( v, x: FOLVar ) :: s ), s2 ) if !getVars( v ).contains( x ) => {
+      case ( ( ( v, x: Var ) :: s ), s2 ) if !getVars( v ).contains( x ) => {
         val sub = Substitution( x, v )
         unifySetOfTuples( applySubToListOfPairs( s, sub ), ( x, v ) :: applySubToListOfPairs( s2, sub ) )
       }

@@ -9,10 +9,9 @@ package at.logic.language.schema
 import at.logic.language.lambda.{ LambdaExpression, Var, Const, App, Abs, FactoryA }
 import at.logic.language.lambda.symbols._
 import at.logic.language.lambda.types._
-import at.logic.language.hol.{ HOLVar, HOLConst, HOLApp, HOLAbs }
 import at.logic.language.hol.logicSymbols._
 
-class SchemaVar protected[schema] ( sym: SymbolA, exptype: TA ) extends HOLVar( sym, exptype ) with SchemaExpression
+class SchemaVar protected[schema] ( sym: SymbolA, exptype: TA ) extends Var( sym, exptype ) with SchemaExpression
 object SchemaVar {
   def apply( name: String, exptype: TA ): SchemaVar = SchemaFactory.createVar( StringSymbol( name ), exptype )
   def unapply( exp: SchemaExpression ) = exp match {
@@ -21,7 +20,7 @@ object SchemaVar {
   }
 }
 
-class SchemaConst protected[schema] ( sym: SymbolA, exptype: TA ) extends HOLConst( sym, exptype ) with SchemaExpression
+class SchemaConst protected[schema] ( sym: SymbolA, exptype: TA ) extends Const( sym, exptype ) with SchemaExpression
 object SchemaConst {
   def apply( name: String, exptype: TA ): SchemaConst = SchemaFactory.createConst( StringSymbol( name ), exptype )
   def apply( sym: SymbolA, exptype: TA ): SchemaConst = SchemaFactory.createConst( sym, exptype )
@@ -32,7 +31,7 @@ object SchemaConst {
   }
 }
 
-class SchemaApp private[schema] ( function: SchemaExpression, arg: SchemaExpression ) extends HOLApp( function, arg ) with SchemaExpression
+class SchemaApp private[schema] ( function: SchemaExpression, arg: SchemaExpression ) extends App( function, arg ) with SchemaExpression
 object SchemaApp {
   def apply( function: SchemaExpression, argument: SchemaExpression ): SchemaApp = argument.factory.createApp( function, argument ).asInstanceOf[SchemaApp]
   def apply( function: SchemaExpression, arguments: List[SchemaExpression] ): SchemaExpression = arguments match {
@@ -45,7 +44,7 @@ object SchemaApp {
   }
 }
 
-class SchemaAbs private[schema] ( variable: SchemaVar, expression: SchemaExpression ) extends HOLAbs( variable, expression ) with SchemaExpression
+class SchemaAbs private[schema] ( variable: SchemaVar, expression: SchemaExpression ) extends Abs( variable, expression ) with SchemaExpression
 object SchemaAbs {
   def apply( v: SchemaVar, e: SchemaExpression ): SchemaAbs = e.factory.createAbs( v, e ).asInstanceOf[SchemaAbs]
   def unapply( e: SchemaExpression ) = e match {

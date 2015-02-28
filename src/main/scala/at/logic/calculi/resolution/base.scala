@@ -12,6 +12,7 @@ import at.logic.calculi.lksk.LabelledFormulaOccurrence
 import at.logic.calculi.lksk.TypeSynonyms.Label
 import at.logic.language.hol._
 import at.logic.language.hol.skolemSymbols.TypeSynonyms.SkolemSymbol
+import at.logic.language.lambda._
 import at.logic.language.lambda.types.{ TA, FunctionType }
 import at.logic.utils.ds.acyclicGraphs._
 
@@ -164,13 +165,13 @@ object computeSkolemTerm {
   def apply( sk: SkolemSymbol, t: TA, sub: HOLExpression ) = {
     val fv = freeVariables( sub )
     val tp = FunctionType( t, fv.map( v => v.exptype ) )
-    Function( HOLConst( sk, tp ), fv )
+    Function( Const( sk, tp ), fv )
   }
 
   // used in ral
   def apply( sk: SkolemSymbol, t: TA, label: Label ) = {
     val tp = FunctionType( t, label.toList.map( v => v.exptype ) )
-    Function( HOLConst( sk, tp ), label.toList )
+    Function( Const( sk, tp ), label.toList )
   }
 }
 

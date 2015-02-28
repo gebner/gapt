@@ -7,16 +7,19 @@ package at.logic.calculi.lk
 
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
-import at.logic.language.hol.BetaReduction._
+import at.logic.language.lambda.BetaReduction._
 import at.logic.language.hol._
+import at.logic.language.lambda.{freeVariables, Substitution, App, Var}
 import at.logic.utils.ds.trees._
 import base._
+
+import ImplicitStandardStrategy._
 
 case class LKQuantifierException( main: HOLFormula,
                                   aux: HOLFormula,
                                   term: HOLExpression,
                                   calculated_formula: HOLFormula,
-                                  quantifier_var: HOLVar ) extends Exception {
+                                  quantifier_var: Var ) extends Exception {
   override def getMessage = "Substituting the variable " + quantifier_var +
     " with the term " + term + " in the formula " + main +
     " gives " + calculated_formula + " instead of " + aux
@@ -227,7 +230,7 @@ object ForallRightRule extends StrongRuleHelper( true ) {
    * @param eigen_var The eigenvariable to be all-quantified & whose substitution into the main formula yields the auxiliary formula.
    * @return An LK Proof ending with the new inference.
    */
-  def apply( s1: LKProof, aux: HOLFormula, main: HOLFormula, eigen_var: HOLVar ): LKProof =
+  def apply( s1: LKProof, aux: HOLFormula, main: HOLFormula, eigen_var: Var ): LKProof =
     s1.root.succedent.filter( x => x.formula == aux ).toList match {
       case ( x :: _ ) => apply( s1, x, main, eigen_var )
       case _          => throw new LKUnaryRuleCreationException( "all:r", s1, aux :: Nil )
@@ -249,7 +252,7 @@ object ForallRightRule extends StrongRuleHelper( true ) {
    * @param eigen_var The eigenvariable to be all-quantified & whose substitution into the main formula yields the auxiliary formula.
    * @return An LK Proof ending with the new inference.
    */
-  def apply( s1: LKProof, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: HOLVar ): LKProof = {
+  def apply( s1: LKProof, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: Var ): LKProof = {
     try {
       val aux_fo = getTerms( s1.root, term1oc, main, eigen_var )
       val prinFormula = getPrinFormula( main, aux_fo )
@@ -285,7 +288,7 @@ object ForallRightRule extends StrongRuleHelper( true ) {
    * @param eigen_var The eigenvariable to be all-quantified & whose substitution into the main formula yields the auxiliary formula.
    * @return The sequent (sL |- sR, Forall x.A).
    */
-  def apply( s1: Sequent, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: HOLVar ) = {
+  def apply( s1: Sequent, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: Var ) = {
     val aux_fo = getTerms( s1, term1oc, main, eigen_var )
     val prinFormula = getPrinFormula( main, aux_fo )
     getSequent( s1, aux_fo, prinFormula )
@@ -317,7 +320,7 @@ object ExistsLeftRule extends StrongRuleHelper( false ) {
    * @param eigen_var The eigenvariable to be existentially quantified & whose substitution into the main formula yields the auxiliary formula.
    * @return An LK Proof ending with the new inference.
    */
-  def apply( s1: LKProof, aux: HOLFormula, main: HOLFormula, eigen_var: HOLVar ): LKProof =
+  def apply( s1: LKProof, aux: HOLFormula, main: HOLFormula, eigen_var: Var ): LKProof =
     s1.root.antecedent.filter( x => x.formula == aux ).toList match {
       case ( x :: _ ) => apply( s1, x, main, eigen_var )
       case _          => throw new LKUnaryRuleCreationException( "ex:l", s1, aux :: Nil )
@@ -339,7 +342,7 @@ object ExistsLeftRule extends StrongRuleHelper( false ) {
    * @param eigen_var The eigenvariable to be existentially quantified & whose substitution into the main formula yields the auxiliary formula.
    * @return An LK Proof ending with the new inference.
    */
-  def apply( s1: LKProof, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: HOLVar ): LKProof = {
+  def apply( s1: LKProof, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: Var ): LKProof = {
     try {
       val aux_fo = getTerms( s1.root, term1oc, main, eigen_var )
       val prinFormula = getPrinFormula( main, aux_fo )
@@ -375,7 +378,7 @@ object ExistsLeftRule extends StrongRuleHelper( false ) {
    * @param eigen_var The eigenvariable to be existentially quantified & whose substitution into the main formula yields the auxiliary formula.
    * @return The sequent (sL, Exists x.A |- sR).
    */
-  def apply( s1: Sequent, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: HOLVar ) = {
+  def apply( s1: Sequent, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: Var ) = {
     val aux_fo = getTerms( s1, term1oc, main, eigen_var )
     val prinFormula = getPrinFormula( main, aux_fo )
     getSequent( s1, aux_fo, prinFormula )
@@ -413,7 +416,7 @@ class QuantifierRuleHelper( polarity: Boolean ) {
 }
 
 class StrongRuleHelper( polarity: Boolean ) extends QuantifierRuleHelper( polarity ) {
-  private[lk] def getTerms( s1: Sequent, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: HOLVar ) = {
+  private[lk] def getTerms( s1: Sequent, term1oc: FormulaOccurrence, main: HOLFormula, eigen_var: Var ) = {
     val foccs = if ( polarity == false ) s1.antecedent else s1.succedent
     foccs.find( _ == term1oc ) match {
       case None => throw new LKRuleCreationException( "Auxiliary formulas are not contained in the right part of the sequent" )
@@ -429,8 +432,8 @@ class StrongRuleHelper( polarity: Boolean ) extends QuantifierRuleHelper( polari
             //This check does the following: if we conclude exists x.A[x] from A[t] then A[x\t] must be A[t].
             //If it fails, you are doing something seriously wrong!
             //In any case do NOT remove it without telling everyone!
-            //assert( betaNormalize( HOLApp( sub, eigen_var ) ) == aux_fo.formula , "assert 2 in getTerms of String Quantifier Rule fails!\n"+betaNormalize( HOLApp( sub, eigen_var ) )+" != "+aux_fo.formula)
-            assert( betaNormalize( back_substitiution( sub ) ) == aux_fo.formula, "assert 2 in getTerms of String Quantifier Rule fails!\n" + betaNormalize( HOLApp( sub, eigen_var ) ) + " != " + aux_fo.formula )
+            //assert( betaNormalize( App( sub, eigen_var ) ) == aux_fo.formula , "assert 2 in getTerms of String Quantifier Rule fails!\n"+betaNormalize( App( sub, eigen_var ) )+" != "+aux_fo.formula)
+            assert( betaNormalize( back_substitiution( sub ) ) == aux_fo.formula, "assert 2 in getTerms of String Quantifier Rule fails!\n" + betaNormalize( App( sub, eigen_var ) ) + " != " + aux_fo.formula )
             aux_fo
 
           case ExVar( x, sub ) =>
@@ -443,8 +446,8 @@ class StrongRuleHelper( polarity: Boolean ) extends QuantifierRuleHelper( polari
             //This check does the following: if we conclude exists x.A[x] from A[t] then A[x\t] must be A[t].
             //If it fails, you are doing something seriously wrong!
             //In any case do NOT remove it without telling everyone!
-            //assert( betaNormalize( HOLApp( sub, eigen_var ) ) == aux_fo.formula )
-            assert( betaNormalize( back_substitiution( sub ) ) == aux_fo.formula, "assert 2 in getTerms of String Quantifier Rule fails!\n" + betaNormalize( HOLApp( sub, eigen_var ) ) + " != " + aux_fo.formula )
+            //assert( betaNormalize( App( sub, eigen_var ) ) == aux_fo.formula )
+            assert( betaNormalize( back_substitiution( sub ) ) == aux_fo.formula, "assert 2 in getTerms of String Quantifier Rule fails!\n" + betaNormalize( App( sub, eigen_var ) ) + " != " + aux_fo.formula )
             aux_fo
 
           case _ => throw new LKRuleCreationException( "Main formula of a quantifier rule must start with a strong quantfier." )

@@ -4,9 +4,11 @@ import at.logic.calculi.lksk._
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.calculi.lk.base._
 import at.logic.calculi.lk.{ UnaryLKProof, BinaryLKProof }
-import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.algorithms.lk.{ applySubstitution => LKapplySubstitution, ProofTransformationUtils }
 import BetaReduction.{ betaNormalize => normalize }
+import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
+import at.logic.language.lambda.Substitution
 
 object applySubstitution extends at.logic.utils.logging.Logger {
   import ProofTransformationUtils.computeMap

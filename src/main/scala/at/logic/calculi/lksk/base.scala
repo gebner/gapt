@@ -8,9 +8,12 @@ package at.logic.calculi.lksk
 import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.calculi.lk.base.Sequent
 import at.logic.calculi.occurrences._
 import BetaReduction.betaNormalize
+import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
+import at.logic.language.lambda.Substitution
 
 object TypeSynonyms {
   type Label = Set[HOLExpression]

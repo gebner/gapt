@@ -1,5 +1,6 @@
 package at.logic.algorithms.lk
 
+import at.logic.language.lambda.{Var, Const}
 import org.junit.runner.RunWith
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
@@ -13,8 +14,8 @@ import at.logic.calculi.occurrences.FormulaOccurrence
 @RunWith(classOf[JUnitRunner])
 class CutFormulaExtractionTest extends SpecificationWithJUnit {
   "Substitutions" should {
-    val x = HOLVar("x", Ti)
-    val P = HOLConst("P", Ti -> To)
+    val x = Var("x", Ti)
+    val P = Const("P", Ti -> To)
     val px = Atom(P, List(x))
     val ax1 = Axiom( List(px), List(px) )
     val ax2 = Axiom( List(px), List(px) )

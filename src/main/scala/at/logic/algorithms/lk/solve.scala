@@ -5,8 +5,8 @@ import at.logic.calculi.expansionTrees.{ ExpansionTree, ExpansionSequent, Binary
 import at.logic.calculi.lk._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.slk._
-import at.logic.language.hol.{ Substitution => SubstitutionHOL, _ }
-import at.logic.language.lambda.types.{ Ti, Tindex }
+import at.logic.language.lambda._
+import at.logic.language.hol._
 import at.logic.language.schema.{ Substitution => SubstitutionSchema, SchemaVar, SchemaExpression, SchemaFormula, BigAnd, BigOr, IntVar, Pred, Or => OrSchema, And => AndSchema }
 import at.logic.provers.Prover
 
@@ -125,7 +125,7 @@ object solve extends at.logic.utils.logging.Logger {
 
       case AllVar( v, f ) => {
         val quantifiedTerm = action.getQuantifiedTerm().get // must be defined in this case
-        val auxFormula = SubstitutionHOL( v, quantifiedTerm )( f )
+        val auxFormula = Substitution( v, quantifiedTerm )( f )
         val p_ant = action.formula +: auxFormula +: rest.antecedent
         val p_suc = rest.succedent
         val premise = FSequent( p_ant, p_suc )
@@ -137,8 +137,8 @@ object solve extends at.logic.utils.logging.Logger {
       }
 
       case ExVar( v, f ) => {
-        val eigenVar = action.getQuantifiedTerm().get.asInstanceOf[HOLVar]
-        val auxFormula = SubstitutionHOL( v, eigenVar )( f )
+        val eigenVar = action.getQuantifiedTerm().get.asInstanceOf[Var]
+        val auxFormula = Substitution( v, eigenVar )( f )
         val p_ant = auxFormula +: rest.antecedent
         val p_suc = rest.succedent
         val premise = FSequent( p_ant, p_suc )
@@ -328,8 +328,8 @@ object solve extends at.logic.utils.logging.Logger {
       // Quantifier Rules
 
       case AllVar( v, f ) => {
-        val eigenVar = action.getQuantifiedTerm().get.asInstanceOf[HOLVar]
-        val auxFormula = SubstitutionHOL( v, eigenVar )( f )
+        val eigenVar = action.getQuantifiedTerm().get.asInstanceOf[Var]
+        val auxFormula = Substitution( v, eigenVar )( f )
 
         val p_ant = rest.antecedent
         val p_suc = auxFormula +: rest.succedent
@@ -340,7 +340,7 @@ object solve extends at.logic.utils.logging.Logger {
 
       case ExVar( v, f ) => {
         val quantifiedTerm = action.getQuantifiedTerm().get
-        val auxFormula = SubstitutionHOL( v, quantifiedTerm )( f )
+        val auxFormula = Substitution( v, quantifiedTerm )( f )
         val p_ant = rest.antecedent
         val p_suc = action.formula +: auxFormula +: rest.succedent
         val premise = FSequent( p_ant, p_suc )
@@ -728,7 +728,7 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
    * Naive approach: always check everything.
    * This data does not really change (except on et seq changes), so it could be cached/precalculated for efficiency in the future
    */
-  private def doVariablesAppearInStrongQuantifier( vars: Set[HOLVar], et: ExpansionTree ): Boolean = {
+  private def doVariablesAppearInStrongQuantifier( vars: Set[Var], et: ExpansionTree ): Boolean = {
     et match {
       case StrongQuantifier( formula, v, sel ) =>
         vars.contains( v ) || doVariablesAppearInStrongQuantifier( vars, sel )
@@ -993,10 +993,10 @@ object AtomicExpansion {
           val i1 = ImpLeftRule( parent1, parent2, l1, r1 )
           ImpRightRule( i1, l2, r2 )
 
-        case ( AllVar( x1: HOLVar, l1 ), AllVar( x2: HOLVar, l2 ) ) =>
+        case ( AllVar( x1: Var, l1 ), AllVar( x2: Var, l2 ) ) =>
           val eigenvar = rename( x1, freeVariables( l1 ) ++ freeVariables( l2 ) )
-          val sub1 = SubstitutionHOL( List( ( x1, eigenvar ) ) )
-          val sub2 = SubstitutionHOL( List( ( x2, eigenvar ) ) )
+          val sub1 = Substitution( List( ( x1, eigenvar ) ) )
+          val sub2 = Substitution( List( ( x2, eigenvar ) ) )
           val aux1 = sub1( l1 )
           val aux2 = sub2( l2 )
 
@@ -1004,10 +1004,10 @@ object AtomicExpansion {
           val i1 = ForallLeftRule( parent, aux1, f1, eigenvar )
           ForallRightRule( i1, aux2, f2, eigenvar )
 
-        case ( ExVar( x1: HOLVar, l1 ), ExVar( x2: HOLVar, l2 ) ) =>
+        case ( ExVar( x1: Var, l1 ), ExVar( x2: Var, l2 ) ) =>
           val eigenvar = rename( x1, freeVariables( l1 ) ++ freeVariables( l2 ) )
-          val sub1 = SubstitutionHOL( List( ( x1, eigenvar ) ) )
-          val sub2 = SubstitutionHOL( List( ( x2, eigenvar ) ) )
+          val sub1 = Substitution( List( ( x1, eigenvar ) ) )
+          val sub2 = Substitution( List( ( x2, eigenvar ) ) )
           val aux1 = sub1( l1 )
           val aux2 = sub2( l2 )
 

@@ -1,5 +1,7 @@
 package at.logic.parsing.ivy.conversion
 
+import at.logic.language.hol.Equation
+import at.logic.language.lambda.{Const, Substitution}
 import at.logic.parsing.ivy.{ InitialClause => IInitialClause, Instantiate => IInstantiate, Resolution => IResolution, Paramodulation => IParamodulation, Propositional => IPropositional, NewSymbol, IvyResolutionProof, Flip }
 import at.logic.calculi.resolution.robinson.{ InitialClause => RInitialClause, Resolution => RResolution, Factor => RFactor, Variant => RVariant, Paramodulation => RParamodulation, RobinsonResolutionProof }
 import at.logic.language.fol._
@@ -20,7 +22,7 @@ object IvyToRobinson {
 
   def apply( iproof: IvyResolutionProof ): RobinsonResolutionProof = {
     val ( proof, pmap ) = convert( iproof, Map[String, RobinsonResolutionProof]() )
-    val ( newsymbol_rules, mapping ) = iproof.nodes.foldLeft( ( Set[RobinsonResolutionProof]() ), Set[( FOLConst, FOLTerm )]() )( ( set, node ) =>
+    val ( newsymbol_rules, mapping ) = iproof.nodes.foldLeft( ( Set[RobinsonResolutionProof]() ), Set[( Const, FOLTerm )]() )( ( set, node ) =>
       node match {
         case NewSymbol( id, _, _, sym, rt, _, _ ) => ( set._1 + ( pmap( id ) ), set._2 + ( ( sym, rt ) ) )
         case _                                    => set

@@ -1,6 +1,7 @@
 
 package at.logic.algorithms.shlk
 
+import at.logic.language.lambda.Const
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
@@ -17,12 +18,12 @@ class BussGeneratorAutoPropTest extends SpecificationWithJUnit {
   "BussGeneratorAutoPropTest" should {
     "continue autopropositional" in {
 
-      val a = HOLConst("a", Ti)
+      val a = Const("a", Ti)
 
-      val Pc1 = Atom(HOLConst("Pc1", Ti -> To), a::Nil)
-      val Pc2 = Atom(HOLConst("Pc2", Ti -> To), a::Nil)
-      val Pd1 = Atom(HOLConst("Pd1", Ti -> To), a::Nil)
-      val Pd2 = Atom(HOLConst("Pd2", Ti -> To), a::Nil)
+      val Pc1 = Atom(Const("Pc1", Ti -> To), a::Nil)
+      val Pc2 = Atom(Const("Pc2", Ti -> To), a::Nil)
+      val Pd1 = Atom(Const("Pd1", Ti -> To), a::Nil)
+      val Pd2 = Atom(Const("Pd2", Ti -> To), a::Nil)
       val Pc1_or_Pd1 = Or(Pc1, Pd1)
       val imp_Pc1_or_Pd1_Pc2 = Imp(Pc1_or_Pd1, Pc2)
       val imp_Pc1_or_Pd1_Pd2 = Imp(Pc1_or_Pd1, Pd2)
@@ -39,10 +40,10 @@ class BussGeneratorAutoPropTest extends SpecificationWithJUnit {
 object BussTautology {
   def apply( n: Int ) : FSequent = FSequent( Ant( n ), c( n )::d( n )::Nil )
 
-  val a = HOLConst("a", Ti)
+  val a = Const("a", Ti)
 
-  def c( i: Int ) = Atom( HOLConst("c_" + i, Ti -> To), a::Nil )
-  def d( i: Int ) = Atom( HOLConst("d_" + i, Ti -> To), a::Nil )
+  def c( i: Int ) = Atom( Const("c_" + i, Ti -> To), a::Nil )
+  def d( i: Int ) = Atom( Const("d_" + i, Ti -> To), a::Nil )
   def F( i: Int ) : HOLFormula =  if ( i == 1 )
                                       Or( c( 1 ), d( 1 ) )
                                   else

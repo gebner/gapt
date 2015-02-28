@@ -6,8 +6,9 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base.{LKProof, Sequent}
 import at.logic.calculi.occurrences.{FormulaOccurrence, defaultFormulaOccurrenceFactory}
 import at.logic.calculi.slk.SchemaProofDB
-import at.logic.language.fol.{Substitution => FOLSubstitution, FOLExpression, AllVar, FOLConst, FOLVar}
-import at.logic.language.hol.{HOLFormula, HOLVar, HOLAbs, HOLExpression}
+import at.logic.language.fol.{FOLExpression, FOLConst, FOLVar}
+import at.logic.language.hol.{HOLFormula, HOLExpression}
+import at.logic.language.lambda.{Substitution, Var}
 import at.logic.language.lambda.types._
 import at.logic.parsing.language.prover9.Prover9TermParserLadrStyle
 import at.logic.parsing.shlk_parsing.sFOParser
@@ -70,7 +71,7 @@ class acnfTest extends SpecificationWithJUnit {
     }
 
     "should correctly handle equality rules" in {
-      def groundproj(projections: Set[LKProof], groundSubs: List[(HOLVar, HOLExpression)]): Set[LKProof] = {
+      def groundproj(projections: Set[LKProof], groundSubs: List[(Var, HOLExpression)]): Set[LKProof] = {
         groundSubs.map(subs => projections.map(pr => renameIndexedVarInProjection(pr, subs))).flatten.toSet
       }
 
@@ -107,7 +108,7 @@ class acnfTest extends SpecificationWithJUnit {
 
       //for (p <- proj) println(p)
       val rlkp = RobinsonToLK(rp.get)
-      val gproj = proj map (applySubstitution(_, FOLSubstitution((u,b)::Nil))._1)
+      val gproj = proj map (applySubstitution(_, Substitution((u,b)::Nil))._1)
       //gproj map (x => println(" "+x))
       val acnf = ACNF.plugProjections(rlkp, gproj, es.root.toFSequent)
       //println(acnf)

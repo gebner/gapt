@@ -12,8 +12,8 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base._
 import at.logic.language.hol._
 import at.logic.calculi.occurrences._
-import at.logic.language.hol.Substitution
 import at.logic.algorithms.lk.{ CleanStructuralRules, regularize, applySubstitution }
+import at.logic.language.lambda.Substitution
 
 class ReductiveCutElimException( msg: String ) extends Exception( msg )
 

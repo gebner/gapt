@@ -32,10 +32,12 @@ import at.logic.calculi.occurrences.{ FormulaOccurrence, defaultFormulaOccurrenc
 import at.logic.calculi.resolution._
 import at.logic.calculi.resolution.robinson._
 import at.logic.gui.prooftool.gui.Main
-import at.logic.language.fol.{ AllVar => FOLAllVar, And => FOLAnd, Atom => FOLAtom, ExVar => FOLExVar, Imp => FOLImp, Neg => FOLNeg, Or => FOLOr, Substitution => FOLSubstitution, freeVariables => FOLfreeVariables, _ }
+import at.logic.language.fol._
+import at.logic.language.lambda._
+import at.logic.language.lambda
 import at.logic.language.hoare.Program
 import at.logic.language.hol.logicSymbols._
-import at.logic.language.hol.{ BetaReduction => HOLBetaReduction, Substitution => HOLSubstitution, containsQuantifier => containsQuantifierHOL, _ }
+import at.logic.language.hol._
 import at.logic.language.lambda.symbols.StringSymbol
 import at.logic.language.lambda.{ LambdaExpression, Var, Substitution => LambdaSubstitution }
 import at.logic.language.lambda.types._
@@ -86,6 +88,7 @@ import at.logic.transformations.{ ReductiveCutElim, herbrandExtraction }
 import at.logic.algorithms.lk.{ rule_isomorphic => LKrule_isomorphic }
 import at.logic.algorithms.lksk.{ rule_isomorphic => LKSKrule_isomorphic }
 import at.logic.utils.logging.Stopwatch
+import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
 
 import scala.collection.mutable.{ Map => MMap }
 
@@ -324,7 +327,7 @@ object prover9 {
 
   //get the ground substitution of the ground resolution refutation
   //the ground substitution is a list of pairs, it can't be a map ! The reason is : a clause can be used several times in the resolution refutation.
-  //def getGroundSubstitution(rrp: RobinsonResolutionProof): List[(HOLVar, HOLExpression)] = getInstantiationsOfTheIndexedFOVars(rrp)
+  //def getGroundSubstitution(rrp: RobinsonResolutionProof): List[(Var, HOLExpression)] = getInstantiationsOfTheIndexedFOVars(rrp)
   def getProof( seq: FSequent ): Option[LKProof] = {
     val p = new at.logic.provers.prover9.Prover9Prover()
     p.getLKProof( seq )
@@ -671,7 +674,7 @@ object computeProjections {
 }
 
 object computeGroundProjections {
-  def apply( projections: Set[LKProof], groundSubs: List[( HOLVar, HOLExpression )] ): Set[LKProof] = {
+  def apply( projections: Set[LKProof], groundSubs: List[( Var, HOLExpression )] ): Set[LKProof] = {
     groundSubs.map( subs => projections.map( pr => renameIndexedVarInProjection( pr, subs ) ) ).flatten.toSet
   }
 }
@@ -739,8 +742,8 @@ object deleteEquationalTautologies {
 
   def apply( ls: List[FSequent] ) = ls.filterNot( _._2 exists ( ( f: HOLFormula ) =>
     f match {
-      case Atom( c: HOLConst, List( x, y ) ) => c.sym == "=" && x == y
-      case Atom( c: HOLVar, List( x, y ) )   => c.sym == "=" && x == y
+      case Atom( c: Const, List( x, y ) ) => c.sym == "=" && x == y
+      case Atom( c: Var, List( x, y ) )   => c.sym == "=" && x == y
       case _                                 => false
     } ) )
 
@@ -778,27 +781,14 @@ object fsequent2sequent {
   */
 
 object Robinson2Ral extends RobinsonToRal {
-  override def convert_formula( e: HOLFormula ): HOLFormula = recreateWithFactory( e, HOLFactory ).asInstanceOf[HOLFormula]
-  override def convert_substitution( s: HOLSubstitution ): HOLSubstitution = {
-    recreateWithFactory( s, HOLFactory, convert_map ).asInstanceOf[HOLSubstitution]
-  }
-
-  //TODO: this is somehow dirty....
-  def convert_map( m: Map[Var, LambdaExpression] ): LambdaSubstitution = HOLSubstitution( m.asInstanceOf[Map[HOLVar, HOLExpression]] )
+  override def convert_formula( e: HOLFormula ): HOLFormula = e
+  override def convert_substitution( s: lambda.Substitution ) = s
 }
 
 object GenerateRobinson2Ral {
   def apply( hol2folscope: collection.mutable.Map[LambdaExpression, StringSymbol] ): RobinsonToRal = new RobinsonToRal {
-    override def convert_formula( e: HOLFormula ): HOLFormula = {
-
-      recreateWithFactory( e, HOLFactory ).asInstanceOf[HOLFormula]
-    }
-    override def convert_substitution( s: HOLSubstitution ): HOLSubstitution = {
-      recreateWithFactory( s, HOLFactory, convert_map ).asInstanceOf[HOLSubstitution]
-    }
-
-    //TODO: this is somehow dirty....
-    def convert_map( m: Map[Var, LambdaExpression] ): LambdaSubstitution = HOLSubstitution( m.asInstanceOf[Map[HOLVar, HOLExpression]] )
+    override def convert_formula( e: HOLFormula ): HOLFormula = e
+    override def convert_substitution( s: lambda.Substitution ) = s
   }
 }
 
@@ -1039,7 +1029,7 @@ object ntape {
     println( "Converting to LKskc" )
     val selp = LKtoLKskc( regularize( elp ) )
     println( "Extracting struct" )
-    val struct = extractStruct( selp, x => containsQuantifierHOL( x ) )
+    val struct = extractStruct( selp, x => containsQuantifier( x ) )
     val ( full, fol, hol, csyms ) = css( struct )
     println( "Simplifying clauseset" )
     val ax1 = FSequent( Nil, List( parse hlkformula "var x:i; const < : i>i>o; const 1 : i; const + : i>i>i; x<x+1" ) )
@@ -1072,11 +1062,10 @@ object ntape {
       case _              => List[FSequent]()
     } )
     val cmap = Map[String, TA]( ( "q_{1}", Ti -> To ), ( "q_{2}", Ti -> To ) )
-    val holaxioms = axioms.map( x => recreateWithFactory( x, HOLFactory ) ).toList
 
-    val folaxs = holaxioms.flatMap( _.formulas ).filter( _.factory != HOLFactory )
-    require( folaxs.isEmpty, "HOL Conversion didn't work on " + folaxs )
-    val raxioms = holaxioms.map( x => changeTypeIn( x, cmap ) )
+//    val folaxs = holaxioms.flatMap( _.formulas ).filter( _.factory != HOLFactory )
+//    require( folaxs.isEmpty, "HOL Conversion didn't work on " + folaxs )
+    val raxioms = axioms.map( x => changeTypeIn( x, cmap ) )
 
     ( lkp, raxioms )
   }
@@ -1090,14 +1079,14 @@ object ntape {
 
   val subvars1 = List( 1, 3 ).map( x => parse hlkexp "var \\alpha_{" + x + "}:i; \\alpha_{" + x + "}" )
   val subvars2 = List( 4, 6 ).map( x => parse hlkexp "var \\alpha_{" + x + "}:i; \\alpha_{" + x + "}" )
-  val sub = HOLSubstitution( subvars1.map( x => ( x.asInstanceOf[HOLVar], subterm1 ) ) ++
-    subvars2.map( x => ( x.asInstanceOf[HOLVar], subterm2 ) ) )
+  val sub = lambda.Substitution( subvars1.map( x => ( x.asInstanceOf[Var], subterm1 ) ) ++
+    subvars2.map( x => ( x.asInstanceOf[Var], subterm2 ) ) )
 
   def findProj( proof: LKProof, axioms: List[FSequent] ) = {
     val es = proof.root.toFSequent
     val pref = Projections.lksk_reflexivity_projection( proof )
     println( "Calculated projection to reflexivity: " + pref.root.toFSequent.diff( proof.root.toFSequent ) )
-    val proj = pref :: ( Projections( proof, x => containsQuantifierHOL( x ) ).toList )
+    val proj = pref :: ( Projections( proof, x => containsQuantifier( x ) ).toList )
     println( "Total projections size: " + proj.size )
     val pproj = proj.map( x => ( x.root.toFSequent.diff( es ), x ) )
     val still = StillmanSubsumptionAlgorithmHOL
@@ -1118,7 +1107,7 @@ object ntape {
     case _ => false
   } )
 
-  def sub_mising( p: LKProof, sub: HOLSubstitution ) = {
+  def sub_mising( p: LKProof, sub: lambda.Substitution ) = {
     val ( s, _ ) = applySubstitution( p, sub )
     val w = hasWeakHOLRule( s ).toList
     val winf = w.map( _ match {
@@ -1129,8 +1118,8 @@ object ntape {
     winf
   }
 
-  def printWorking( working: List[( HOLSubstitution, LKProof )] ) = {
-    val workingsubs = working.foldLeft( Map[LKProof, List[HOLSubstitution]]() )( ( map, pair ) => {
+  def printWorking( working: List[( lambda.Substitution, LKProof )] ) = {
+    val workingsubs = working.foldLeft( Map[LKProof, List[lambda.Substitution]]() )( ( map, pair ) => {
       val l = map.getOrElse( pair._2, List() );
       map + ( ( pair._2, pair._1 :: l ) )
     } )
@@ -1138,7 +1127,7 @@ object ntape {
       println( format.llk( x._1.root.toFSequent.diff( selp.root.toFSequent ) ) );
       println();
       x._2.map( z =>
-        println( z.holmap.map( y =>
+        println( z.map.map( y =>
           format.llk( y._1 ) + " <- " + format.llk( y._2 ) ).mkString( "Sub={", ", ", "}" ) ) );
       println()
     } )
@@ -1148,13 +1137,13 @@ object ntape {
 
 object proofs {
   def simple1(): LKProof = {
-    val x = HOLVar( "x", Ti )
-    val y = HOLVar( "y", Ti )
-    val a = HOLVar( "a", Ti )
-    val b = HOLVar( "b", Ti )
-    val Rab = Atom( HOLConst( "R", Ti -> ( Ti -> To ) ), a :: b :: Nil )
-    val exyRay = ExVar( y, Atom( HOLConst( "R", Ti -> ( Ti -> To ) ), a :: y :: Nil ) )
-    val allxexyRxy = AllVar( x, ExVar( y, Atom( HOLConst( "R", Ti -> ( Ti -> To ) ), x :: y :: Nil ) ) )
+    val x = Var( "x", Ti )
+    val y = Var( "y", Ti )
+    val a = Var( "a", Ti )
+    val b = Var( "b", Ti )
+    val Rab = Atom( Const( "R", Ti -> ( Ti -> To ) ), a :: b :: Nil )
+    val exyRay = ExVar( y, Atom( Const( "R", Ti -> ( Ti -> To ) ), a :: y :: Nil ) )
+    val allxexyRxy = AllVar( x, ExVar( y, Atom( Const( "R", Ti -> ( Ti -> To ) ), x :: y :: Nil ) ) )
     val ax = Axiom( Rab :: Nil, Rab :: Nil )
     val r1 = ExistsRightRule( ax, ax.root.succedent( 0 ), exyRay, b )
     val r2 = ExistsLeftRule( r1, r1.root.antecedent( 0 ), exyRay, b )
@@ -1216,8 +1205,8 @@ object lkproof {
 
 object normalizeSub {
 
-  def apply( sub: HOLSubstitution ): Unit = {
-    sub.holmap.foreach( x => println( "\n<" + ( HOLBetaReduction.betaNormalize( x._1 ) ).toString + " -> " + ( HOLBetaReduction.betaNormalize( x._2 ) ).toString + ">" ) )
+  def apply( sub: lambda.Substitution ): Unit = {
+    sub.map.foreach( x => println( "\n<" + ( lambda.BetaReduction.betaNormalize( x._1 ) ).toString + " -> " + ( lambda.BetaReduction.betaNormalize( x._2 ) ).toString + ">" ) )
   }
 }
 
@@ -1318,19 +1307,19 @@ object css {
     } )
 
   def extractSymbolTable( l: HOLExpression ): Symboltable = l match {
-    case HOLVar( sym, ta ) =>
+    case Var( sym, ta ) =>
       val ( vt, ct ) = emptysmboltable
       ( vt + ( ( ta, Set( sym ) ) ), ct )
-    case v: HOLConst if v.sym.isInstanceOf[LogicalSymbolA] =>
+    case v: Const if v.sym.isInstanceOf[LogicalSymbolA] =>
       emptysmboltable
-    case HOLConst( sym, ta ) =>
+    case Const( sym, ta ) =>
       val ( vt, ct ) = emptysmboltable
       ( vt, ct + ( ( ta, Set( sym ) ) ) )
-    case HOLApp( s, t ) =>
+    case App( s, t ) =>
       val ( vt1, ct1 ) = extractSymbolTable( s )
       val ( vt2, ct2 ) = extractSymbolTable( t )
       ( vt1 ++ vt2, ct1 ++ ct2 )
-    case HOLAbs( x, t ) =>
+    case Abs( x, t ) =>
       val ( vt1, ct1 ) = extractSymbolTable( x )
       val ( vt2, ct2 ) = extractSymbolTable( t )
       ( vt1 ++ vt2, ct1 ++ ct2 )
@@ -1475,7 +1464,7 @@ object philsci {
 }
 
 object equation_example {
-  def apply: ( LKProof, FOLSubstitution ) = {
+  def apply: ( LKProof, lambda.Substitution ) = {
     val List(
       uv, fuu, fuv, ab, fab ) = List( "u = v",
       "f(u)=f(u)", "f(u)=f(v)", "a=b", "f(a)=f(b)" ) map ( Prover9TermParserLadrStyle.parseFormula )
@@ -1503,7 +1492,7 @@ object equation_example {
     val i7 = ForallLeftRule( i6, i6.root.antecedent( 1 ), xy, a )
 
     val es = CutRule( i4, i7, i4.root.succedent( 0 ), i7.root.antecedent( 1 ) )
-    val sub = FOLSubstitution( ( u, b ) :: Nil )
+    val sub = lambda.Substitution( ( u, b ) :: Nil )
     ( es, sub )
   }
 }

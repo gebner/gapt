@@ -8,6 +8,7 @@
 package at.logic.transformations.skolemization.lksk
 
 import at.logic.language.hol._
+import at.logic.language.lambda.{Var, Const}
 import at.logic.language.lambda.symbols._
 import at.logic.calculi.occurrences._
 import at.logic.calculi.lk.base.{LKProof, Sequent}
@@ -24,10 +25,10 @@ import at.logic.calculi.lksk.TypeSynonyms.EmptyLabel
 class LKskcTest extends SpecificationWithJUnit {
 
   "Transformation from LK to LKskc" should {
-    val x = HOLVar("x", Ti)
-    val y = HOLVar("y", Ti)
-    val c = HOLConst("c", Ti)
-    val r = HOLConst("R", Ti -> (Ti -> To))
+    val x = Var("x", Ti)
+    val y = Var("y", Ti)
+    val c = Const("c", Ti)
+    val r = Const("R", Ti -> (Ti -> To))
 
     "work for a small proof with only weak quantifiers" in {
       val Rcc = Atom(r, c::c::Nil)
@@ -49,8 +50,8 @@ class LKskcTest extends SpecificationWithJUnit {
     }
 
     "work for a cut-free proof" in {
-      val a = HOLVar("a", Ti)
-      val b = HOLVar("b", Ti)
+      val a = Var("a", Ti)
+      val b = Var("b", Ti)
       val Rab = Atom( r, a::b::Nil )
       val exyRay = ExVar( y, Atom( r, a::y::Nil ) )
       val allxexyRxy = AllVar( x, ExVar( y, Atom( r, x::y::Nil ) ) )

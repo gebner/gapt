@@ -1,6 +1,7 @@
 
 package at.logic.algorithms.interpolation
 
+import at.logic.language.lambda.Const
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
 import org.specs2.mutable._
@@ -17,7 +18,7 @@ class interpolationTest extends SpecificationWithJUnit {
   "interpolation" should {
 
     "correctly interpolate an axiom with top" in {
-      val p = Atom(HOLConst("p", To))
+      val p = Atom(Const("p", To))
       val ax = Axiom( p::Nil, p::Nil )
       val npart = Set[FormulaOccurrence]()
       val ppart = Set( ax.root.antecedent(0), ax.root.succedent(0) )
@@ -27,7 +28,7 @@ class interpolationTest extends SpecificationWithJUnit {
     }
 
     "correctly create an interpolating proof" in {
-      val p = Atom(HOLConst("p", To))
+      val p = Atom(Const("p", To))
       val ax = Axiom( p::Nil, p::Nil )
       val npart = Set( ax.root.antecedent(0), ax.root.succedent(0) )
       val ppart = Set[FormulaOccurrence]()
@@ -39,8 +40,8 @@ class interpolationTest extends SpecificationWithJUnit {
     }
 
     "correctly interpolate a single unary inference with not p" in {
-      val p = Atom(HOLConst("p", To))
-      val q = Atom(HOLConst("q", To))
+      val p = Atom(Const("p", To))
+      val q = Atom(Const("q", To))
       val ax = Axiom( p::Nil, p::Nil )
       val pr = OrRight1Rule( ax, p, q )
       val npart = Set( pr.root.succedent( 0 ) )
@@ -53,8 +54,8 @@ class interpolationTest extends SpecificationWithJUnit {
     }
 
     "correctly interpolate a single binary inference with bot or q" in {
-      val p = Atom(HOLConst("p", To))
-      val q = Atom(HOLConst("q", To))
+      val p = Atom(Const("p", To))
+      val q = Atom(Const("q", To))
       val axp = Axiom( p::Nil, p::Nil )
       val axq = Axiom( q::Nil, q::Nil )
       val pr = OrLeftRule( axp, axq, p, q )
@@ -68,9 +69,9 @@ class interpolationTest extends SpecificationWithJUnit {
     }
 
     "correctly interpolate a small proof of 4 inference rules" in {
-      val p = Atom(HOLConst("p", To))
-      val q = Atom(HOLConst("q", To))
-      val r = Atom(HOLConst("r", To))
+      val p = Atom(Const("p", To))
+      val q = Atom(Const("q", To))
+      val r = Atom(Const("r", To))
 
       val axp = Axiom( p::Nil, p::Nil )
       val axq = Axiom( q::Nil, q::Nil )

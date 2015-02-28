@@ -7,6 +7,7 @@ import at.logic.calculi.lk.base._
 import at.logic.calculi.slk._
 import at.logic.calculi.lksk.UnaryLKskProof
 import at.logic.calculi.occurrences._
+import at.logic.language.lambda._
 import scala.collection.immutable.HashSet
 import ProofTransformationUtils.computeMap
 
@@ -310,9 +311,9 @@ object regularize {
 
   def apply( p: LKProof ): LKProof = recApply( p )._1
 
-  def recApply( proof: LKProof ): ( LKProof, List[HOLVar], Map[FormulaOccurrence, FormulaOccurrence] ) = recApply( proof, variables( proof ) )
+  def recApply( proof: LKProof ): ( LKProof, List[Var], Map[FormulaOccurrence, FormulaOccurrence] ) = recApply( proof, variables( proof ) )
 
-  def recApply( proof: LKProof, vars: List[HOLVar] ): ( LKProof, List[HOLVar], Map[FormulaOccurrence, FormulaOccurrence] ) =
+  def recApply( proof: LKProof, vars: List[Var] ): ( LKProof, List[Var], Map[FormulaOccurrence, FormulaOccurrence] ) =
     {
       proof match {
         case r @ CutRule( p1, p2, _, a1, a2 ) => {
@@ -439,7 +440,7 @@ object regularize {
           val ( nparent, blacklist, table ) = recApply( p, vars :+ v )
           val ( new_proof, new_blacklist, new_map ) = if ( blacklist.contains( v ) ) // rename eigenvariable
           {
-            val new_var0 = HOLVar( v.name.toString.replaceAll( "_.*$", "" ), v.exptype ) // FIXME: this should use HOLVar.rename
+            val new_var0 = Var( v.name.toString.replaceAll( "_.*$", "" ), v.exptype ) // FIXME: this should use Var.rename
             val new_var = rename( new_var0, blacklist )
             val new_new_parent = applySubstitution( nparent, Substitution( v, new_var ) )
             val new_map = table.transform( ( k, v ) => new_new_parent._2( v ) ) // compose maps
@@ -454,7 +455,7 @@ object regularize {
           val ( nparent, blacklist, table ) = recApply( p, vars :+ v )
           val ( new_proof, new_blacklist, new_map ) = if ( blacklist.contains( v ) ) // rename eigenvariable
           {
-            val new_var0 = HOLVar( v.name.toString.replaceAll( "_.*$", "" ), v.exptype ) // FIXME: this should use HOLVar.rename
+            val new_var0 = Var( v.name.toString.replaceAll( "_.*$", "" ), v.exptype ) // FIXME: this should use Var.rename
             val new_var = rename( new_var0, blacklist )
             val new_new_parent = applySubstitution( nparent, Substitution( v, new_var ) )
             val new_map = table.transform( ( k, v ) => new_new_parent._2( v ) ) // compose maps
@@ -469,7 +470,7 @@ object regularize {
   def handleWeakening( new_parent: ( LKProof, Map[FormulaOccurrence, FormulaOccurrence] ),
                        old_parent: LKProof,
                        old_proof: LKProof,
-                       vars: List[HOLVar],
+                       vars: List[Var],
                        constructor: ( LKProof, HOLFormula ) => LKProof with PrincipalFormulas,
                        m: FormulaOccurrence ) = {
     val new_proof = constructor( new_parent._1, m.formula )
@@ -481,7 +482,7 @@ object regularize {
                          old_proof: LKProof,
                          a1: FormulaOccurrence,
                          a2: FormulaOccurrence,
-                         vars: List[HOLVar],
+                         vars: List[Var],
                          constructor: ( LKProof, FormulaOccurrence, FormulaOccurrence ) => LKProof ) = {
     val new_proof = constructor( new_parent._1, new_parent._2( a1 ), new_parent._2( a2 ) )
     ( new_proof, vars, computeMap( old_parent.root.antecedent ++ old_parent.root.succedent, old_proof, new_proof, new_parent._2 ) )
@@ -490,7 +491,7 @@ object regularize {
   def handleEquational( r: BinaryLKProof with AuxiliaryFormulas,
                         p1: LKProof, p2: LKProof,
                         a1: FormulaOccurrence, a2: FormulaOccurrence,
-                        m: HOLFormula, vars: List[HOLVar],
+                        m: HOLFormula, vars: List[Var],
                         constructor: ( LKProof, LKProof, FormulaOccurrence, FormulaOccurrence, HOLFormula ) => BinaryLKProof with AuxiliaryFormulas ) = {
     // first left, then right
     val rec1 = recApply( p1, vars )
@@ -500,7 +501,7 @@ object regularize {
       computeMap( p2.root.antecedent ++ p2.root.succedent, r, new_proof, rec2._3 ) )
   }
 
-  def handleBinaryProp( r: BinaryLKProof with AuxiliaryFormulas, p1: LKProof, p2: LKProof, a1: FormulaOccurrence, a2: FormulaOccurrence, vars: List[HOLVar],
+  def handleBinaryProp( r: BinaryLKProof with AuxiliaryFormulas, p1: LKProof, p2: LKProof, a1: FormulaOccurrence, a2: FormulaOccurrence, vars: List[Var],
                         constructor: ( LKProof, LKProof, FormulaOccurrence, FormulaOccurrence ) => BinaryLKProof with AuxiliaryFormulas ) = {
     // first left, then right
     val ( rec1, vars1, map1 ) = recApply( p1, vars )
@@ -511,15 +512,15 @@ object regularize {
   }
 
   // FIXME: this does not belong here - it is not specific to regularization
-  def variables( e: HOLExpression ): List[HOLVar] = e match {
-    case v: HOLVar      => List( v )
-    case c: HOLConst    => List()
-    case HOLApp( s, t ) => variables( s ) ++ variables( t )
-    case HOLAbs( v, t ) => variables( v ) ++ variables( t )
+  def variables( e: HOLExpression ): List[Var] = e match {
+    case v: Var      => List( v )
+    case c: Const    => List()
+    case App( s, t ) => variables( s ) ++ variables( t )
+    case Abs( v, t ) => variables( v ) ++ variables( t )
   }
 
-  def variables( root: Sequent ): List[HOLVar] = ( root.antecedent ++ root.succedent ).foldLeft( List[HOLVar]() )( ( x, y ) => x ++ variables( y.formula ) )
-  def variables( p: LKProof ): List[HOLVar] = p.fold( variables )( _ ++ variables( _ ) )( _ ++ _ ++ variables( _ ) )
+  def variables( root: Sequent ): List[Var] = ( root.antecedent ++ root.succedent ).foldLeft( List[Var]() )( ( x, y ) => x ++ variables( y.formula ) )
+  def variables( p: LKProof ): List[Var] = p.fold( variables )( _ ++ variables( _ ) )( _ ++ _ ++ variables( _ ) )
 
 }
 

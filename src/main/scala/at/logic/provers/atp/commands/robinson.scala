@@ -6,7 +6,9 @@ import at.logic.calculi.lk.base.FSequent
 import at.logic.calculi.resolution.robinson._
 import at.logic.calculi.resolution.Clause
 import at.logic.calculi.occurrences.FormulaOccurrence
-import at.logic.language.fol.{ FOLExpression, Equation, FOLFormula, Substitution }
+import at.logic.language.fol._
+import at.logic.language.hol._
+import at.logic.language.lambda._
 import at.logic.language.hol.replacements._
 import at.logic.provers.atp.ProverException
 import at.logic.provers.atp.commands.base.DataCommand
@@ -55,7 +57,7 @@ case class ResolveCommand( alg: UnificationAlgorithm ) extends DataCommand[Claus
     val ( ( p1, ( lit1, b1 ) ) :: ( p2, ( lit2, b2 ) ) :: Nil ) = data.asInstanceOf[Iterable[Tuple2[RobinsonResolutionProof, Tuple2[FormulaOccurrence, Boolean]]]].toList
     val mgus = alg.unify( lit1.formula.asInstanceOf[FOLExpression], lit2.formula.asInstanceOf[FOLExpression] )
     require( mgus.size < 2 ) // as it is first order it must have at most one mgu
-    mgus.map( x => ( state, Resolution( p1, p2, lit1, lit2, x.asInstanceOf[Substitution] ) ) )
+    mgus.map( x => ( state, Resolution( p1, p2, lit1, lit2, x ) ) )
   }
 
   override def toString = "ResolveCommand(" + alg.getClass + ")"
