@@ -14,10 +14,10 @@ import at.logic.calculi.occurrences.{ defaultFormulaOccurrenceFactory, FormulaOc
 import at.logic.calculi.slk._
 import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols._
-import at.logic.language.lambda.{App, Substitution, Const}
+import at.logic.language.lambda.{Var, App, Substitution, Const}
 import at.logic.language.lambda.types._
 import at.logic.language.lambda.symbols.SymbolA
-import at.logic.language.schema.{ Substitution => SchemaSubstitution, SchemaFormula, BiggerThan, IntZero, IntVar, IntegerTerm, IndexedPredicate, Succ, TopC, BigAnd, BigOr, Pred, SchemaVar }
+import at.logic.language.schema.{  SchemaFormula, BiggerThan, IntZero, IntVar, IntegerTerm, IndexedPredicate, Succ, BigAnd, BigOr, Pred }
 import at.logic.utils.ds.Multisets.Multiset
 import at.logic.utils.ds.Multisets._
 import at.logic.utils.ds.trees._
@@ -640,8 +640,8 @@ object unfoldGroundStruct {
               //TODO: take into account the omega-ancestors
               val struct = StructCreators.extract( step, getCutAncestors( step ) )
               //println("struct : "+struct)
-              val new_map = Map.empty[SchemaVar, IntegerTerm] + Tuple2( IntVar( "k" ), Pred( l.asInstanceOf[IntegerTerm] ) )
-              val new_subst = SchemaSubstitution( new_map )
+              val new_map = Map.empty[Var, IntegerTerm] + Tuple2( IntVar( "k" ), Pred( l.asInstanceOf[IntegerTerm] ) )
+              val new_subst = Substitution( new_map )
               val gr_struct = groundStruct( struct, new_subst )
               //println("ground struct : "+gr_struct)
               return unfoldGroundStruct( gr_struct )

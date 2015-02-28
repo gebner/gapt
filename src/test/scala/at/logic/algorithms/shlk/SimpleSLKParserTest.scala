@@ -5,6 +5,8 @@
 
 package at.logic.parsing.shlk_parsing
 
+import at.logic.language.hol.{Atom, And}
+import at.logic.language.lambda.Var
 import at.logic.language.schema._
 import at.logic.calculi.lk._
 import at.logic.language.lambda.types.To
@@ -24,8 +26,8 @@ class SimpleSLKParserTest extends SpecificationWithJUnit {
 
       sequential
         "parse correctly a SLK-proof" in {
-          val var3 = Atom(SchemaVar("x3",To), Nil)
-          val var4 = Atom(SchemaVar("x4",To), Nil)
+          val var3 = Atom(Var("x3",To), Nil)
+          val var4 = Atom(Var("x4",To), Nil)
           val ax1  = Axiom(var3::Nil, var3::Nil)
           val ax2  = Axiom(var4::Nil, var4::Nil)
           val negl = NegLeftRule(ax1, var3)
@@ -35,7 +37,7 @@ class SimpleSLKParserTest extends SpecificationWithJUnit {
           val i = IntVar("i")
           val Ai2 = IndexedPredicate("A", Succ(Succ(i)))
           val Ai = IndexedPredicate("A", Succ(i))
-          val f1 = at.logic.language.schema.And(A0, BigAnd(i,Ai,IntZero(),Succ(i)))
+          val f1 = And(A0, BigAnd(i,Ai,IntZero(),Succ(i)))
           val ax11 = Axiom(A0::Nil, A0::Nil)
 
           val s = new InputStreamReader(getClass.getClassLoader.getResourceAsStream("shlk-adder.lks"))

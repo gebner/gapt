@@ -20,17 +20,17 @@ class resolutionSchemaParserTest extends SpecificationWithJUnit {
       val s = new InputStreamReader(getClass.getClassLoader.getResourceAsStream("resSchema1.rs"))
       ParseResSchema(s)
       val k = IntVar("k")
-      val map = Map[SchemaVar, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
+      val map = Map[Var, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
       val subst = Substitution(map)
 
       val rho1 = resolutionProofSchemaDB.map.get("\\rho_1").get._2._1
       val rho1step1 = IntVarSubstitution(rho1, subst)
 
       val z = fo2Var("z")
-      val a = SchemaVar("a", Ti)
+      val a = Var("a", Ti)
       val sterm1 = sIndTerm("m", k)//
       val sterm = sTerm("g", sterm1, a::Nil)
-      val h = SchemaAbs(k, sterm)
+      val h = Abs(k, sterm)
       val mapfo2 = Map[fo2Var, SchemaExpression]() + Tuple2(z.asInstanceOf[fo2Var], h)
 
       ok
@@ -40,7 +40,7 @@ class resolutionSchemaParserTest extends SpecificationWithJUnit {
       val s = new InputStreamReader(getClass.getClassLoader.getResourceAsStream("resSchema_sEXP.rs"))
       ParseResSchema(s)
       val k = IntVar("k")
-      val map = Map[SchemaVar, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
+      val map = Map[Var, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
       val subst = Substitution(map)
 
       val rho1 = resolutionProofSchemaDB.map.get("\\rho_1").get._2._1
@@ -55,16 +55,16 @@ class resolutionSchemaParserTest extends SpecificationWithJUnit {
       val s = new InputStreamReader(getClass.getClassLoader.getResourceAsStream("resSchema2.rs"))
       ParseResSchema(s)
       val k = IntVar("k")
-      val map = Map[SchemaVar, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
+      val map = Map[Var, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
       val subst = Substitution(map)
       val rho1 = resolutionProofSchemaDB.map.get("\\rho1").get._2._1
       val rho1step1 = IntVarSubstitution(rho1, subst)
 
       val z = fo2Var("z")
-      val a = SchemaVar("a", Ti)
+      val a = Var("a", Ti)
       val sterm1 = sIndTerm("m", k)//
       val sterm = sTerm("g", sterm1, a::Nil)
-      val h = SchemaAbs(k, sterm)
+      val h = Abs(k, sterm)
       val mapfo2 = Map[fo2Var, SchemaExpression]() + Tuple2(z.asInstanceOf[fo2Var], h)
 
       ok
@@ -75,7 +75,7 @@ class resolutionSchemaParserTest extends SpecificationWithJUnit {
       ParseResSchema(s)
 
       val k = IntVar("k")
-      val map = Map[SchemaVar, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
+      val map = Map[Var, SchemaExpression]() + Tuple2(k, Succ(IntZero()))
       val subst = Substitution(map)
       val rho1 = resolutionProofSchemaDB.map.get("\\rho_1").get._2._1
       val rho1step1 = IntVarSubstitution(rho1, subst)

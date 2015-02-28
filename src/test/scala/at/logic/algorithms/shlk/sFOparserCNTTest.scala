@@ -9,6 +9,7 @@ import at.logic.algorithms.lk.{getCutAncestors, getAncestors}
 import at.logic.calculi.lk._
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.calculi.slk.{TermEquivalenceRule1, TermRightEquivalenceRule1}
+import at.logic.language.hol.And
 import at.logic.language.lambda.types._
 import at.logic.language.schema._
 import java.io.File.separator
@@ -33,7 +34,7 @@ class sFOparserCNTTest extends SpecificationWithJUnit {
       val k = IntVar("k")
       val Ai2 = IndexedPredicate("A", Succ(Succ(i)))
       val Ai = IndexedPredicate("A", Succ(i))
-      val f1 = at.logic.language.schema.And(A0, BigAnd(i,Ai,IntZero(),Succ(i)))
+      val f1 = And(A0, BigAnd(i,Ai,IntZero(),Succ(i)))
       val ax11 = Axiom(A0::Nil, A0::Nil)
 
       val s = new InputStreamReader(getClass.getClassLoader.getResourceAsStream("David.lks"))

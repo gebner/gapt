@@ -11,9 +11,9 @@ import at.logic.calculi.resolution.Clause
 import at.logic.calculi.resolution.robinson._
 import at.logic.calculi.slk._
 import at.logic.language.hol._
-import at.logic.language.lambda.{Const, Var}
+import at.logic.language.lambda.{Substitution, Abs, Const, Var}
 import at.logic.language.lambda.types._
-import at.logic.language.schema.{ Substitution => SchemaSubstitution, SchemaExpression, IntVar, fo2Var, foConst, SchemaAbs, SchemaVar, unfoldSFormula, indexedFOVar, Succ, sTerm, IntZero, SchemaFormula, toIntegerTerm }
+import at.logic.language.schema.{ SchemaExpression, IntVar, fo2Var, foConst, unfoldSFormula, indexedFOVar, Succ, sTerm, IntZero, SchemaFormula, toIntegerTerm }
 import at.logic.transformations.ceres.UnfoldProjectionTerm._
 import at.logic.transformations.ceres._
 import clauseSchema._
@@ -98,18 +98,18 @@ object ACNF {
     val z = fo2Var( "z" )
     val a = foConst( "a" )
     // a is const... wtf?????
-    val h = SchemaAbs( k, a )
+    val h = Abs( k, a )
     fo2SubstDB.add( z, h )
     val ground_proj_set = projSet.map( set => GroundingProjections( set, fo2SubstDB.map.toMap ) ).toSet
     val end_seq = if ( n == 0 ) {
       val ro = p1base.root
-      val new_map1 = Map.empty[SchemaVar, SchemaExpression] + Tuple2( k, IntZero() )
-      var subst = SchemaSubstitution( new_map1 )
+      val new_map1 = Map.empty[Var, SchemaExpression] + Tuple2( k, IntZero() )
+      var subst = Substitution( new_map1 )
       FSequent( ro.antecedent.map( fo => unfoldSFormula( subst( fo.formula.asInstanceOf[SchemaFormula] ) ) ), ro.succedent.toList.map( fo => unfoldSFormula( subst( fo.formula.asInstanceOf[SchemaFormula] ) ) ) )
     } else {
       val ro = p1rec.root
-      val new_map1 = Map.empty[SchemaVar, SchemaExpression] + Tuple2( k, toIntegerTerm( n - 1 ) )
-      var subst = SchemaSubstitution( new_map1 )
+      val new_map1 = Map.empty[Var, SchemaExpression] + Tuple2( k, toIntegerTerm( n - 1 ) )
+      var subst = Substitution( new_map1 )
       FSequent( ro.antecedent.map( fo => unfoldSFormula( subst( fo.formula.asInstanceOf[SchemaFormula] ) ) ), ro.succedent.toList.map( fo => unfoldSFormula( subst( fo.formula.asInstanceOf[SchemaFormula] ) ) ) )
     }
     apply( resDeduction, ground_proj_set, end_seq )

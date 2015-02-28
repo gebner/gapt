@@ -1,6 +1,7 @@
 
 package at.logic.integration_tests
 
+import at.logic.language.lambda.Substitution
 import at.logic.language.schema._
 import at.logic.parsing.shlk_parsing.SHLK
 

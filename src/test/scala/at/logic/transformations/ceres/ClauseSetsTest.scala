@@ -6,8 +6,8 @@ import at.logic.calculi.lk.base.Sequent
 import at.logic.calculi.occurrences._
 import at.logic.calculi.slk.SchemaProofDB
 import at.logic.language.hol.{ Atom => HOLAtom, _}
-import at.logic.language.lambda.Var
-import at.logic.language.schema.{Substitution => SchemaSubstitution, _}
+import at.logic.language.lambda.{Substitution, Var}
+import at.logic.language.schema._
 import at.logic.language.lambda.types._
 import at.logic.parsing.shlk_parsing.sFOParser
 import at.logic.transformations.ceres.projections.{DeleteTautology, DeleteRedundantSequents}
@@ -65,8 +65,8 @@ class ClauseSetsTest extends SpecificationWithJUnit {
       val struct = StructCreators.extract(p1s, getCutAncestors(p1s))
       val cs : List[Sequent] = DeleteRedundantSequents( DeleteTautology( StandardClauseSet.transformStructToClauseSet(struct) ))
 
-      val new_map = Map.empty[SchemaVar, IntegerTerm] + Tuple2(IntVar("k"), Succ(IntZero()) )
-      var subst = SchemaSubstitution(new_map)
+      val new_map = Map.empty[Var, IntegerTerm] + Tuple2(IntVar("k"), Succ(IntZero()) )
+      var subst = Substitution(new_map)
       val gr = groundStruct(struct, subst)
       val unfold_gr = unfoldGroundStruct(gr)
 

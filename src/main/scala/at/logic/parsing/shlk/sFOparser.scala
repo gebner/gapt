@@ -1,9 +1,12 @@
 package at.logic.parsing.shlk_parsing
 
+import at.logic.language.lambda.{Const, Var, Abs, App}
+
 import scala.util.parsing.combinator._
 import scala.util.matching.Regex
 import java.io.InputStreamReader
 import at.logic.language.schema._
+import at.logic.language.hol._
 import at.logic.calculi.lk.base.{ FSequent, Sequent, LKProof }
 import collection.mutable.{ Map => MMap }
 import at.logic.calculi.slk._
@@ -100,27 +103,27 @@ object sFOParser {
       }
       def fo_term: Parser[SchemaExpression] = "[f]".r ~ "(" ~ variable ~ ")" ^^ {
         case name ~ "(" ~ arg ~ ")" => {
-          val v = SchemaFactory.createConst( StringSymbol( name ), Ti -> Ti ).asInstanceOf[SchemaConst]
-          SchemaApp( v, arg ).asInstanceOf[SchemaExpression]
+          val v = Const( StringSymbol( name ), Ti -> Ti ).asInstanceOf[Const]
+          App( v, arg ).asInstanceOf[SchemaExpression]
         }
       }
-      def indexedVar: Parser[SchemaVar] = regex( new Regex( "[u-z]" ) ) ~ "(" ~ intTerm ~ ")" ^^ {
-        case x ~ "(" ~ index ~ ")" => SchemaFactory.createVar( StringSymbol( x ), Tindex -> Ti )
+      def indexedVar: Parser[Var] = regex( new Regex( "[u-z]" ) ) ~ "(" ~ intTerm ~ ")" ^^ {
+        case x ~ "(" ~ index ~ ")" => Var( StringSymbol( x ), Tindex -> Ti )
       }
-      def FOVariable: Parser[SchemaVar] = regex( new Regex( "[u-z]" + word ) ) ^^ { case x => foVar( x ) }
-      def variable: Parser[SchemaVar] = FOVariable //regex(new Regex("[u-z]" + word))  ^^ {case x => SchemaFactory.createVar(new VariableStringSymbol(x), i->i).asInstanceOf[SchemaVar]}
-      def constant: Parser[SchemaConst] = regex( new Regex( "[a-tA-Z0-9]" + word ) ) ^^ { case x => SchemaFactory.createConst( StringSymbol( x ), Tindex -> Tindex ) }
+      def FOVariable: Parser[Var] = regex( new Regex( "[u-z]" + word ) ) ^^ { case x => foVar( x ) }
+      def variable: Parser[Var] = FOVariable //regex(new Regex("[u-z]" + word))  ^^ {case x => SchemaFactory.createVar(new VariableStringSymbol(x), i->i).asInstanceOf[Var]}
+      def constant: Parser[Const] = regex( new Regex( "[a-tA-Z0-9]" + word ) ) ^^ { case x => Const( StringSymbol( x ), Tindex -> Tindex ) }
       def and: Parser[SchemaFormula] = "(" ~ repsep( formula, "/\\" ) ~ ")" ^^ { case "(" ~ formulas ~ ")" => { formulas.tail.foldLeft( formulas.head )( ( f, res ) => And( f, res ) ) } }
       def or: Parser[SchemaFormula] = "(" ~ repsep( formula, """\/""" ) ~ ")" ^^ { case "(" ~ formulas ~ ")" => { formulas.tail.foldLeft( formulas.head )( ( f, res ) => Or( f, res ) ) } }
       def imp: Parser[SchemaFormula] = "Imp" ~ formula ~ formula ^^ { case "Imp" ~ x ~ y => Imp( x, y ) }
-      def abs: Parser[SchemaExpression] = "Abs" ~ variable ~ term ^^ { case "Abs" ~ v ~ x => SchemaAbs( v, x ).asInstanceOf[SchemaExpression] }
+      def abs: Parser[SchemaExpression] = "Abs" ~ variable ~ term ^^ { case "Abs" ~ v ~ x => Abs( v, x ).asInstanceOf[SchemaExpression] }
       def neg: Parser[SchemaFormula] = "~" ~ formula ^^ { case "~" ~ x => Neg( x ) }
       def atom: Parser[SchemaFormula] = ( equality | var_atom | const_atom )
       def forall: Parser[SchemaFormula] = "Forall" ~ variable ~ formula ^^ { case "Forall" ~ v ~ x => AllVar( v, x ) }
       def exists: Parser[SchemaFormula] = "Exists" ~ variable ~ formula ^^ { case "Exists" ~ v ~ x => ExVar( v, x ) }
       def var_atom: Parser[SchemaFormula] = regex( new Regex( "[u-z]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" => {
-          Atom( SchemaVar( x, FunctionType( To, params map ( _.exptype ) ) ), params )
+          Atom( Var( x, FunctionType( To, params map ( _.exptype ) ) ), params )
         }
       }
 
@@ -128,18 +131,18 @@ object sFOParser {
         case x ~ "(" ~ params ~ ")" => {
 
           //        println("\n\nconst_atom")
-          Atom( SchemaConst( x, FunctionType( To, params map ( _.exptype ) ) ), params )
+          Atom( Const( x, FunctionType( To, params map ( _.exptype ) ) ), params )
         }
       }
       def equality: Parser[SchemaFormula] = /*eq_infix | */ eq_prefix // infix is problematic in higher order
       def eq_prefix: Parser[SchemaFormula] = "=" ~ "(" ~ term ~ "," ~ term ~ ")" ^^ { case "=" ~ "(" ~ x ~ "," ~ y ~ ")" => Equation( x, y ) }
       def var_func: Parser[SchemaExpression] = regex( new Regex( "[u-z]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" =>
-          Function( SchemaVar( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
+          Function( Var( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
       }
       def const_func: Parser[SchemaExpression] = regex( new Regex( "[" + symbols + "a-tA-Z0-9]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" =>
-          Function( SchemaConst( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
+          Function( Const( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
       }
       protected def word: String = """[a-zA-Z0-9$_{}]*"""
       protected def symbol: Parser[String] = symbols.r
@@ -173,7 +176,7 @@ object sFOParser {
     var map = MMap.empty[String, LKProof]
     var baseORstep: Int = 1
     SchemaProofDB.clear
-    var defMMap = MMap.empty[SchemaConst, Tuple2[List[IntegerTerm], SchemaFormula]]
+    var defMMap = MMap.empty[Const, Tuple2[List[IntegerTerm], SchemaFormula]]
     var list = List[String]()
     var error_buffer = ""
     //    lazy val sp2 = new ParserTxt
@@ -255,7 +258,7 @@ object sFOParser {
               t2 match {
                 case sTerm( func2, i2, arg2 ) => {
                   //                  if(func1 == func2) {
-                  dbTRS.add( func1.asInstanceOf[SchemaConst], Tuple2( t1, base ), Tuple2( t2, step ) )
+                  dbTRS.add( func1.asInstanceOf[Const], Tuple2( t1, base ), Tuple2( t2, step ) )
                   //                  }
                 }
               }
@@ -366,21 +369,21 @@ object sFOParser {
           foTerm( name, arg :: Nil )
         }
       }
-      def indexedVar: Parser[SchemaVar] = regex( new Regex( "[z]" ) ) ~ "(" ~ intTerm ~ ")" ^^ {
+      def indexedVar: Parser[Var] = regex( new Regex( "[z]" ) ) ~ "(" ~ intTerm ~ ")" ^^ {
         case x ~ "(" ~ index ~ ")" => {
           indexedFOVar( x, index.asInstanceOf[IntegerTerm] )
         }
       }
 
       // TODO: a should be a FOConstant
-      def FOVariable: Parser[SchemaVar] = regex( new Regex( "[x,y]" + word ) ) ^^ { case x => foVar( x ) }
-      def FOConstant: Parser[SchemaConst] = regex( new Regex( "[a]" + word ) ) ^^ { case x => foConst( x ) }
-      def variable: Parser[SchemaVar] = ( indexedVar | FOVariable ) //regex(new Regex("[u-z]" + word))  ^^ {case x => SchemaFactory.createVar(new VariableStringSymbol(x), i->i).asInstanceOf[SchemaVar]}
-      def constant: Parser[SchemaConst] = FOConstant //regex(new Regex("[a-tA-Z0-9]" + word))  ^^ {case x => SchemaFactory.createVar(new ConstantStringSymbol(x), ind->ind).asInstanceOf[SchemaConst]}
+      def FOVariable: Parser[Var] = regex( new Regex( "[x,y]" + word ) ) ^^ { case x => foVar( x ) }
+      def FOConstant: Parser[Const] = regex( new Regex( "[a]" + word ) ) ^^ { case x => foConst( x ) }
+      def variable: Parser[Var] = ( indexedVar | FOVariable ) //regex(new Regex("[u-z]" + word))  ^^ {case x => SchemaFactory.createVar(new VariableStringSymbol(x), i->i).asInstanceOf[Var]}
+      def constant: Parser[Const] = FOConstant //regex(new Regex("[a-tA-Z0-9]" + word))  ^^ {case x => SchemaFactory.createVar(new ConstantStringSymbol(x), ind->ind).asInstanceOf[Const]}
       def and: Parser[SchemaFormula] = "(" ~ repsep( formula, "/\\" ) ~ ")" ^^ { case "(" ~ formulas ~ ")" => { formulas.tail.foldLeft( formulas.head )( ( f, res ) => And( f, res ) ) } }
       def or: Parser[SchemaFormula] = "(" ~ repsep( formula, """\/""" ) ~ ")" ^^ { case "(" ~ formulas ~ ")" => { formulas.tail.foldLeft( formulas.head )( ( f, res ) => Or( f, res ) ) } }
       def imp: Parser[SchemaFormula] = "Imp" ~ formula ~ formula ^^ { case "Imp" ~ x ~ y => Imp( x, y ) }
-      def abs: Parser[SchemaExpression] = "Abs" ~ variable ~ term ^^ { case "Abs" ~ v ~ x => SchemaAbs( v, x ).asInstanceOf[SchemaExpression] }
+      def abs: Parser[SchemaExpression] = "Abs" ~ variable ~ term ^^ { case "Abs" ~ v ~ x => Abs( v, x ).asInstanceOf[SchemaExpression] }
       def neg: Parser[SchemaFormula] = "~" ~ formula ^^ { case "~" ~ x => Neg( x ) }
       def atom: Parser[SchemaFormula] = ( equality | var_atom | const_atom )
       def forall: Parser[SchemaFormula] = "Forall" ~ variable ~ formula ^^ { case "Forall" ~ v ~ x => AllVar( v, x ) }
@@ -388,7 +391,7 @@ object sFOParser {
       def var_atom: Parser[SchemaFormula] = regex( new Regex( "[u-z]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" => {
           //        println("\n\nvar_atom")
-          Atom( SchemaVar( x, FunctionType( To, params map ( _.exptype ) ) ), params )
+          Atom( Var( x, FunctionType( To, params map ( _.exptype ) ) ), params )
         }
       }
 
@@ -397,7 +400,7 @@ object sFOParser {
         case x ~ "(" ~ params ~ ")" => {
 
           //        println("\n\nconst_atom")
-          Atom( SchemaConst( x, FunctionType( To, params map ( _.exptype ) ) ), params )
+          Atom( Const( x, FunctionType( To, params map ( _.exptype ) ) ), params )
         }
       }
       def equality: Parser[SchemaFormula] = /*eq_infix | */ eq_prefix // infix is problematic in higher order
@@ -405,15 +408,15 @@ object sFOParser {
       def eq_prefix: Parser[SchemaFormula] = "=" ~ "(" ~ term ~ "," ~ term ~ ")" ^^ { case "=" ~ "(" ~ x ~ "," ~ y ~ ")" => Equation( x, y ) }
       def var_func: Parser[SchemaExpression] = regex( new Regex( "[u-z]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" =>
-          Function( SchemaVar( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
+          Function( Var( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
       }
       /*def var_func: Parser[SchemaExpression] = (var_func1 | var_funcn)
       def var_func1: Parser[SchemaExpression] = regex(new Regex("[u-z]" + word)) ~ "(" ~ repsep(term,",") ~ ")"  ~ ":" ~ Type ^^ {case x ~ "(" ~ params ~ ")" ~ ":" ~ tp => Function(new VariableStringSymbol(x), params, tp)}
-      def var_funcn: Parser[SchemaExpression] = regex(new Regex("[u-z]" + word)) ~ "^" ~ decimalNumber ~ "(" ~ repsep(term,",") ~ ")"  ~ ":" ~ Type ^^ {case x ~ "^" ~ n ~ "(" ~ params ~ ")" ~ ":" ~ tp => genF(n.toInt, SchemaVar(new VariableStringSymbol(x)), params)}
+      def var_funcn: Parser[SchemaExpression] = regex(new Regex("[u-z]" + word)) ~ "^" ~ decimalNumber ~ "(" ~ repsep(term,",") ~ ")"  ~ ":" ~ Type ^^ {case x ~ "^" ~ n ~ "(" ~ params ~ ")" ~ ":" ~ tp => genF(n.toInt, Var(new VariableStringSymbol(x)), params)}
       */
       def const_func: Parser[SchemaExpression] = regex( new Regex( "[" + symbols + "a-tA-Z0-9]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" =>
-          Function( SchemaConst( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
+          Function( Const( x, FunctionType( Tindex -> Tindex, params map ( _.exptype ) ) ), params )
       }
       protected def word: String = """[a-zA-Z0-9$_{}]*"""
       protected def symbol: Parser[String] = symbols.r
@@ -684,7 +687,7 @@ object sFOParser {
 
       def allR: Parser[LKProof] = "allR(" ~ label.r ~ "," ~ formula ~ "," ~ formula ~ "," ~ ( indexedVar | FOVariable ) ~ ")" ^^ {
         case "allR(" ~ l ~ "," ~ aux ~ "," ~ main ~ "," ~ v ~ ")" => {
-          ForallRightRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[SchemaVar] )
+          ForallRightRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[Var] )
         }
       }
 

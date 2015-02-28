@@ -5,6 +5,8 @@
 
 package at.logic.calculi.slk
 
+import at.logic.language.hol.{Atom, Or, And}
+import at.logic.language.lambda.{Var, Const}
 import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.runner.JUnitRunner
@@ -59,11 +61,11 @@ class SLKTest extends SpecificationWithJUnit {
     }
     
     "work for sCutRule" in {
-      def f = SchemaConst("f", Ti->Ti)
-      def h = SchemaConst("h", ->(Tindex , ->(Ti, Ti)))
-      def g = SchemaConst("g", ->(Tindex , ->(Ti, Ti)))
+      def f = Const("f", Ti->Ti)
+      def h = Const("h", ->(Tindex , ->(Ti, Ti)))
+      def g = Const("g", ->(Tindex , ->(Ti, Ti)))
       val k = IntVar("k")
-      val x = SchemaVar("x", Ti)
+      val x = Var("x", Ti)
       val base2 = x
       val step2 = foTerm("f",  sTerm(g, Succ(k), x::Nil)::Nil)
       val base1 = sTerm(g, IntZero(), x::Nil)
@@ -72,8 +74,8 @@ class SLKTest extends SpecificationWithJUnit {
       dbTRS.add(g, Tuple2(base1, base2), Tuple2(step1, step2))
       val term1 = sTerm(g, Succ(Succ(k)), x::Nil)
       val term2 = foTerm("f",  sTerm(g, Succ(k), x::Nil)::Nil)
-      val f1 = Atom(SchemaConst("P", term1.exptype -> To), term1::Nil)
-      val f2 = Atom(SchemaConst("P", term2.exptype -> To), term2::Nil)
+      val f1 = Atom(Const("P", term1.exptype -> To), term1::Nil)
+      val f2 = Atom(Const("P", term2.exptype -> To), term2::Nil)
 
       val ax1  = Axiom(f1::Nil, f1::Nil)
       val ax2  = Axiom(f2::Nil, f2::Nil)

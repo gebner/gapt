@@ -1,13 +1,18 @@
 package at.logic.language.schema
 
+import at.logic.language.hol._
+import at.logic.language.lambda.{Const, App, Var, Abs}
 import at.logic.language.schema.BetaReduction._
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner
 import at.logic.language.lambda.types._
 
+import scala.App
+
 @RunWith(classOf[JUnitRunner])
 class SchemaTest extends SpecificationWithJUnit {
+
   "Schema" should {
     val i = IntVar("i")
     val one = Succ(IntZero())
@@ -16,7 +21,7 @@ class SchemaTest extends SpecificationWithJUnit {
     val pi = IndexedPredicate(p, i::Nil)
     val p1 = IndexedPredicate(p, one::Nil)
     val p2 = IndexedPredicate(p, two::Nil)
-    val bigAnd = BigAnd(SchemaAbs(i, pi), one, two)
+    val bigAnd = BigAnd(Abs(i, pi), one, two)
     val bigOr = BigOr(i, pi, one, two)
     val and = And(p1, p2)
     val or = Or(bigAnd, bigOr)
@@ -47,9 +52,9 @@ class SchemaTest extends SpecificationWithJUnit {
       val pi = IndexedPredicate("p", i::Nil)
       val f = BigAnd(i, pi, IntZero(), IntZero())
       val res = f match {
-        case BigAnd(v, f, ub, lb) => SchemaAbs(v, f)
+        case BigAnd(v, f, ub, lb) => Abs(v, f)
       }
-      res must beEqualTo( SchemaAbs(i, pi) )
+      res must beEqualTo( Abs(i, pi) )
     }
     
     "correctly deal with bound variables in the BigAnd extractor (1)" in {
@@ -57,13 +62,13 @@ class SchemaTest extends SpecificationWithJUnit {
       val p0 = IndexedPredicate("p", IntZero()::Nil)
       val f = BigAnd(i, pi, IntZero(), IntZero())
       val res = f match {
-        case BigAnd(v, f, ub, lb) => SchemaApp(SchemaAbs(v, f), ub)
+        case BigAnd(v, f, ub, lb) => App(Abs(v, f), ub)
       }
       betaNormalize( res ) must beEqualTo( p0 )
     }
     
     "perform the unapply function in BigAnd correctly" in {
-       val iformula = SchemaAbs(i.asInstanceOf[SchemaVar], p1)
+       val iformula = Abs(i.asInstanceOf[Var], p1)
        val bigConj = BigAnd(iformula, one, two)
        (BigAnd.unapply(bigConj).get._1 must beEqualTo (i)) &&
        (BigAnd.unapply(bigConj).get._2 must beEqualTo (p1)) &&
@@ -83,16 +88,16 @@ class SchemaTest extends SpecificationWithJUnit {
     }
 
     "create a schematic term" in {
-      val fconst = SchemaConst("f", Tindex->Tindex->Tindex)
-      val gconst = SchemaConst("g", Tindex->Tindex)
-      val hconst = SchemaConst("h", Tindex->Tindex)
+      val fconst = Const("f", Tindex->Tindex->Tindex)
+      val gconst = Const("g", Tindex->Tindex)
+      val hconst = Const("h", Tindex->Tindex)
 
       def g(t: SchemaExpression): SchemaExpression = {
-        SchemaApp(gconst, t)
+        App(gconst, t)
       }
 
       def h(t: SchemaExpression): SchemaExpression = {
-        SchemaApp(hconst, t)
+        App(hconst, t)
       }
 
       def f(n: IntegerTerm, v: SchemaExpression): SchemaExpression = {
@@ -107,9 +112,9 @@ class SchemaTest extends SpecificationWithJUnit {
     }
 
     "unfold a schematic term" in {
-      def f = SchemaConst("f", Ti->Ti)
-      def h = SchemaConst("h", ->(Tindex , ->(Ti, Ti)))
-      def g = SchemaConst("g", ->(Tindex , ->(Ti, Ti)))
+      def f = Const("f", Ti->Ti)
+      def h = Const("h", ->(Tindex , ->(Ti, Ti)))
+      def g = Const("g", ->(Tindex , ->(Ti, Ti)))
       val k = IntVar("k")
       val x = foVar("x")
       val z = indexedFOVar("z", Succ(IntZero()))

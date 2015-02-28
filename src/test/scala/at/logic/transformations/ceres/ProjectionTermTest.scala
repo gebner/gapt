@@ -6,6 +6,8 @@ import at.logic.calculi.lk._
 import at.logic.calculi.lk.base.{Sequent, LKProof}
 import at.logic.calculi.occurrences.{FormulaOccurrence, defaultFormulaOccurrenceFactory}
 import at.logic.calculi.slk.{SchemaProof, SchemaProofDB}
+import at.logic.language.hol.{Neg, Or}
+import at.logic.language.lambda.{Substitution, Var}
 import at.logic.language.schema._
 import at.logic.parsing.shlk_parsing.{SHLK, sFOParser}
 import at.logic.utils.ds.trees.BinaryTree
@@ -95,7 +97,7 @@ class ProjectionTermTest extends SpecificationWithJUnit with ClasspathFileCopier
       val fo = p2.root.succedent.head
 
       val pterm = ProjectionTermCreators.extract(p1, Set.empty[FormulaOccurrence], getCutAncestors(p1))
-      val new_map = Map.empty[SchemaVar, IntegerTerm] + Tuple2(IntVar("k"), Succ(Succ(IntZero())).asInstanceOf[IntegerTerm])
+      val new_map = Map.empty[Var, IntegerTerm] + Tuple2(IntVar("k"), Succ(Succ(IntZero())).asInstanceOf[IntegerTerm])
       var sub = Substitution(new_map)
       val t = PStructToExpressionTree.applyConsole(pterm)
 
@@ -127,7 +129,7 @@ class ProjectionTermTest extends SpecificationWithJUnit with ClasspathFileCopier
       val fo = p2.root.succedent.head
 
       val pterm = ProjectionTermCreators.extract(p1, Set.empty[FormulaOccurrence], getCutAncestors(p1))
-      val new_map = Map.empty[SchemaVar, IntegerTerm] + Tuple2(IntVar("k"), Succ(Succ(IntZero())).asInstanceOf[IntegerTerm])
+      val new_map = Map.empty[Var, IntegerTerm] + Tuple2(IntVar("k"), Succ(Succ(IntZero())).asInstanceOf[IntegerTerm])
       var sub = Substitution(new_map)
 
       val t = PStructToExpressionTree.applyConsole(pterm)

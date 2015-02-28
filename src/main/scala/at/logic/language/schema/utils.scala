@@ -5,10 +5,11 @@
 
 package at.logic.language.schema
 
-import at.logic.language.lambda.{ freeVariables => freeVariablesHOL }
+import at.logic.language.hol.{Atom, AllVar, ExVar, Imp}
+import at.logic.language.lambda.{freeVariables => freeVariablesHOL, Substitution, Var, Const}
 
 object freeVariables {
-  def apply( e: SchemaExpression ): List[SchemaVar] = freeVariablesHOL( e ).asInstanceOf[List[SchemaVar]]
+  def apply( e: SchemaExpression ): List[Var] = freeVariablesHOL( e ).asInstanceOf[List[Var]]
 }
 
 object isAtom {
@@ -27,8 +28,8 @@ object isSAtom {
 
 object unfoldSFormula {
   def apply( f: SchemaFormula ): SchemaFormula = f match {
-    case Atom( name: SchemaVar, args )   => Atom( name, args.map( t => unfoldSTerm( t ) ) )
-    case Atom( name: SchemaConst, args ) => Atom( name, args.map( t => unfoldSTerm( t ) ) )
+    case Atom( name: Var, args )   => Atom( name, args.map( t => unfoldSTerm( t ) ) )
+    case Atom( name: Const, args ) => Atom( name, args.map( t => unfoldSTerm( t ) ) )
     case Imp( f1, f2 )                   => Imp( unfoldSFormula( f1 ), unfoldSFormula( f2 ) )
     case ExVar( v, f )                   => ExVar( v, unfoldSFormula( f ) )
     case AllVar( v, f )                  => AllVar( v, unfoldSFormula( f ) )
@@ -45,7 +46,7 @@ object unfoldSTerm {
       case sTerm( func, i, arg ) if dbTRS.map.contains( func ) => {
         if ( i == IntZero() ) {
           val base = dbTRS.map.get( func ).get._1._2
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( x, arg.head )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( x, arg.head )
           val subst = Substitution( new_map )
           subst( base )
         } else if ( i == k ) e
@@ -74,7 +75,7 @@ object unfoldSINDTerm {
         else if ( i == k ) e
         else {
           val step = dbTRS.map.get( func ).get._2._2
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( k, Pred( i.asInstanceOf[IntegerTerm] ) )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( k, Pred( i.asInstanceOf[IntegerTerm] ) )
           val subst = Substitution( new_map )
           subst( step )
         }

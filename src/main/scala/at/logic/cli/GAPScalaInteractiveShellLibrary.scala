@@ -41,7 +41,7 @@ import at.logic.language.hol._
 import at.logic.language.lambda.symbols.StringSymbol
 import at.logic.language.lambda.{ LambdaExpression, Var, Substitution => LambdaSubstitution }
 import at.logic.language.lambda.types._
-import at.logic.language.schema.{ AllVar => SchemaAllVar, Atom => SchemaAtom, ExVar => SchemaExVar, _ }
+import at.logic.language.schema._
 import at.logic.parsing.calculi.latex._
 import at.logic.parsing.calculi.simple.SimpleResolutionParserFOL
 import at.logic.parsing.calculus.xml._

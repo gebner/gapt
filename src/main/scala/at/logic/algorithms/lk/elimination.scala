@@ -4,8 +4,8 @@ import at.logic.calculi.lk.base._
 import at.logic.calculi.lk._
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.language.hol._
-import at.logic.language.schema.{ And => AndS, Or => OrS, SchemaFormula }
 import at.logic.calculi.slk._
+import at.logic.language.schema.SchemaFormula
 import scala.util.control.TailCalls._
 
 /**

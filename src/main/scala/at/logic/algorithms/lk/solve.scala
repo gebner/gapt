@@ -7,7 +7,7 @@ import at.logic.calculi.lk.base._
 import at.logic.calculi.slk._
 import at.logic.language.lambda._
 import at.logic.language.hol._
-import at.logic.language.schema.{ Substitution => SubstitutionSchema, SchemaVar, SchemaExpression, SchemaFormula, BigAnd, BigOr, IntVar, Pred, Or => OrSchema, And => AndSchema }
+import at.logic.language.schema.{ SchemaExpression, SchemaFormula, BigAnd, BigOr, IntVar, Pred}
 import at.logic.provers.Prover
 
 /**
@@ -240,8 +240,8 @@ object solve extends at.logic.utils.logging.Logger {
       case BigAnd( i, iter, from, to ) =>
         val i = IntVar( "i" )
         if ( from == to ) {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val sf = subst( iter )
           val p_ant = sf +: rest.antecedent
           val p_suc = rest.succedent
@@ -253,8 +253,8 @@ object solve extends at.logic.utils.logging.Logger {
             case None => None
           }
         } else {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val sf1 = BigAnd( i, iter, from, Pred( to ) )
           val sf2 = subst( iter )
           val p_ant = sf1 +: sf2 +: rest.antecedent
@@ -263,7 +263,7 @@ object solve extends at.logic.utils.logging.Logger {
           prove( premise, nextProofStrategies( 0 ) ) match {
             case Some( proof ) =>
               val proof1 = AndLeftRule( proof, sf1, sf2 )
-              val and = AndSchema( BigAnd( i, iter, from, Pred( to ) ), subst( iter ) )
+              val and = And( BigAnd( i, iter, from, Pred( to ) ), subst( iter ) )
               val proof2 = AndLeftEquivalenceRule1( proof1, and, BigAnd( i, iter, from, to ) )
               Some( proof2 )
             case None => None
@@ -273,8 +273,8 @@ object solve extends at.logic.utils.logging.Logger {
       case BigOr( i, iter, from, to ) =>
         val i = IntVar( "i" )
         if ( from == to ) {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val sf = subst( iter )
           val p_ant = sf +: rest.antecedent
           val p_suc = rest.succedent
@@ -286,8 +286,8 @@ object solve extends at.logic.utils.logging.Logger {
             case None => None
           }
         } else {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val p_ant1 = BigOr( i, iter, from, Pred( to ) ) +: rest.antecedent
           val p_suc1 = rest.succedent
           val p_ant2 = subst( iter ) +: rest.antecedent
@@ -298,7 +298,7 @@ object solve extends at.logic.utils.logging.Logger {
             case Some( proof1 ) => prove( premise2, nextProofStrategies( 1 ) ) match {
               case Some( proof2 ) =>
                 val proof3 = OrLeftRule( proof1, proof2, BigOr( i, iter, from, Pred( to ) ), subst( iter ) )
-                val or = OrSchema( BigOr( i, iter, from, Pred( to ) ), subst( iter ) )
+                val or = Or( BigOr( i, iter, from, Pred( to ) ), subst( iter ) )
                 val proof4 = OrLeftEquivalenceRule1( proof3, or, BigOr( i, iter, from, to ) )
                 val proof5 = ContractionMacroRule( proof4, seq, strict = false )
                 Some( proof5 )
@@ -434,8 +434,8 @@ object solve extends at.logic.utils.logging.Logger {
       case BigOr( i, iter, from, to ) =>
         val i = IntVar( "i" )
         if ( from == to ) {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val p_ant = subst( iter ) +: rest.antecedent
           val p_suc = rest.succedent
           val premise = FSequent( p_ant, p_suc )
@@ -446,15 +446,15 @@ object solve extends at.logic.utils.logging.Logger {
             case None => None
           }
         } else {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val p_ant = rest.antecedent
           val p_suc = BigOr( i, iter, from, Pred( to ) ) +: subst( iter ) +: rest.succedent
           val premise = FSequent( p_ant, p_suc )
           prove( premise, nextProofStrategies( 0 ) ) match {
             case Some( proof ) =>
               val proof1 = OrRightRule( proof, BigOr( i, iter, from, Pred( to ) ), subst( iter ) )
-              val or = OrSchema( BigOr( i, iter, from, Pred( to ) ), subst( iter ) )
+              val or = Or( BigOr( i, iter, from, Pred( to ) ), subst( iter ) )
               val proof2 = OrRightEquivalenceRule1( proof1, or, BigOr( i, iter, from, to ) )
               Some( proof2 )
             case None => None
@@ -464,8 +464,8 @@ object solve extends at.logic.utils.logging.Logger {
       case BigAnd( i, iter, from, to ) =>
         val i = IntVar( "i" )
         if ( from == to ) {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val p_ant = rest.antecedent
           val p_suc = subst( iter ) +: rest.succedent
           val premise = FSequent( p_ant, p_suc )
@@ -476,8 +476,8 @@ object solve extends at.logic.utils.logging.Logger {
             case None => None
           }
         } else {
-          val new_map = Map[SchemaVar, SchemaExpression]() + Tuple2( i, to )
-          val subst = new SubstitutionSchema( new_map )
+          val new_map = Map[Var, SchemaExpression]() + Tuple2( i, to )
+          val subst = new Substitution( new_map )
           val p_ant1 = rest.antecedent
           val p_suc1 = BigAnd( i, iter, from, Pred( to ) ) +: rest.succedent
           val p_ant2 = rest.antecedent
@@ -488,7 +488,7 @@ object solve extends at.logic.utils.logging.Logger {
             case Some( proof1 ) => prove( premise2, nextProofStrategies( 1 ) ) match {
               case Some( proof2 ) =>
                 val proof3 = AndRightRule( proof1, proof2, BigAnd( i, iter, from, Pred( to ) ), subst( iter ) )
-                val and = AndSchema( BigAnd( i, iter, from, Pred( to ) ), subst( iter ) )
+                val and = And( BigAnd( i, iter, from, Pred( to ) ), subst( iter ) )
                 val proof4 = AndRightEquivalenceRule1( proof3, and, BigAnd( i, iter, from, to ) )
                 val proof5 = ContractionMacroRule( proof4, seq, strict = false )
                 Some( proof5 )

@@ -4,27 +4,19 @@ package at.logic.algorithms.shlk
  * Please move this file to parsing!
  */
 
-//import at.logic.calculi.lk.macroRules._
 import at.logic.algorithms.lk._
 import at.logic.calculi.slk._
 import at.logic.calculi.lk.base.{ Sequent, LKProof }
 import at.logic.calculi.lk._
+import at.logic.language.lambda.{Abs, Var, Const}
 import scala.util.parsing.combinator._
 import scala.util.matching.Regex
-//import at.logic.language.hol._
 import at.logic.language.schema._
-//import at.logic.language.lambda.typedLambdaCalculus._
 import collection.mutable.{ Map => MMap }
 import at.logic.language.lambda.types._
 import java.io.InputStreamReader
 import at.logic.language.lambda.symbols._
-//import at.logic.calculi.lk.quantificationRules._
-//import at.logic.language.hol.And
-//import at.logic.language.hol.Or
-//import at.logic.language.hol.logicSymbols.StringSymbol
-//import at.logic.language.hol.Imp
-//import at.logic.language.hol.Neg
-//import at.logic.language.lambda.symbols.VariableStringSymbol
+import at.logic.language.hol._
 
 object SCHOLParser {
 
@@ -124,30 +116,30 @@ object SCHOLParser {
         case x ~ "(" ~ params1 ~ "," ~ params2 ~ "," ~ params3 ~ ")" =>
           val args = List( params1 ) ++ params2 ++ params3
           val argstp = args.map( _.exptype )
-          Atom( SchemaConst( x, FunctionType( To, argstp ) ), args )
+          Atom( Const( x, FunctionType( To, argstp ) ), args )
       }
       def OrdinalAtomNoArg: Parser[SchemaFormula] = regex( new Regex( "[A-Z]+" ) ) ~
         "(" ~ OrdinalTerms ~ ")" ^^ {
           case x ~ "(" ~ params1 ~ ")" =>
-            Atom( SchemaConst( x, ->( To, params1.exptype ) ), List( params1 ) )
+            Atom( Const( x, ->( To, params1.exptype ) ), List( params1 ) )
         }
       def OrdinalAtomNoTwoArg: Parser[SchemaFormula] = regex( new Regex( "[A-Z]+" ) ) ~ "(" ~ OrdinalTerms ~ """,""".r ~ repsep( IndividualordinalExpressions, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params1 ~ "," ~ params2 ~ ")" =>
           val args = List( params1 ) ++ params2
           val argstp = args.map( _.exptype )
-          Atom( SchemaConst( x, FunctionType( To, argstp ) ), args )
+          Atom( Const( x, FunctionType( To, argstp ) ), args )
       }
       def OrdinalAtomNoOneArg: Parser[SchemaFormula] = regex( new Regex( "[A-Z]+" ) ) ~ "(" ~ OrdinalTerms ~ """,""".r ~ repsep( IndividualSort, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params1 ~ "," ~ params2 ~ ")" => {
           val params = List( params1 ) ++ params2.asInstanceOf[List[SchemaExpression]]
-          val head = SchemaConst( x, FunctionType( To, params.map( _.exptype ) ) )
+          val head = Const( x, FunctionType( To, params.map( _.exptype ) ) )
           Atom( head, params )
         }
       }
       def BaseAtom: Parser[SchemaFormula] = regex( new Regex( "[A-Z]+" ) ) ~ "(" ~ repsep( IndividualSort, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" =>
           val argstp = params.map( _.exptype )
-          Atom( SchemaConst( x, FunctionType( To, argstp ) ), params )
+          Atom( Const( x, FunctionType( To, argstp ) ), params )
       }
       ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -165,38 +157,38 @@ object SCHOLParser {
       def numberConsts: Parser[SchemaExpression] = """[0-9]+""".r ^^ { case x => { maketogether( augmentString( x ).toInt ) } }
       def OrdinalFunction: Parser[SchemaExpression] = regex( new Regex( "[d]{1}" ) ) ~ "(" ~ repsep( IndividualSort, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" =>
-          Function( SchemaConst( x, FunctionType( Tindex, params.map( _.exptype ) ) ), params )
+          Function( Const( x, FunctionType( Tindex, params.map( _.exptype ) ) ), params )
       }
       def sum: Parser[SchemaExpression] = VariatedOrdinalTerms ~ "+" ~ intConst ^^ { case iI ~ "+" ~ iC => { PutPlusTogether( iI, iC ) } }
-      def intVar: Parser[SchemaExpression] = "k".r ^^ { case x => { SchemaVar( x, Tindex ) } }
+      def intVar: Parser[SchemaExpression] = "k".r ^^ { case x => { Var( x, Tindex ) } }
       def succ: Parser[SchemaExpression] = "s(" ~ VariatedOrdinalTerms ~ ")" ^^ {
         case "s(" ~ ii ~ ")" => {
-          val head = SchemaConst( StringSymbol( "schS" ), Tindex -> Tindex )
+          val head = Const( StringSymbol( "schS" ), Tindex -> Tindex )
           Function( head, List( ii ) )
         }
       }
       def succConsts: Parser[SchemaExpression] = "s(" ~ intConst ~ ")" ^^ {
         case "s(" ~ ii ~ ")" => {
-          val head = SchemaConst( StringSymbol( "schS" ), Tindex -> Tindex )
+          val head = Const( StringSymbol( "schS" ), Tindex -> Tindex )
           Function( head, List( ii ) )
         }
       }
       def IndividualFunction: Parser[SchemaExpression] = regex( new Regex( "[a-z]+" ) ) ~ "(" ~ repsep( IndividualSort, "," ) ~ ")" ^^ {
         case x ~ "(" ~ params ~ ")" => {
-          val head = SchemaConst( StringSymbol( x ), FunctionType( Ti, params.map( _.exptype ) ) )
+          val head = Const( StringSymbol( x ), FunctionType( Ti, params.map( _.exptype ) ) )
           Function( head, params )
         }
       }
-      def FOVariable: Parser[SchemaVar] = regex( new Regex( "[xyzm]{1}" ) ) ^^ { case x => SchemaVar( x, Ti ) }
+      def FOVariable: Parser[Var] = regex( new Regex( "[xyzm]{1}" ) ) ^^ { case x => Var( x, Ti ) }
       def OrdinalFunctionFarIns: Parser[SchemaExpression] = regex( new Regex( "[A-Z]{1}" ) ) ~ "(" ~ OrdinalTerms ~ ")" ^^ {
         case x ~ "(" ~ ii ~ ")" => {
-          val head = SchemaConst( StringSymbol( x ), ii.exptype -> Ti )
+          val head = Const( StringSymbol( x ), ii.exptype -> Ti )
           Function( head, List( ii ) )
         }
       }
-      def constant: Parser[SchemaConst] = regex( new Regex( "[c]{1}[a-zA-Z0-9]+" ) ) ^^ { case x => SchemaConst( StringSymbol( x ), Ti ) }
-      def IndividualOrdinalFunctionVar: Parser[SchemaVar] = regex( new Regex( "[A-Z]{1}" ) ) ^^ { case x => SchemaVar( x, Tindex -> Ti ) }
-      def lambdaTerm: Parser[SchemaExpression] = "(" ~ "λ" ~ FOVariable ~ "." ~ IndividualSort ~ ")" ^^ { case "(" ~ "λ" ~ x ~ "." ~ t ~ ")" => SchemaAbs( x, t ) }
+      def constant: Parser[Const] = regex( new Regex( "[c]{1}[a-zA-Z0-9]+" ) ) ^^ { case x => Const( StringSymbol( x ), Ti ) }
+      def IndividualOrdinalFunctionVar: Parser[Var] = regex( new Regex( "[A-Z]{1}" ) ) ^^ { case x => Var( x, Tindex -> Ti ) }
+      def lambdaTerm: Parser[SchemaExpression] = "(" ~ "λ" ~ FOVariable ~ "." ~ IndividualSort ~ ")" ^^ { case "(" ~ "λ" ~ x ~ "." ~ t ~ ")" => Abs( x, t ) }
       ////////////////////////////////////////////////////////////////////////////////////////////////////
 
       /////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -370,22 +362,22 @@ object SCHOLParser {
       }
       def allR: Parser[LKProof] = "allR(" ~ label.r ~ "," ~ formula ~ "," ~ formula ~ "," ~ ( OrdinalFunctionFarIns | FOVariable ) ~ ")" ^^ {
         case "allR(" ~ l ~ "," ~ aux ~ "," ~ main ~ "," ~ v ~ ")" => {
-          ForallRightRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[SchemaVar] )
+          ForallRightRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[Var] )
         }
       }
       def exL: Parser[LKProof] = "exL(" ~ label.r ~ "," ~ formula ~ "," ~ formula ~ "," ~ ( OrdinalFunctionFarIns | FOVariable ) ~ ")" ^^ {
         case "exL(" ~ l ~ "," ~ aux ~ "," ~ main ~ "," ~ v ~ ")" => {
-          ExistsLeftRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[SchemaVar] )
+          ExistsLeftRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[Var] )
         }
       }
       def exLHyper: Parser[LKProof] = "exLHyper(" ~ label.r ~ "," ~ formula ~ "," ~ formula ~ "," ~ IndividualOrdinalFunctionVar ~ ")" ^^ {
         case "exLHyper(" ~ l ~ "," ~ aux ~ "," ~ main ~ "," ~ v ~ ")" => {
-          ExistsHyperLeftRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[SchemaVar] )
+          ExistsHyperLeftRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[Var] )
         }
       }
       def allRHyper: Parser[LKProof] = "allRHyper(" ~ label.r ~ "," ~ formula ~ "," ~ formula ~ "," ~ IndividualOrdinalFunctionVar ~ ")" ^^ {
         case "allRHyper(" ~ l ~ "," ~ aux ~ "," ~ main ~ "," ~ v ~ ")" => {
-          ForallHyperRightRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[SchemaVar] )
+          ForallHyperRightRule( map.get( l ).get, aux.asInstanceOf[SchemaFormula], main.asInstanceOf[SchemaFormula], v.asInstanceOf[Var] )
         }
       }
       def exRHyper: Parser[LKProof] = "exRHyper(" ~ label.r ~ "," ~ formula ~ "," ~ formula ~ "," ~ IndividualordinalExpressions ~ ")" ^^ {
@@ -449,7 +441,7 @@ object SCHOLParser {
 object PutPlusTogether {
   def apply( iI: SchemaExpression, iC: SchemaExpression ): SchemaExpression = {
     iC match {
-      case SchemaConst( n, t ) if n == "0" && t == Tindex => iI
+      case Const( n, t ) if n == "0" && t == Tindex => iI
       case Function( n, l, t ) if getName( n ) == "schS" && t == Tindex => Function( n, List( apply( iI, l.head ) ) )
       case _ => throw new Exception( "Why?\n" + iC.toString + "\n" )
     }
@@ -458,10 +450,10 @@ object PutPlusTogether {
 object maketogether {
   def apply( i: Int ): SchemaExpression = {
     i match {
-      case 0 => SchemaConst( "0", Tindex )
+      case 0 => Const( "0", Tindex )
       case x => {
         val param = apply( x - 1 )
-        val head = SchemaConst( "schS", param.exptype -> Tindex )
+        val head = Const( "schS", param.exptype -> Tindex )
         Function( head, List( param ) )
       }
     }
@@ -471,7 +463,7 @@ object maketogether {
 object backToInt {
   def apply( i: SchemaExpression ): Int = {
     i match {
-      case SchemaConst( n, t ) if n == "0" && t == Tindex => 0
+      case Const( n, t ) if n == "0" && t == Tindex => 0
       case Function( n, l, t ) if getName( n ) == "schS" && t == Tindex => 1 + apply( l.head )
       case _ => throw new Exception( "Why?\n" + i.toString + "\n" )
     }

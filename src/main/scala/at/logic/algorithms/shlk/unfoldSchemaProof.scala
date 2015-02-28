@@ -2,6 +2,8 @@
 
 package at.logic.algorithms.shlk
 
+import at.logic.language.hol._
+import at.logic.language.lambda.{Const, Var, Substitution}
 import at.logic.language.schema._
 import at.logic.calculi.occurrences._
 import at.logic.calculi.slk._
@@ -118,7 +120,7 @@ object applySchemaSubstitution {
       RemoveEqRulesFromGroundSchemaProof( SchemaProofDB.get( proof_name ).base )
     else {
       val k = IntVar( "k" )
-      val subst = Substitution( ( k.asInstanceOf[SchemaVar], toIntegerTerm( number - 1 ) ) :: Nil )
+      val subst = Substitution( ( k.asInstanceOf[Var], toIntegerTerm( number - 1 ) ) :: Nil )
       RemoveEqRulesFromGroundSchemaProof( apply( SchemaProofDB.get( proof_name ).rec, subst, number ) )
     }
   }
@@ -143,7 +145,7 @@ object applySchemaSubstitution {
           if ( StepMinusOne.length( new_ind.asInstanceOf[IntegerTerm], subst.map.head._1.asInstanceOf[IntVar] ) == cnt ) {
             apply( SchemaProofDB.get( link ).rec, subst, cnt )
           } else {
-            val new_map = ( subst.schemamap - subst.schemamap.head._1 ) + Tuple2( subst.schemamap.head._1, Pred( new_ind.asInstanceOf[IntegerTerm] ) )
+            val new_map = ( subst.map - subst.map.head._1 ) + Tuple2( subst.map.head._1, Pred( new_ind.asInstanceOf[IntegerTerm] ) )
             val new_subst = Substitution( new_map )
             apply( SchemaProofDB.get( link ).rec, new_subst, cnt - 1 )
           }
@@ -261,8 +263,8 @@ object StepMinusOne {
     case Neg( l )                        => Neg( minusOne( l, k ).asInstanceOf[SchemaFormula] )
     case Imp( l, r )                     => Imp( minusOne( l, k ).asInstanceOf[SchemaFormula], minusOne( r, k ).asInstanceOf[SchemaFormula] )
     case AllVar( v, f )                  => AllVar( v, minusOne( f, k ).asInstanceOf[SchemaFormula] )
-    case Atom( name: SchemaVar, args )   => Atom( name, args.map( x => minusOne( x, k ) ) )
-    case Atom( name: SchemaConst, args ) => Atom( name, args.map( x => minusOne( x, k ) ) )
+    case Atom( name: Var, args )   => Atom( name, args.map( x => minusOne( x, k ) ) )
+    case Atom( name: Const, args ) => Atom( name, args.map( x => minusOne( x, k ) ) )
     case ifo: indexedFOVar               => indexedFOVar( ifo.name, minusOne( ifo.index, k ).asInstanceOf[IntegerTerm] )
     case indexedOmegaVar( name, index )  => indexedOmegaVar( name, minusOne( index, k ).asInstanceOf[IntegerTerm] )
     case sTerm( name, i, args ) => {
@@ -271,9 +273,6 @@ object StepMinusOne {
     case foTerm( v, arg ) => foTerm( v, minusOne( arg, k ) :: Nil )
     case _                => e
   }
-
-  // Overloading to avoid all the castings
-  def minusOne( f: SchemaFormula, k: IntVar ): SchemaFormula = minusOne( f.asInstanceOf[SchemaExpression], k ).asInstanceOf[SchemaFormula]
 
   def minusMore( e: SchemaExpression, k: IntVar, times: Int ): SchemaExpression = {
     if ( times == 0 )

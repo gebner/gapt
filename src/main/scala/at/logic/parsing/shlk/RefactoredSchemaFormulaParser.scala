@@ -1,7 +1,7 @@
 package at.logic.parsing.shlk
 
-import at.logic.language.hol.{ HOLFormula, HOLExpression }
-import at.logic.language.lambda.Var
+import at.logic.language.hol._
+import at.logic.language.lambda.{Abs, Const, Var}
 import at.logic.language.lambda.types.{ To, FunctionType, Tindex }
 import at.logic.language.schema._
 import at.logic.parsing.language.HOLParser
@@ -89,26 +89,26 @@ trait SchemaFormulaParser extends HLKFormulaParser with HOLParser {
       foTerm( name, arg.asInstanceOf[SchemaExpression] :: Nil )
     }
   }
-  def indexedVar: Parser[SchemaVar] = regex( new Regex( "[z]" ) ) ~ "(" ~ intTerm ~ ")" ^^ {
+  def indexedVar: Parser[Var] = regex( new Regex( "[z]" ) ) ~ "(" ~ intTerm ~ ")" ^^ {
     case x ~ "(" ~ index ~ ")" => {
       indexedFOVar( x, index.asInstanceOf[IntegerTerm] )
     }
   }
 
-  def variable: Parser[SchemaVar] = ( indexedVar | FOVariable ) //regex(new Regex("[u-z]" + word))  ^^ {case x => hol.createVar(new VariableStringSymbol(x), i->i).asInstanceOf[SchemaVar]}
-  private def FOVariable: Parser[SchemaVar] = regex( new Regex( "[xya]" + word ) ) ^^ { case x => foVar( x ) }
-  private def constant: Parser[SchemaConst] = regex( new Regex( "[a-tA-Z0-9]" + word ) ) ^^ { case x => SchemaConst( x, Tindex -> Tindex ) }
+  def variable: Parser[Var] = ( indexedVar | FOVariable ) //regex(new Regex("[u-z]" + word))  ^^ {case x => hol.createVar(new VariableStringSymbol(x), i->i).asInstanceOf[Var]}
+  private def FOVariable: Parser[Var] = regex( new Regex( "[xya]" + word ) ) ^^ { case x => foVar( x ) }
+  private def constant: Parser[Const] = regex( new Regex( "[a-tA-Z0-9]" + word ) ) ^^ { case x => Const( x, Tindex -> Tindex ) }
   private def and: Parser[SchemaFormula] = "(" ~ repsep( formula, "/\\" ) ~ ")" ^^ { case "(" ~ formulas ~ ")" => { formulas.tail.foldLeft( formulas.head )( ( f, res ) => And( f, res ) ) } }
   private def or: Parser[SchemaFormula] = "(" ~ repsep( formula, """\/""" ) ~ ")" ^^ { case "(" ~ formulas ~ ")" => { formulas.tail.foldLeft( formulas.head )( ( f, res ) => Or( f, res ) ) } }
   private def imp: Parser[SchemaFormula] = "Imp" ~ formula ~ formula ^^ { case "Imp" ~ x ~ y => Imp( x, y ) }
-  private def abs: Parser[SchemaExpression] = "Abs" ~ variable ~ term ^^ { case "Abs" ~ v ~ x => SchemaAbs( v, x ) }
+  private def abs: Parser[SchemaExpression] = "Abs" ~ variable ~ term ^^ { case "Abs" ~ v ~ x => Abs( v, x ) }
   private def neg: Parser[SchemaFormula] = "~" ~ formula ^^ { case "~" ~ x => Neg( x ) }
   private def atom: Parser[SchemaFormula] = ( equality | var_atom | const_atom )
   private def forall: Parser[SchemaFormula] = "Forall" ~ variable ~ formula ^^ { case "Forall" ~ v ~ x => AllVar( v, x ) }
   private def exists: Parser[SchemaFormula] = "Exists" ~ variable ~ formula ^^ { case "Exists" ~ v ~ x => ExVar( v, x ) }
   private def var_atom: Parser[SchemaFormula] = regex( new Regex( "[u-z]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
     case x ~ "(" ~ params ~ ")" => {
-      Atom( SchemaVar( x, FunctionType( To, params.map( _.exptype ) ) ), params )
+      Atom( Var( x, FunctionType( To, params.map( _.exptype ) ) ), params )
     }
   }
 
@@ -116,7 +116,7 @@ trait SchemaFormulaParser extends HLKFormulaParser with HOLParser {
   def const_atom: Parser[SchemaFormula] = regex( new Regex( "P" ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
     case x ~ "(" ~ params ~ ")" => {
 
-      Atom( SchemaConst( x, FunctionType( To, params.map( _.exptype ) ) ), params )
+      Atom( Const( x, FunctionType( To, params.map( _.exptype ) ) ), params )
     }
   }
   //def equality: Parser[SchemaFormula] = eq_infix | eq_prefix // infix is problematic in higher order
@@ -124,11 +124,11 @@ trait SchemaFormulaParser extends HLKFormulaParser with HOLParser {
   def eq_prefix: Parser[SchemaFormula] = "=" ~ "(" ~ term ~ "," ~ term ~ ")" ^^ { case "=" ~ "(" ~ x ~ "," ~ y ~ ")" => Equation( x, y ) }
   def var_func: Parser[SchemaExpression] = regex( new Regex( "[u-z]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
     case x ~ "(" ~ params ~ ")" =>
-      Function( SchemaVar( x, FunctionType( Tindex, params.map( _.exptype ) ) ), params )
+      Function( Var( x, FunctionType( Tindex, params.map( _.exptype ) ) ), params )
   }
   def const_func: Parser[SchemaExpression] = regex( new Regex( "[" + symbols + "a-tA-Z0-9]" + word ) ) ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
     case x ~ "(" ~ params ~ ")" =>
-      Function( SchemaConst( x, FunctionType( Tindex, params.map( _.exptype ) ) ), params )
+      Function( Const( x, FunctionType( Tindex, params.map( _.exptype ) ) ), params )
   }
 
   protected def word: String = """[a-zA-Z0-9$_{}]*"""

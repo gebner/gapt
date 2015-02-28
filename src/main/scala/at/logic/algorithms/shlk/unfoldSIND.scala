@@ -1,6 +1,8 @@
 package at.logic.algorithms.shlk
 
 import at.logic.calculi.slk._
+import at.logic.language.hol._
+import at.logic.language.lambda.{Abs, Const, Var}
 import at.logic.language.schema._
 import at.logic.calculi.occurrences._
 import at.logic.calculi.lk._
@@ -36,8 +38,8 @@ object CloneLKProof2 {
       case foldLeftRule( p, s, a, m ) => {
         if ( version == 0 ) apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
         else if ( version == 1 ) {
-          val aa = iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
-          val mm = iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
+          val aa = iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
+          val mm = iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1 :+ rewriterulereplace( mm, aa ), foldLeftRule( new_p._2, aa, mm ) )
         } else if ( version == 2 ) {
@@ -48,8 +50,8 @@ object CloneLKProof2 {
       case foldRightRule( p, s, a, m ) => {
         if ( version == 0 ) apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
         else if ( version == 1 ) {
-          val aa = iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
-          val mm = iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
+          val aa = iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
+          val mm = iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing )
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1 :+ rewriterulereplace( mm, aa ), foldRightRule( new_p._2, aa, mm ) )
         } else if ( version == 2 ) {
@@ -61,7 +63,7 @@ object CloneLKProof2 {
 
       case Axiom( ro ) => {
         if ( version == 0 ) Tuple2( List(), Axiom( ro.antecedent.map( fo => defineremove( fo.formula.asInstanceOf[SchemaFormula], rewriterules ) ), ro.succedent.map( fo => defineremove( fo.formula.asInstanceOf[SchemaFormula], rewriterules ) ) ) )
-        else if ( version == 1 ) Tuple2( List(), Axiom( ro.antecedent.map( fo => iterateOnFormula( fo.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ), ro.succedent.map( fo => iterateOnFormula( fo.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) ) )
+        else if ( version == 1 ) Tuple2( List(), Axiom( ro.antecedent.map( fo => iterateOnFormula.formula( fo.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ), ro.succedent.map( fo => iterateOnFormula.formula( fo.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) ) )
         else if ( version == 2 ) {
           Tuple2( List(), Axiom( ro.antecedent.map( fo => cloneMySol( fo.formula.asInstanceOf[SchemaFormula], proofSize ) ), ro.succedent.map( fo => cloneMySol( fo.formula.asInstanceOf[SchemaFormula], proofSize ) ) ) )
         } else Tuple2( List(), proof )
@@ -73,7 +75,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, AndLeftEquivalenceRule1( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, AndLeftEquivalenceRule1( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, AndLeftEquivalenceRule1( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, AndLeftEquivalenceRule1( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -85,7 +87,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, AndRightEquivalenceRule1( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, AndRightEquivalenceRule1( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, AndRightEquivalenceRule1( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, AndRightEquivalenceRule1( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -98,7 +100,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, OrRightEquivalenceRule1( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, OrRightEquivalenceRule1( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, OrRightEquivalenceRule1( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, OrRightEquivalenceRule1( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -110,7 +112,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, AndLeftEquivalenceRule3( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, AndLeftEquivalenceRule3( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, AndLeftEquivalenceRule3( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, AndLeftEquivalenceRule3( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -122,7 +124,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, AndRightEquivalenceRule3( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, AndRightEquivalenceRule3( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, AndRightEquivalenceRule3( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, AndRightEquivalenceRule3( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -135,7 +137,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, OrRightEquivalenceRule3( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, OrRightEquivalenceRule3( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, OrRightEquivalenceRule3( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, OrRightEquivalenceRule3( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -150,7 +152,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           implicit val factory = defaultFormulaOccurrenceFactory
-          Tuple2( new_p._1, WeakeningLeftRule( new_p._2, iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, WeakeningLeftRule( new_p._2, iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           implicit val factory = defaultFormulaOccurrenceFactory
@@ -166,7 +168,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           implicit val factory = defaultFormulaOccurrenceFactory
-          Tuple2( new_p._1, WeakeningRightRule( new_p._2, iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, WeakeningRightRule( new_p._2, iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           implicit val factory = defaultFormulaOccurrenceFactory
@@ -182,7 +184,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p1._1 ++ new_p2._1, CutRule( new_p1._2, new_p2._2, iterateOnFormula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p1._1 ++ new_p2._1, CutRule( new_p1._2, new_p2._2, iterateOnFormula.formula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
@@ -198,7 +200,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p1._1 ++ new_p2._1, OrLeftRule( new_p1._2, new_p2._2, iterateOnFormula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p1._1 ++ new_p2._1, OrLeftRule( new_p1._2, new_p2._2, iterateOnFormula.formula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
@@ -214,7 +216,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p1._1 ++ new_p2._1, AndRightRule( new_p1._2, new_p2._2, iterateOnFormula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p1._1 ++ new_p2._1, AndRightRule( new_p1._2, new_p2._2, iterateOnFormula.formula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
@@ -229,7 +231,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p1._1 ++ new_p2._1, ImpLeftRule( new_p1._2, new_p2._2, iterateOnFormula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p1._1 ++ new_p2._1, ImpLeftRule( new_p1._2, new_p2._2, iterateOnFormula.formula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p1 = apply( p1, name, rewriterules, proofSize, version, ProofLinkPassing )
           val new_p2 = apply( p2, name, rewriterules, proofSize, version, ProofLinkPassing )
@@ -243,7 +245,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, NegLeftRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, NegLeftRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, NegLeftRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, NegLeftRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -258,7 +260,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case And( l, right ) => right }
-          Tuple2( new_p._1, AndLeft1Rule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, AndLeft1Rule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case And( l, right ) => right }
@@ -274,7 +276,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case And( l, _ ) => l }
-          Tuple2( new_p._1, AndLeft2Rule( new_p._2, iterateOnFormula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, AndLeft2Rule( new_p._2, iterateOnFormula.formula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case And( l, _ ) => l }
@@ -290,7 +292,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case Or( _, ra ) => ra }
-          Tuple2( new_p._1, OrRight1Rule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, OrRight1Rule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case Or( _, ra ) => ra }
@@ -306,7 +308,7 @@ object CloneLKProof2 {
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case Or( l, _ ) => l }
-          Tuple2( new_p._1, OrRight2Rule( new_p._2, iterateOnFormula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, OrRight2Rule( new_p._2, iterateOnFormula.formula( a2.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           val a2 = m.formula match { case Or( l, _ ) => l }
@@ -320,7 +322,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, NegRightRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, NegRightRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, NegRightRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, NegRightRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -336,7 +338,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ContractionLeftRule( new_p._2, defineremove( a1.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ContractionLeftRule( new_p._2, iterateOnFormula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, ContractionLeftRule( new_p._2, iterateOnFormula.formula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, ContractionLeftRule( new_p._2, cloneMySol( a1.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -349,7 +351,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ContractionRightRule( new_p._2, defineremove( a1.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ContractionRightRule( new_p._2, iterateOnFormula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, ContractionRightRule( new_p._2, iterateOnFormula.formula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, ContractionRightRule( new_p._2, cloneMySol( a1.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -363,7 +365,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ForallLeftRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), t ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ForallLeftRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, ForallLeftRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.term( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, ForallLeftRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( t.asInstanceOf[SchemaExpression], proofSize ) ) )
@@ -375,10 +377,10 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ForallRightRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), v ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ForallRightRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( v.asInstanceOf[SchemaExpression], ProofLinkPassing ).asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ForallRightRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.term( v.asInstanceOf[SchemaExpression], ProofLinkPassing ).asInstanceOf[Var] ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ForallRightRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ForallRightRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[Var] ) )
         } else Tuple2( List(), proof )
       }
 
@@ -388,7 +390,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ExistsRightRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), t ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ExistsRightRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, ExistsRightRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.term( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, ExistsRightRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( t.asInstanceOf[SchemaExpression], proofSize ) ) )
@@ -400,10 +402,10 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ExistsLeftRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), v ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ExistsLeftRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( v.asInstanceOf[SchemaExpression], ProofLinkPassing ).asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ExistsLeftRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.term( v.asInstanceOf[SchemaExpression], ProofLinkPassing ).asInstanceOf[Var] ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ExistsLeftRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ExistsLeftRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[Var] ) )
         } else Tuple2( List(), proof )
       }
 
@@ -413,7 +415,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ExistsHyperRightRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), t.asInstanceOf[SchemaExpression] ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ExistsHyperRightRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, ExistsHyperRightRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.term( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, ExistsHyperRightRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( t.asInstanceOf[SchemaExpression], proofSize ) ) )
@@ -423,10 +425,10 @@ object CloneLKProof2 {
         if ( version == 0 ) apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
         else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ExistsHyperLeftRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), v.asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ExistsHyperLeftRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), v.asInstanceOf[Var] ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ExistsHyperLeftRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ExistsHyperLeftRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[Var] ) )
         } else Tuple2( List(), proof )
       }
       case ForallHyperLeftRule( p, seq, a, m, t ) => {
@@ -435,7 +437,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ForallHyperLeftRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), t.asInstanceOf[SchemaExpression] ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ForallHyperLeftRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, ForallHyperLeftRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.term( t.asInstanceOf[SchemaExpression], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, ForallHyperLeftRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( t.asInstanceOf[SchemaExpression], proofSize ) ) )
@@ -444,13 +446,13 @@ object CloneLKProof2 {
       case ForallHyperRightRule( p, seq, a, m, v ) => {
         if ( version == 0 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ForallHyperRightRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), v.asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ForallHyperRightRule( new_p._2, defineremove( a.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( m.formula.asInstanceOf[SchemaFormula], rewriterules ), v.asInstanceOf[Var] ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ForallHyperRightRule( new_p._2, iterateOnFormula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( v.asInstanceOf[SchemaExpression], ProofLinkPassing ).asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ForallHyperRightRule( new_p._2, iterateOnFormula.formula( a.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( m.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.term( v.asInstanceOf[SchemaExpression], ProofLinkPassing ).asInstanceOf[Var] ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ForallHyperRightRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[SchemaVar] ) )
+          Tuple2( new_p._1, ForallHyperRightRule( new_p._2, cloneMySol( a.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( m.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMyTerm( v.asInstanceOf[SchemaExpression], proofSize ).asInstanceOf[Var] ) )
         } else Tuple2( List(), proof )
       }
 
@@ -460,7 +462,7 @@ object CloneLKProof2 {
           Tuple2( new_p._1, ImpRightRule( new_p._2, defineremove( a1.formula.asInstanceOf[SchemaFormula], rewriterules ), defineremove( a2.formula.asInstanceOf[SchemaFormula], rewriterules ) ) )
         } else if ( version == 1 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
-          Tuple2( new_p._1, ImpRightRule( new_p._2, iterateOnFormula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
+          Tuple2( new_p._1, ImpRightRule( new_p._2, iterateOnFormula.formula( a1.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ), iterateOnFormula.formula( a2.formula.asInstanceOf[SchemaFormula], ProofLinkPassing ) ) )
         } else if ( version == 2 ) {
           val new_p = apply( p, name, rewriterules, proofSize, version, ProofLinkPassing )
           Tuple2( new_p._1, ImpRightRule( new_p._2, cloneMySol( a1.formula.asInstanceOf[SchemaFormula], proofSize ), cloneMySol( a2.formula.asInstanceOf[SchemaFormula], proofSize ) ) )
@@ -471,7 +473,7 @@ object CloneLKProof2 {
 
         else if ( version == 1 ) {
           val next = backToInt( l.head )
-          val newList = l.tail.map( x => iterateOnFormula( x, ProofLinkPassing ) )
+          val newList = l.tail.map( x => iterateOnFormula.formula( x, ProofLinkPassing ) )
           if ( next == 0 ) {
             if ( SchemaProofDB.getLinkTerms( name2 ).length != 0 && SchemaProofDB.getLinkTerms( name2 ).length == newList.length ) {
 
@@ -503,14 +505,14 @@ object rewriterulereplace {
   def apply( p: Tuple2[SchemaFormula, SchemaFormula] ): Tuple2[SchemaFormula, SchemaFormula] = if ( AtomMatch( p._1 ) ) {
     val pairone: SchemaFormula = { p._1 match { case Atom( x, y ) => y case _ => List() } }.tail.foldLeft( Tuple2( 0, p._2 ) )( ( pairppair, t ) => ( pairppair._1 + 1, genterm( pairppair._1, pairppair._2, t ) ) )._2
     Tuple2( p._1 match {
-      case Atom( x, y ) => Atom( x, List( y.head ) ++ y.tail.foldLeft( Tuple2( 0, List().asInstanceOf[List[SchemaExpression]] ) )( ( pair, t ) => ( pair._1 + 1, pair._2.asInstanceOf[List[SchemaExpression]] :+ SchemaConst( ( "!" + pair._1 + "!" ), Ti ) ) )._2 )
+      case Atom( x, y ) => Atom( x, List( y.head ) ++ y.tail.foldLeft( Tuple2( 0, List().asInstanceOf[List[SchemaExpression]] ) )( ( pair, t ) => ( pair._1 + 1, pair._2.asInstanceOf[List[SchemaExpression]] :+ Const( ( "!" + pair._1 + "!" ), Ti ) ) )._2 )
       case x            => x
     }, pairone )
   } else p
 }
 object iterateOnFormula {
-  def apply( form: SchemaFormula, ProofLinkPassing: List[Tuple2[SchemaExpression, SchemaExpression]] ): SchemaFormula = ProofLinkPassing.foldLeft( form )( ( f, pair ) => cloneMySol( f, pair._1, pair._2 ) )
-  def apply( term: SchemaExpression, ProofLinkPassing: List[Tuple2[SchemaExpression, SchemaExpression]] ): SchemaExpression = ProofLinkPassing.foldLeft( term )( ( t, pair ) => { cloneMyTerm( t, pair._1, pair._2 ) } )
+  def formula( form: SchemaFormula, ProofLinkPassing: List[Tuple2[SchemaExpression, SchemaExpression]] ): SchemaFormula = ProofLinkPassing.foldLeft( form )( ( f, pair ) => cloneMySol( f, pair._1, pair._2 ) )
+  def term( term: SchemaExpression, ProofLinkPassing: List[Tuple2[SchemaExpression, SchemaExpression]] ): SchemaExpression = ProofLinkPassing.foldLeft( term )( ( t, pair ) => { cloneMyTerm( t, pair._1, pair._2 ) } )
 }
 object genterm {
   def apply( n: Int, p: SchemaFormula, t: SchemaExpression ): SchemaFormula = {
@@ -548,33 +550,28 @@ object genterm {
       case leq( l, r )                           => leq( apply( n, l, t ), apply( n, r, t ) )
       case Atom( x, y ) if isIndexSort( y.head ) => Atom( x, List( y.head ) ++ y.map( x => apply( n, x, t ) ) )
       case Atom( x, y )                          => Atom( x, y.map( x => apply( n, x, t ) ) )
-      case _                                     => throw new Exception( "ERROR in unfolding missing formula !\n" + p.toString + "\n" )
-    }
-  }
-  def apply( ii: Int, p: SchemaExpression, t: SchemaExpression ): SchemaExpression = {
-    t match {
       case Function( head, l, Tindex )              => t
-      case SchemaVar( name, Tindex ) if name == "k" => t
+      case Var( name, Tindex ) if name == "k" => t
       case Function( head, l, Ti ) => p match {
         case Function( headi, li, Ti ) //if head.name == headi.name && l.length == li.length &&
         if head == headi && l.length == li.length &&
-          l.zip( li ).foldLeft( true, true )( ( b, pair ) => if ( equalterms( pair._1, pair._2 ) && b._2 ) b else ( b._1, false ) )._1 => SchemaConst( "!" + ii + "!", Ti )
-        case Function( headi, li, Ti ) => Function( head, li.map( x => apply( ii, x, t ) ) )
+          l.zip( li ).foldLeft( true, true )( ( b, pair ) => if ( equalterms( pair._1, pair._2 ) && b._2 ) b else ( b._1, false ) )._1 => Const( "!" + n + "!", Ti )
+        case Function( headi, li, Ti ) => Function( head, li.map( x => apply( n, x, t ) ) )
         case _                         => p
       }
-      case SchemaVar( head, ->( Tindex, Ti ) ) => p match {
-        case Function( headi, li, Ti ) if headi == head => Function( SchemaConst( "!" + ii + "!", FunctionType( Ti, li.map( _.exptype ) ) ), li )
+      case Var( head, ->( Tindex, Ti ) ) => p match {
+        case Function( headi, li, Ti ) if headi == head => Function( Const( "!" + n + "!", FunctionType( Ti, li.map( _.exptype ) ) ), li )
         case _ => p
       }
-      case SchemaVar( head, Ti ) => p match {
-        case SchemaVar( head2, Ti ) if head2 == head => SchemaConst( "!" + ii + "!", Ti )
+      case Var( head, Ti ) => p match {
+        case Var( head2, Ti ) if head2 == head => Const( "!" + n + "!", Ti )
         case _                                       => p
       }
-      case SchemaConst( head, tt ) => p match {
-        case SchemaConst( head2, t2 ) if tt == t2 && head2 == head => SchemaConst( "!" + ii + "!", Ti )
+      case Const( head, tt ) => p match {
+        case Const( head2, t2 ) if tt == t2 && head2 == head => Const( "!" + n + "!", Ti )
         case _ => p
       }
-      case SchemaAbs( x, tt ) => p match { case SchemaAbs( x2, t2 ) if x == x2 && equalterms( tt, t2 ) => apply( ii, t2, t ) }
+      case Abs( x, tt ) => p match { case Abs( x2, t2 ) if x == x2 && equalterms( tt, t2 ) => apply( n, t2, t ) }
       case _                  => throw new Exception( "ERROR in unfolding missing formula !\n" + t.toString + "\n" )
 
     }
@@ -708,8 +705,8 @@ object cloneMySol {
 // Function and Atom are improved (see comments there).
 object getName {
   def apply( term: SchemaExpression ) = term match {
-    case SchemaConst( sym, _ ) => sym
-    case SchemaVar( sym, _ )   => sym
+    case Const( sym, _ ) => sym
+    case Var( sym, _ )   => sym
   }
 }
 
@@ -717,12 +714,12 @@ object cloneMyTerm {
   def apply( term: SchemaExpression, proofSize: Int ): SchemaExpression = {
     term match {
       case Function( n, l, t ) if getName( n ) == "schS" && t == Tindex => Function( n, l.map( x => apply( x, proofSize ) ) )
-      case SchemaVar( n, t ) if n == "k" && t == Tindex => maketogether( proofSize )
+      case Var( n, t ) if n == "k" && t == Tindex => maketogether( proofSize )
       case Function( n, l, t ) if t == Tindex => Function( n, l.map( x => apply( x, proofSize ) ) )
       case Function( n, l, t ) if t == Ti => Function( n, l.map( x => apply( x, proofSize ) ) )
-      case SchemaVar( n, t ) if t == Ti | t == Tindex -> Ti => SchemaVar( n, t )
-      case SchemaConst( n, t ) => SchemaConst( n, t )
-      case SchemaAbs( x, t ) => SchemaAbs( x, apply( t, proofSize ) )
+      case Var( n, t ) if t == Ti | t == Tindex -> Ti => Var( n, t )
+      case Const( n, t ) => Const( n, t )
+      case Abs( x, t ) => Abs( x, apply( t, proofSize ) )
       case _ => throw new Exception( "ERROR in unfolding missing formula !\n" + term.toString + "\n" )
 
     }
@@ -730,27 +727,27 @@ object cloneMyTerm {
   def apply( term: SchemaExpression, IN: SchemaExpression, OUT: SchemaExpression ): SchemaExpression = {
     term match {
       case Function( head, l, Tindex ) if getName( head ) == "schS" => Function( head, l )
-      case SchemaVar( n, Tindex ) if n == "k"                       => SchemaVar( n, Tindex )
+      case Var( n, Tindex ) if n == "k"                       => Var( n, Tindex )
       case Function( n, l, Tindex )                                 => Function( n, l.map( x => apply( x, IN, OUT ) ) )
       case Function( n, l, Ti ) => IN match {
         case Function( ni, li, Ti ) if n == ni && l.length == li.length && l.zip( li ).foldLeft( true, true )( ( b, pair ) => if ( equalterms( pair._1, pair._2 ) && b._2 ) b else ( b._1, false ) )._1 => OUT
         case Function( ni, li, Ti ) if n == ni => OUT match {
           // FIXME (Daniel): I don't understand the following line.
           // commented out to make compile, fix later.
-          //case SchemaVar(no,Ti) =>  Function(no,li)
+          //case Var(no,Ti) =>  Function(no,li)
           case _ => Function( ni, li )
         }
         case _ => Function( n, l.map( x => apply( x, IN, OUT ) ) )
       }
-      case SchemaVar( n, t ) if t == Ti | t == Tindex -> Ti => IN match {
-        case SchemaVar( ni, ti ) if t == ti && ni == n => OUT
-        case _                                         => SchemaVar( n, t )
+      case Var( n, t ) if t == Ti | t == Tindex -> Ti => IN match {
+        case Var( ni, ti ) if t == ti && ni == n => OUT
+        case _                                         => Var( n, t )
       }
-      case SchemaConst( n, t ) => IN match {
-        case SchemaConst( ni, ti ) if t == ti && ni == n => OUT
-        case _ => SchemaConst( n, t )
+      case Const( n, t ) => IN match {
+        case Const( ni, ti ) if t == ti && ni == n => OUT
+        case _ => Const( n, t )
       }
-      case SchemaAbs( x, t ) => SchemaAbs( x, apply( t, IN, OUT ) )
+      case Abs( x, t ) => Abs( x, apply( t, IN, OUT ) )
       case _                 => throw new Exception( "ERROR in unfolding missing formula !\n" + term.toString + "\n" )
 
     }
@@ -818,8 +815,8 @@ object equalterms {
           l.zip( l2 ).foldLeft( Tuple2( true, true ) )( ( b, pair ) => if ( apply( pair._1, pair._2 ) && b._2 ) b else Tuple2( b._1, false ) )._1
         case _ => false
       }
-      case SchemaVar( "k", Tindex ) => term2 match {
-        case SchemaVar( "k", Tindex ) => true
+      case Var( "k", Tindex ) => term2 match {
+        case Var( "k", Tindex ) => true
         case _                        => false
       }
       case Function( n, l, Tindex ) => term2 match {
@@ -832,19 +829,19 @@ object equalterms {
           l.zip( l2 ).foldLeft( Tuple2( true, true ) )( ( b, pair ) => if ( apply( pair._1, pair._2 ) && b._2 ) b else Tuple2( b._1, false ) )._1
         case _ => false
       }
-      case SchemaVar( n, ->( Tindex, Ti ) ) => term2 match {
-        case SchemaVar( n2, ->( Tindex, Ti ) ) if n2 == n => true
+      case Var( n, ->( Tindex, Ti ) ) => term2 match {
+        case Var( n2, ->( Tindex, Ti ) ) if n2 == n => true
         case _ => false
       }
-      case SchemaVar( n, Ti ) => term2 match {
-        case SchemaVar( n2, Ti ) if n2 == n => true
+      case Var( n, Ti ) => term2 match {
+        case Var( n2, Ti ) if n2 == n => true
         case _                              => false
       }
-      case SchemaConst( n, t ) => term2 match {
-        case SchemaConst( n2, t2 ) if t == t2 && n2 == n => true
+      case Const( n, t ) => term2 match {
+        case Const( n2, t2 ) if t == t2 && n2 == n => true
         case _ => false
       }
-      case SchemaAbs( x, t ) => term2 match { case SchemaAbs( x2, t2 ) if x == x2 => apply( t, t2 ) }
+      case Abs( x, t ) => term2 match { case Abs( x2, t2 ) if x == x2 => apply( t, t2 ) }
       case _                 => throw new Exception( "ERROR in unfolding missing formula !\n" + term.toString + "\n" )
 
     }
@@ -882,8 +879,8 @@ object isIndexSort {
   def apply( term: SchemaExpression ): Boolean = {
     term match {
       case Function( head, l, Tindex ) if getName( head ) == "schS" => apply( l.head )
-      case SchemaVar( "k", Tindex ) => true
-      case SchemaConst( "0", Tindex ) => true
+      case Var( "k", Tindex ) => true
+      case Const( "0", Tindex ) => true
       case _ => false
 
     }

@@ -7,7 +7,7 @@ import at.logic.language.hol._
 import at.logic.language.hol.logicSymbols.{LogicalSymbolA}
 import at.logic.language.lambda.{Var, Const}
 import at.logic.language.lambda.symbols.StringSymbol
-import at.logic.language.schema.{IntVar, Succ, IndexedPredicate, IntZero, Or => OrS, SchemaFormula, BigAnd, BigOr}
+import at.logic.language.schema.{IntVar, Succ, IndexedPredicate, IntZero, SchemaFormula, BigAnd, BigOr}
 import java.io.File.separator
 import scala.io._
 import org.specs2.mutable._
@@ -46,7 +46,7 @@ class SolveTest extends SpecificationWithJUnit {
       val Ak = IndexedPredicate("A", k)
       val Ai = IndexedPredicate("A", i)
       val Ai1 = IndexedPredicate("A", Succ(i))
-      val orneg = OrS(at.logic.language.schema.Neg(Ai).asInstanceOf[SchemaFormula], Ai1.asInstanceOf[SchemaFormula]).asInstanceOf[SchemaFormula]
+      val orneg = Or(Neg(Ai).asInstanceOf[SchemaFormula], Ai1.asInstanceOf[SchemaFormula]).asInstanceOf[SchemaFormula]
 
       val Ak1 = IndexedPredicate("A", Succ(k))
       val An = IndexedPredicate("A", k)

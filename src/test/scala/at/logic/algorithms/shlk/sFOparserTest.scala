@@ -6,6 +6,8 @@
 package at.logic.parsing.shlk_parsing
 
 import at.logic.calculi.lk._
+import at.logic.language.hol.{Atom, And}
+import at.logic.language.lambda.{Var, Const}
 import at.logic.language.lambda.types._
 import at.logic.language.schema._
 import java.io.File.separator
@@ -23,8 +25,8 @@ class sFOparserTest extends SpecificationWithJUnit {
   "sFOparser" should {
 
     "parse correctly a FO SLK-proof" in {
-      val var3 = Atom(SchemaVar("x3", To),Nil)
-      val var4 = Atom(SchemaVar("x4", To),Nil)
+      val var3 = Atom(Var("x3", To),Nil)
+      val var4 = Atom(Var("x4", To),Nil)
       val ax1  = Axiom(var3::Nil, var3::Nil)
       val ax2  = Axiom(var4::Nil, var4::Nil)
       val negl = NegLeftRule(ax1, var3)
@@ -35,16 +37,16 @@ class sFOparserTest extends SpecificationWithJUnit {
       val i = IntVar("i")
       val Ai2 = IndexedPredicate("A", Succ(Succ(i)))
       val Ai = IndexedPredicate("A", Succ(i))
-      val f1 = at.logic.language.schema.And(A0, BigAnd(i,Ai,IntZero(),Succ(i)))
+      val f1 = And(A0, BigAnd(i,Ai,IntZero(),Succ(i)))
       val ax11 = Axiom(A0::Nil, A0::Nil)
 
       val s = new InputStreamReader(getClass.getClassLoader.getResourceAsStream("sIND.lks"))
 
       val map = sFOParser.parseProof(s)
 
-      def f = SchemaConst("f", Ti->Ti)
-      def h = SchemaConst("h", ->(Tindex , ->(Ti, Ti)))
-      def g = SchemaConst("g", ->(Tindex , ->(Ti, Ti)))
+      def f = Const("f", Ti->Ti)
+      def h = Const("h", ->(Tindex , ->(Ti, Ti)))
+      def g = Const("g", ->(Tindex , ->(Ti, Ti)))
       val k = IntVar("k")
       val x = foVar("x")
       val base2 = x
@@ -60,8 +62,8 @@ class sFOparserTest extends SpecificationWithJUnit {
 
     "parse correctly the journal example" in {
 
-      val var3 = Atom(SchemaVar("x3",To), Nil)
-      val var4 = Atom(SchemaVar("x4",To), Nil)
+      val var3 = Atom(Var("x3",To), Nil)
+      val var4 = Atom(Var("x4",To), Nil)
       val ax1  = Axiom(var3::Nil, var3::Nil)
       val ax2  = Axiom(var4::Nil, var4::Nil)
       val negl = NegLeftRule(ax1, var3)
@@ -78,9 +80,9 @@ class sFOparserTest extends SpecificationWithJUnit {
 
       val map = sFOParser.parseProof(s)
 
-      def f = SchemaConst("f", Ti->Ti)
-      def h = SchemaConst("h", ->(Tindex , ->(Ti, Ti)))
-      def g = SchemaConst("g", ->(Tindex , ->(Ti, Ti)))
+      def f = Const("f", Ti->Ti)
+      def h = Const("h", ->(Tindex , ->(Ti, Ti)))
+      def g = Const("g", ->(Tindex , ->(Ti, Ti)))
       val k = IntVar("k")
       val x = foVar("x")
       val base2 = x
