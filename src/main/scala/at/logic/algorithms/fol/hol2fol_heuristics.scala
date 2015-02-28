@@ -1,6 +1,5 @@
 package at.logic.algorithms.fol.hol2fol
 
-import at.logic.algorithms.fol.recreateWithFactory
 import at.logic.language.lambda._
 import at.logic.language.hol._
 import at.logic.language.lambda.symbols.StringSymbol

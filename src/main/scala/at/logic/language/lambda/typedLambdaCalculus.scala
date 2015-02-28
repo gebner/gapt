@@ -20,9 +20,6 @@ abstract class LambdaExpression {
   // Alpha equality
   def alphaEquals( a: Any, subs: Map[Var, Var] ): Boolean
 
-  // Factory for Lambda-Expressions
-  def factory: FactoryA = LambdaFactory
-
   /**
    * Tests whether this Expression has a subexpression at the given position.
    *
@@ -111,10 +108,10 @@ class Var( val sym: SymbolA, val exptype: TA ) extends LambdaExpression {
   def get( pos: LambdaPosition ) = if ( pos.isEmpty ) Some( this ) else None
 }
 object Var {
-  def apply( name: String, exptype: TA ) = LambdaFactory.createVar( StringSymbol( name ), exptype )
-  def apply( name: String, exptype: String ) = LambdaFactory.createVar( StringSymbol( name ), Type( exptype ) )
-  def apply( sym: SymbolA, exptype: TA ) = LambdaFactory.createVar( sym, exptype )
-  def apply( sym: SymbolA, exptype: String ) = LambdaFactory.createVar( sym, Type( exptype ) )
+  def apply( name: String, exptype: TA ): Var = Var( StringSymbol( name ), exptype )
+  def apply( name: String, exptype: String ): Var = Var( StringSymbol( name ), Type( exptype ) )
+  def apply( sym: SymbolA, exptype: TA ): Var = new Var( sym, exptype )
+  def apply( sym: SymbolA, exptype: String ): Var = Var( sym, Type( exptype ) )
   def unapply( e: LambdaExpression ) = e match {
     case v: Var => Some( v.name, v.exptype )
     case _      => None
@@ -150,10 +147,10 @@ class Const( val sym: SymbolA, val exptype: TA ) extends LambdaExpression {
   def get( pos: LambdaPosition ) = if ( pos.isEmpty ) Some( this ) else None
 }
 object Const {
-  def apply( name: String, exptype: TA ) = LambdaFactory.createConst( StringSymbol( name ), exptype )
-  def apply( name: String, exptype: String ) = LambdaFactory.createConst( StringSymbol( name ), Type( exptype ) )
-  def apply( sym: SymbolA, exptype: TA ) = LambdaFactory.createConst( sym, exptype )
-  def apply( sym: SymbolA, exptype: String ) = LambdaFactory.createConst( sym, Type( exptype ) )
+  def apply( name: String, exptype: TA ): Const = Const( StringSymbol( name ), exptype )
+  def apply( name: String, exptype: String ): Const = Const( StringSymbol( name ), Type( exptype ) )
+  def apply( sym: SymbolA, exptype: TA ): Const = new Const( sym, exptype )
+  def apply( sym: SymbolA, exptype: String ): Const = Const( sym, Type( exptype ) )
   def unapply( e: LambdaExpression ) = e match {
     case c: Const => Some( c.name, c.exptype )
     case _        => None
@@ -218,7 +215,7 @@ class App( val function: LambdaExpression, val arg: LambdaExpression ) extends L
   }
 }
 object App {
-  def apply( f: LambdaExpression, a: LambdaExpression ) = a.factory.createApp( f, a )
+  def apply( f: LambdaExpression, a: LambdaExpression ) = new App( f, a )
   // create an n-ary application with left-associative parentheses
   def apply( function: LambdaExpression, arguments: List[LambdaExpression] ): LambdaExpression = arguments match {
     case Nil     => function
@@ -273,7 +270,7 @@ class Abs( val variable: Var, val term: LambdaExpression ) extends LambdaExpress
     else None
 }
 object Abs {
-  def apply( v: Var, t: LambdaExpression ) = t.factory.createAbs( v, t )
+  def apply( v: Var, t: LambdaExpression ) = new Abs(v, t)
   def apply( variables: List[Var], expression: LambdaExpression ): LambdaExpression = variables match {
     case Nil     => expression
     case x :: ls => Abs( x, apply( ls, expression ) )
@@ -282,22 +279,4 @@ object Abs {
     case a: Abs => Some( ( a.variable, a.term ) )
     case _      => None
   }
-}
-
-/*********************** Factories *****************************/
-
-trait FactoryA {
-  def createVar( name: SymbolA, exptype: TA ): Var
-  def createConst( name: SymbolA, exptype: TA ): Const
-  def createAbs( variable: Var, exp: LambdaExpression ): Abs
-  def createApp( fun: LambdaExpression, arg: LambdaExpression ): App
-  def createConnective( sym: SymbolA, tp: TA = Ti ): Const
-}
-
-object LambdaFactory extends FactoryA {
-  def createVar( name: SymbolA, exptype: TA ) = new Var( name, exptype )
-  def createConst( name: SymbolA, exptype: TA ) = new Const( name, exptype )
-  def createAbs( variable: Var, exp: LambdaExpression ) = new Abs( variable, exp )
-  def createApp( fun: LambdaExpression, arg: LambdaExpression ) = new App( fun, arg )
-  def createConnective( sym: SymbolA, tp: TA = Ti ) = throw new Exception( "Logical connectives must not be created in the lambda layer." )
 }

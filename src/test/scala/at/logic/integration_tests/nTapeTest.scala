@@ -3,7 +3,6 @@ package at.logic.integration_tests
 import java.io.{ IOException}
 
 import at.logic.algorithms.fol.hol2fol.{undoHol2Fol, replaceAbstractions, reduceHolToFol}
-import at.logic.algorithms.fol.recreateWithFactory
 import at.logic.algorithms.hlk.HybridLatexParser
 import at.logic.algorithms.lk.{AtomicExpansion, regularize}
 import at.logic.algorithms.llk.HybridLatexExporter

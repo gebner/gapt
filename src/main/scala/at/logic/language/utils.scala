@@ -212,7 +212,7 @@ object normalizeFreeVariables {
     val map = vs.foldLeft( Map[Var, Var]() )( ( map, v ) => {
       if ( map.contains( v ) ) map else {
         val name = freshName()
-        map + ( ( v, v.factory.createVar( StringSymbol( name ), v.exptype ).asInstanceOf[Var] ) )
+        map + ( ( v, Var( StringSymbol( name ), v.exptype ).asInstanceOf[Var] ) )
       }
     } )
 

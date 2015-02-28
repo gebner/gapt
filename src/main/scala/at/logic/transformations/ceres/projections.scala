@@ -36,7 +36,7 @@ object Projections extends at.logic.utils.logging.Logger {
     //TODO: lksk is not handled
     val es = proof.root.toFSequent
     val x = es.formulas.headOption match {
-      case Some( f ) => f.factory.createVar( StringSymbol( "x" ), t )
+      case Some( f ) => Var( StringSymbol( "x" ), t )
       case None      => Var( StringSymbol( "x" ), t )
     }
 
@@ -53,7 +53,7 @@ object Projections extends at.logic.utils.logging.Logger {
     //TODO: in case of fol, fol equality is not used
     val es = proof.root.toFSequent
     val x = es.formulas.headOption match {
-      case Some( f ) => f.factory.createVar( StringSymbol( "x" ), t )
+      case Some( f ) => Var( StringSymbol( "x" ), t )
       case None      => Var( StringSymbol( "x" ), t )
     }
 

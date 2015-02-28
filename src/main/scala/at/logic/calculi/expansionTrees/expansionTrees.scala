@@ -793,9 +793,6 @@ object replace {
    * @return the resulting expression
    */
   def replaceAll( what: Const, by: Const, where: HOLExpression ): HOLExpression = {
-    require( what.factory == by.factory, "The replacement constant " + by +
-      " must be from the same layer (factory) as the original term " + what )
-
     if ( what != by ) //prevent cycles in replaceAllRec
       replaceAllRec( what, by, where )
     else

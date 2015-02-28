@@ -11,7 +11,6 @@ import java.util.zip.GZIPInputStream
 import at.logic.algorithms.cutIntroduction._
 import at.logic.algorithms.expansionTrees.{ compressQuantifiers, minimalExpansionSequents => minimalExpSeq }
 import at.logic.algorithms.fol.hol2fol._
-import at.logic.algorithms.fol.recreateWithFactory
 import at.logic.algorithms.hlk.{ ExtendedProofDatabase, HybridLatexParser }
 import at.logic.algorithms.interpolation._
 import at.logic.algorithms.lk.statistics._

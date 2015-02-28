@@ -1,6 +1,5 @@
 package at.logic.algorithms.resolution
 
-import at.logic.algorithms.fol.{ recreateWithFactory, fol2hol }
 import at.logic.calculi.lk.base.{ LKUnaryRuleCreationException, FSequent }
 import at.logic.calculi.lksk.TypeSynonyms.{ EmptyLabel, Label }
 import at.logic.calculi.resolution.Clause
@@ -10,7 +9,7 @@ import at.logic.calculi.lksk.{ LabelledFormulaOccurrence, LabelledSequent }
 import at.logic.calculi.occurrences.FormulaOccurrence
 import at.logic.language.fol.{ FOLExpression, FOLFormula }
 import at.logic.language.hol._
-import at.logic.language.lambda.{Substitution, Var, FactoryA, LambdaExpression}
+import at.logic.language.lambda.{Substitution, Var, LambdaExpression}
 
 case class RalException[V <: LabelledSequent]( val message: String, val rp: List[RobinsonResolutionProof], val ralp: List[RalResolutionProof[V]], val exp: List[HOLExpression] ) extends Exception( message );
 
@@ -148,20 +147,6 @@ abstract class RobinsonToRal {
   def my_require( fs1: FSequent, fs2: FSequent, msg: String ) = {
     val cfs2 = convert_sequent( fs2 )
     require( fs1 multiSetEquals ( convert_sequent( fs2 ) ), msg + " (converted sequent is " + cfs2 + ")" ) //commented out, because the translation is too flexible now
-  }
-
-  import at.logic.language.lambda
-  def checkFactory( e: LambdaExpression, f: FactoryA ): Boolean = e match {
-    case lambda.Var( _, _ ) if e.factory == f   => true
-    case lambda.Const( _, _ ) if e.factory == f => true
-    case lambda.App( s, t ) if e.factory == f   => checkFactory( s, f ) && checkFactory( t, f )
-    case lambda.Abs( x, t ) if e.factory == f   => checkFactory( x, f ) && checkFactory( t, f )
-    case _ if e.factory == f =>
-      println( "unhandled case for " + e )
-      false
-    case _ =>
-      println( "wrong factory for " + e + " expected: " + f + " but is:" + e.factory )
-      false
   }
 
   def pickFO( f: HOLFormula, list: Seq[LabelledFormulaOccurrence], exclusion_list: Seq[LabelledFormulaOccurrence] ): LabelledFormulaOccurrence =

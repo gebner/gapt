@@ -15,14 +15,6 @@ import at.logic.language.lambda.types.{To, Ti}
 @RunWith(classOf[JUnitRunner])
 class fol2holTest extends SpecificationWithJUnit {
   "Conversion from fol to hol" should {
-    "work for some simple terms" in {
-      val fterm = fol.FOLFunction("f", List(
-                    fol.FOLConst("q1"),
-                    fol.FOLVar("x")))
-      val hterm = fol2hol(fterm)
-      ok
-    }
-
     "allow substitution of a fol term into a hol term" in {
       val p = Const("P", Ti -> ((Ti -> Ti) -> To))
       val x = Var("x", Ti)
@@ -35,21 +27,7 @@ class fol2holTest extends SpecificationWithJUnit {
       val fsub = Substitution(fol.FOLVar("y"), fterm)
 
 
-      /*TODO: Martin expected this to fail, but it doesn't (app takes the factory of the first parameter, which is fol
-        after the substitution, so the lambda x.x should be created by the fol factory and fail).
-
-        in the new lambda calculus, this really fails as expected
-       */
-      //val sterm = fsub(hterm)
-      //sterm.factory must beEqualTo(HOLFactory) //surprisingly enough, this does not fail
-
-      //println(sterm)
-      //TODO: add tests for converting substitutions back in
-      //val f2hterm = fol2hol(fsub.asInstanceOf[Substitution[fol.FOLExpression]])(hterm)
-
-      //f2hterm.factory must beEqualTo(hol.HOLFactory)
-
-      //recreateWithFactory(fsub, hol.HOLFactory)(hterm).factory must beEqualTo(hol.HOLFactory)
+      fsub(hterm)
       ok
     }
 

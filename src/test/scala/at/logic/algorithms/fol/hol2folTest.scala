@@ -17,7 +17,6 @@ import at.logic.language.lambda.types._
 import at.logic.language.fol.FOLVar
 import at.logic.language.lambda.symbols.StringSymbol
 import at.logic.language.hol.logicSymbols.ImpSymbol
-import at.logic.algorithms.fol.fol2hol
 import at.logic.parsing.language.simple.{SimpleFOLParser, SimpleHOLParser}
 import at.logic.parsing.readers.StringReader
 
@@ -107,8 +106,8 @@ class hol2folTest extends SpecificationWithJUnit {
                                        List(fol.FOLVar("q_1"),
                                             fol.FOLConst("q_1")) ))
 
-      val hterm1 = changeTypeIn(fol2hol(fterm1), Map[String, TA](("q_1", Ti->Ti) ))
-      val hterm2 = changeTypeIn(fol2hol(fterm2), Map[String, TA](("q_1", Ti->Ti) ))
+      val hterm1 = changeTypeIn(fterm1, Map[String, TA](("q_1", Ti->Ti) ))
+      val hterm2 = changeTypeIn(fterm2, Map[String, TA](("q_1", Ti->Ti) ))
       ok
     }
   }

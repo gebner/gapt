@@ -51,10 +51,10 @@ class DefinitionElimination extends at.logic.utils.logging.Logger {
       case App( s, t ) =>
         val fullmatch = try_to_match( dmap, e )
         if ( fullmatch == e )
-          try_to_match( dmap, e.factory.createApp( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) ).asInstanceOf[HOLExpression] )
+          try_to_match( dmap, App( replaceAll_in( dmap, s ), replaceAll_in( dmap, t ) ).asInstanceOf[HOLExpression] )
         else
           replaceAll_in( dmap, fullmatch )
-      case Abs( x, t ) => e.factory.createAbs( x, replaceAll_in( dmap, t ) ).asInstanceOf[HOLExpression]
+      case Abs( x, t ) => Abs( x, replaceAll_in( dmap, t ) ).asInstanceOf[HOLExpression]
     }
   }
 

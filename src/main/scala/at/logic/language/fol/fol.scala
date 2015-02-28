@@ -4,7 +4,7 @@
 
 package at.logic.language.fol
 
-import at.logic.language.lambda.{Var, LambdaExpression, Const, FactoryA}
+import at.logic.language.lambda.{Var, LambdaExpression, Const}
 import at.logic.language.hol._
 import at.logic.language.lambda.symbols._
 import at.logic.language.lambda.types._
