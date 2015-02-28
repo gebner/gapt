@@ -12,7 +12,8 @@ import at.logic.language.lambda.{ App, Substitution, Var, Const }
 import at.logic.language.lambda.types._
 import at.logic.language.hol._
 import at.logic.language.schema._
-import at.logic.language.schema.BetaReduction._
+import at.logic.language.lambda.BetaReduction._
+import ImplicitStandardStrategy._
 
 import scala.App
 

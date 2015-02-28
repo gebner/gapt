@@ -4,9 +4,10 @@ import at.logic.calculi.occurrences._
 import at.logic.calculi.proofs._
 import at.logic.calculi.lk.base._
 import at.logic.calculi.lk._
-import at.logic.language.lambda.{ Substitution, Var, App }
+import at.logic.language.lambda.{freeVariables, Substitution, Var, App}
 import at.logic.language.schema._
-import at.logic.language.schema.BetaReduction._
+import at.logic.language.lambda.BetaReduction._
+import ImplicitStandardStrategy._
 import at.logic.utils.ds.trees._
 import at.logic.calculi.lk.{ ContractionRightRuleType, ContractionLeftRuleType, CutRuleType, Axiom }
 import at.logic.language.hol.{ AllVar, ExVar, HOLExpression }

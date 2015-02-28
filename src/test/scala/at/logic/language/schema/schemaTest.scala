@@ -2,7 +2,8 @@ package at.logic.language.schema
 
 import at.logic.language.hol._
 import at.logic.language.lambda.{Const, App, Var, Abs}
-import at.logic.language.schema.BetaReduction._
+import at.logic.language.lambda.BetaReduction._
+import ImplicitStandardStrategy._
 import org.specs2.mutable._
 import org.junit.runner.RunWith
 import org.specs2.runner.JUnitRunner

@@ -8,10 +8,6 @@ package at.logic.language.schema
 import at.logic.language.hol.{ Atom, AllVar, ExVar, Imp }
 import at.logic.language.lambda.{ freeVariables => freeVariablesHOL, Substitution, Var, Const }
 
-object freeVariables {
-  def apply( e: SchemaExpression ): List[Var] = freeVariablesHOL( e ).asInstanceOf[List[Var]]
-}
-
 object isAtom {
   def apply( f: SchemaFormula ): Boolean = f match {
     case Atom( _, _ )             => true

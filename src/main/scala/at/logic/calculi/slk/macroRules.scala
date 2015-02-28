@@ -11,7 +11,8 @@ import scala.App
 //import at.logic.language.lambda.BetaReduction._
 //import at.logic.language.lambda.BetaReduction.ImplicitStandardStrategy._
 import at.logic.language.schema._
-import at.logic.language.schema.BetaReduction._
+import at.logic.language.lambda.BetaReduction._
+import ImplicitStandardStrategy._
 //import at.logic.calculi.slk._
 
 object AndEquivalenceRule {
