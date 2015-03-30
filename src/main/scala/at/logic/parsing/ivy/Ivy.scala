@@ -26,19 +26,19 @@ object IvyParser extends Logger {
   case object IvyStyleVariables extends VariableNamingConvention;
 
   //calls the sexpression parser on the given file and parses it, needs a naming convention
-  def apply( fn: String, naming_convention: VariableNamingConvention ): IvyResolutionProof = {
+  def apply( sexp: String, naming_convention: VariableNamingConvention ): IvyResolutionProof = {
     naming_convention match {
-      case PrologStyleVariables => apply_( fn, is_prologstyle_variable )
-      case LadrStyleVariables   => apply_( fn, is_ladrstyle_variable )
-      case IvyStyleVariables    => apply_( fn, is_ivy_variable )
+      case PrologStyleVariables => apply_( sexp, is_prologstyle_variable )
+      case LadrStyleVariables   => apply_( sexp, is_ladrstyle_variable )
+      case IvyStyleVariables    => apply_( sexp, is_ivy_variable )
     }
   }
 
   //calls the sexpression parser on the given file and parses it, needs a naming convention
-  def apply_( fn: String, is_variable_symbol: ( String => Boolean ) ): IvyResolutionProof = {
-    val exp = SExpressionParser( fn )
+  def apply_( sexp: String, is_variable_symbol: ( String => Boolean ) ): IvyResolutionProof = {
+    val exp = SExpressionParser.parseString( sexp )
     require( exp.length >= 1, "An ivy proof must contain at least one proof object, not " + exp.length + "! " )
-    if ( exp.length > 1 ) warn( "WARNING: Ivy proof in " + fn + " contains more than one proof, taking the first one." )
+    if ( exp.length > 1 ) warn( "WARNING: Ivy proof contains more than one proof, taking the first one." )
     parse( exp( 0 ), is_variable_symbol )
   }
 

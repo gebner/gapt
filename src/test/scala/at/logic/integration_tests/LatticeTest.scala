@@ -3,6 +3,7 @@
  */
 package at.logic.integration_tests
 
+import at.logic.algorithms.fol.hol2fol.reduceHolToFol
 import at.logic.algorithms.lk._
 import at.logic.algorithms.lk.statistics._
 import at.logic.calculi.lk._
@@ -93,11 +94,11 @@ class LatticeTest extends SpecificationWithJUnit {
       val prf_cs_intersect = prf.filter( seq => cs.contains( seq ) )
 
       // refute it with prover9
-      Prover9.refute( prf ) match {
+      Prover9.refute( reduceHolToFol( prf ) ) match {
         case None      => "" must beEqualTo( "refutation of proof profile failed" )
         case Some( _ ) => true must beEqualTo( true )
       }
-      Prover9.refute( cs ) match {
+      Prover9.refute( reduceHolToFol( cs ) ) match {
         case None      => "" must beEqualTo( "refutation of struct cs in tptp format failed" )
         case Some( _ ) => true must beEqualTo( true )
       }

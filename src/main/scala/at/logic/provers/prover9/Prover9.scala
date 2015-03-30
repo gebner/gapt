@@ -35,103 +35,35 @@ class Prover9Exception( msg: String ) extends Exception( msg )
 
 object Prover9 extends at.logic.utils.logging.Logger {
 
-  private def writeProofProblem( seq: FSequent, file: File ) =
-    {
-      val tptp = TPTPFOLExporter.tptp_proof_problem( seq )
-      trace( "created tptp input: " + tptp )
-      val writer = new FileWriter( file )
-      writer.write( tptp )
-      writer.flush
-    }
-
-  private def writeRefutationProblem( named_sequents: List[Tuple2[String, FSequent]], file: File ) =
-    {
-      val tptp = TPTPFOLExporter.tptp_problem_named( named_sequents )
-      trace( "created tptp input: " + tptp )
-      val writer = new FileWriter( file )
-      writer.write( tptp )
-      writer.flush
-    }
-
-  // TODO: this does not really belong here, refactor?
-  // executes "prog" and feeds the contents of the file at
-  // path "in" to its standard input.
-  private def exec( prog: String, in: String ) =
-    {
-      // FIXME this line throws an exception if tptp_to_ladr is not installed!
-      val p = Runtime.getRuntime.exec( prog )
-
-      val out = new OutputStreamWriter( p.getOutputStream )
-      out.write( Source.fromInputStream( new FileInputStream( in ) ).mkString )
-      out.close
-
-      val str = Source.fromInputStream( p.getInputStream ).mkString
-      p.waitFor
-      ( p.exitValue, str )
-    }
-
-  private def exec_in_out( cmd: String, in: String, out: String ) = {
-    val ret = exec( cmd, in )
-    val str_ladr = ret._2
-    writeToFile( str_ladr, out )
-    ret._1
-  }
-
-  private def writeToFile( str: String, file: String ) = {
-    val out = new FileWriter( file )
-    out.write( str )
-    out.close
-  }
-
-  /* these are shortcuts for executing the programs; all take an input and an output file and
-     return the exit status of the tool used */
-  private def tptpToLadr( in: String, out: String ) = exec_in_out( "tptp_to_ladr", in, out )
-  private def runP9( in: String, out: String ) = exec_in_out( "prover9", in, out )
-  private def p9_to_ivy( in: String, out: String ) = exec_in_out( "prooftrans ivy", in, out )
-  private def p9_to_p9( in: String, out: String ) = exec_in_out( "prooftrans", in, out )
-
-  /* Check if a sequent is valid using prover9 without parsing the proof */
   def isValid( seq: FSequent ): Boolean = {
-    val in_file = File.createTempFile( "gapt-prover9", ".ladr", null )
-    val out_file = File.createTempFile( "gapt-prover9", "prover9", null )
-    val ret = isValid( seq, in_file.getAbsolutePath, out_file.getAbsolutePath )
-    in_file.delete
-    out_file.delete
-    ret
+    val proofProblem = TPTPFOLExporter.tptp_proof_problem( seq )
+
+    val ladr = "tptp_to_ladr" #< new ByteArrayInputStream( proofProblem.getBytes ) !!
+
+    isValid( ladr )._1
   }
 
-  private def isValid( seq: FSequent, input_file: String, output_file: String ): Boolean = {
-    val tmp_file = File.createTempFile( "gapt-prover9-proof", ".tptp", null )
-    writeProofProblem( seq, tmp_file )
-
-    tptpToLadr( tmp_file.getAbsolutePath, input_file )
-    tmp_file.delete
-    isValid( input_file, output_file )
-  }
-
-  private def fileContainsProof( file: String ): Boolean = {
+  private def outputContainsProof( output: String ): Boolean = {
     val proof_str = "============================== PROOF ================================="
-    val s = scala.io.Source.fromFile( file )
-    val ret = s.getLines.exists( line => line.startsWith( proof_str ) )
-    s.close()
-    ret
+    Source.fromString( output ).getLines.exists( line => line.startsWith( proof_str ) )
   }
 
-  private def isValid( input_file: String, output_file: String ): Boolean = {
-    trace( "running prover9" )
-    val ret = runP9( input_file, output_file )
-    trace( "prover9 finished" )
+  private def isValid( p9_input: String ): ( Boolean, String ) = {
+    val outputBuf = Seq.newBuilder[String]
+    val errBuf = Seq.newBuilder[String]
+    val ret = "prover9" #< new ByteArrayInputStream( p9_input.getBytes ) ! ProcessLogger( line => outputBuf += line, err => errBuf += err )
+    val output = outputBuf.result() mkString "\n"
     ret match {
       case 0 => // prover9 ran successfully
-        return true
+        return ( true, output )
       case 1 => throw new Prover9Exception( "A fatal error occurred (user's syntax error or Prover9's bug)." )
       case 2 => {
         trace( "Prover9 ran out of things to do (sos list exhausted)." )
         // Sometimes, prover9 returns with this exit code even though
-        // a proof has been found. 
+        // a proof has been found.
         //
         // Hence we look through the proof for evidence that prover9 found a proof
-        fileContainsProof( output_file )
+        ( outputContainsProof( output ), output )
       }
       case 3 => {
         throw new Prover9Exception( "The max_megs (memory limit) parameter was exceeded." )
@@ -153,39 +85,36 @@ object Prover9 extends at.logic.utils.logging.Logger {
     }
   }
 
-  private def prove( seq: FSequent, input_file: String, output_file: String ): Option[RobinsonResolutionProof] =
+  /**
+   * Proves a sequent through Prover9 (which refutes the corresponding set of clauses).
+   */
+  def prove( seq: FSequent ): Option[RobinsonResolutionProof] =
     {
-      val tmp_file = File.createTempFile( "gapt-prover9-proof", ".tptp", null )
-      writeProofProblem( seq, tmp_file )
+      val proofProblem = TPTPFOLExporter.tptp_proof_problem( seq )
 
-      tptpToLadr( tmp_file.getAbsolutePath, input_file )
-      tmp_file.delete
+      val ladr = "tptp_to_ladr" #< new ByteArrayInputStream( proofProblem.getBytes ) !!
+
       // also pass along a CNF of the negated sequent so that
       // the proof obtained by prover9 can be fixed to have
       // as the clauses the clauses of this CNF (and not e.g.
       // these clauses modulo symmetry)
-      val cs = Some( CNFn( seq.toFormula ).map( _.toFSequent ).toList )
-      runP9OnLADR( input_file, output_file, cs )
+      val cs = Some( CNFn( seq.toFormula ).map( _.toFSequent ) )
+
+      runP9OnLADR( ladr, cs )
     }
 
-  private def refuteNamed( named_sequents: List[Tuple2[String, FSequent]], input_file: String, output_file: String ): Option[RobinsonResolutionProof] =
+  private def refuteNamed( named_sequents: List[Tuple2[String, FSequent]] ): Option[RobinsonResolutionProof] =
     {
-      val tmp_file = File.createTempFile( "gapt-prover9-ref", ".tptp", null )
-      trace( "writing refutational problem" )
-      writeRefutationProblem( named_sequents, tmp_file )
-      trace( "converting tptp to ladr" )
-      tptpToLadr( tmp_file.getAbsolutePath, input_file )
-      tmp_file.delete
-      runP9OnLADR( input_file, output_file, Some( named_sequents.map( p => p._2 ) ) )
+      val refutationProblem = TPTPFOLExporter.tptp_problem_named( named_sequents )
+      val ladr = "tptp_to_ladr" #< new ByteArrayInputStream( refutationProblem.getBytes ) !!;
+      runP9OnLADR( ladr, Some( named_sequents.map( p => p._2 ) ) )
     }
 
-  private def runP9OnLADR( input_file: String, output_file: String, clauses: Option[Seq[FSequent]] = None ): Option[RobinsonResolutionProof] = {
+  private def runP9OnLADR( str_ladr: String, clauses: Option[Seq[FSequent]] = None ): Option[RobinsonResolutionProof] = {
     // find out which symbols have been renamed
     // this information should eventually be used when
     // parsing the prover9 proof
     val regexp = new Regex( """%\s*\(arity (\d+)\)\s*'(.*?)'\s*(ladr\d+)""" )
-
-    val str_ladr = Source.fromInputStream( new FileInputStream( input_file ) ).mkString
 
     val symbol_map = str_ladr.split( System.getProperty( "line.separator" ) ).foldLeft( new HashMap[String, ( Int, String )] )( ( m, l ) =>
       l match {
@@ -193,153 +122,46 @@ object Prover9 extends at.logic.utils.logging.Logger {
         case _                           => m
       } )
 
-    trace( "translation map: " )
-    trace( symbol_map.toString )
-
-    trace( "running prover9" )
-    val ret = runP9( input_file, output_file )
-    trace( "prover9 finished" )
-    ret match {
-      case 0 =>
-        try {
-          val p9proof = parse_prover9( output_file )
-          val tp9proof = NameReplacement( p9proof._1, symbol_map )
-          val ret = if ( clauses != None ) fixDerivation( tp9proof, clauses.get ) else tp9proof
-          Some( ret )
-        } catch {
-          case e: Exception =>
-            debug( "Prover9 run successfully but conversion to resolution proof failed! " + e.getMessage )
-            val stackelements = e.getStackTrace
-            for ( ste <- stackelements )
-              trace( ste.getFileName + ":" + ste.getLineNumber + " " + ste.getClassName + "." + ste.getMethodName )
-            Some( InitialClause( Nil, Nil ) )
-        }
-      case 1 => throw new Prover9Exception( "A fatal error occurred (user's syntax error or Prover9's bug)." )
-      case 2 => {
-        trace( "Prover9 ran out of things to do (sos list exhausted)." )
-        // Sometimes, prover9 returns with this exit code even though
-        // a proof has been found. Hack-ish solution: Try to parse, if
-        // we fail, we assume that no proof was actually produced.
-        //
-        // FIXME: throw a specific exception in case no proof is found
-        // and handle it here.
-        // 
-        try {
-          trace( "parsing prover9 to robinson" )
-          val p9proof = parse_prover9( output_file )
-          trace( "done parsing prover9 to robinson" )
-          trace( "doing name replacement" )
-          val tp9proof = NameReplacement( p9proof._1, symbol_map )
-
-          trace( "done doing name replacement" )
-          val ret = if ( clauses != None ) fixDerivation( tp9proof, clauses.get ) else tp9proof
-          trace( "done fixing symmetry" )
-          Some( ret )
-        } catch {
-          case _: Exception => None // Prover9 ran out of things to do (sos list exhausted).
-        }
-      }
-      case 3 => {
-        trace( "The max_megs (memory limit) parameter was exceeded." )
-        None // The max_megs (memory limit) parameter was exceeded.
-      }
-      case 4 => {
-        trace( "The max_seconds parameter was exceeded." )
-        None // The max_seconds parameter was exceeded.
-      }
-      case 5 => {
-        trace( "The max_given parameter was exceeded." )
-        None // The max_given parameter was exceeded.
-      }
-      case 6 => {
-        trace( "The max_kept parameter was exceeded." )
-        None // The max_kept parameter was exceeded.
-      }
-      case 7 => {
-        trace( "A Prover9 action terminated the search." )
-        None // A Prover9 action terminated the search.
-      }
-      case 101 => throw new Prover9Exception( "Prover9 received an interrupt signal." )
-      case 102 => throw new Prover9Exception( "Prover9 crashed, most probably due to a bug." )
+    isValid( str_ladr ) match {
+      case ( true, output ) =>
+        val p9proof = parseProver9( output )
+        val tp9proof = NameReplacement( p9proof._1, symbol_map )
+        val ret = if ( clauses != None ) fixDerivation( tp9proof, clauses.get ) else tp9proof
+        Some( ret )
+      case _ => None
     }
-  }
-
-  private def refute( sequents: List[FSequent], input_file: String, output_file: String ): Option[RobinsonResolutionProof] =
-    refuteNamed( sequents.zipWithIndex.map( p => ( "sequent" + p._2, p._1 ) ), input_file, output_file )
-
-  /**
-   * Proves a sequent through Prover9 (which refutes the corresponding set of clauses).
-   */
-  def prove( seq: FSequent ): Option[RobinsonResolutionProof] = {
-    //val (gseq, map) = ground(seq)
-    val in_file = File.createTempFile( "gapt-prover9", ".ladr", null )
-    val out_file = File.createTempFile( "gapt-prover9", "prover9", null )
-    val ret = prove( seq, in_file.getAbsolutePath, out_file.getAbsolutePath )
-    //val ret = prove( gseq, in_file.getAbsolutePath, out_file.getAbsolutePath )
-    //val ret2 = unground( ret.get, map )
-    in_file.delete
-    out_file.delete
-    //ret2
-    ret
   }
 
   /**
    * Refutes a set of clauses, given as a List[FSequent].
    */
-  def refute( sequents: List[FSequent] ): Option[RobinsonResolutionProof] = {
-    val in_file = File.createTempFile( "gapt-prover9", ".ladr", null )
-    val out_file = File.createTempFile( "gapt-prover9", "prover9", null )
-    val ret = refute( sequents, in_file.getAbsolutePath, out_file.getAbsolutePath )
-    in_file.delete
-    out_file.delete
-    ret
-  }
+  def refute( sequents: List[FSequent] ): Option[RobinsonResolutionProof] =
+    refuteNamed( sequents.zipWithIndex.map( p => ( "sequent" + p._2, p._1 ) ) )
 
-  def refute( filename: String ): Option[RobinsonResolutionProof] = {
-    val out_file = File.createTempFile( "gapt-prover9", "prover9", null )
-    val ret = runP9OnLADR( new File( filename ).getAbsolutePath, out_file.getAbsolutePath )
-    out_file.delete
-    ret
-  }
+  def refute( filename: String ): Option[RobinsonResolutionProof] =
+    runP9OnLADR( Source.fromFile( filename ).mkString )
 
   def refuteTPTP( fn: String ): Option[RobinsonResolutionProof] = {
-    val out_file = File.createTempFile( "gapt-prover9", ".ladr", null )
-    tptpToLadr( fn, out_file.getAbsolutePath )
-    val proof = refute( out_file.getAbsolutePath )
-    out_file.delete
-    proof
+    val ladr = "tptp_to_ladr" #< new FileInputStream( fn ) !!
+
+    runP9OnLADR( ladr )
   }
 
   /* Takes the output of prover9, extracts a resolution proof, the original endsequent and the clauses. */
-  def parse_prover9( p9_file: String ): ( RobinsonResolutionProof, FSequent, FSequent ) = {
+  def parseProver9( p9_out: String ): ( RobinsonResolutionProof, FSequent, FSequent ) = {
+    val ivy_out = "prooftrans" #< new ByteArrayInputStream( p9_out.getBytes ) #| "prooftrans ivy" !!
 
-    val pt_file = File.createTempFile( "gapt-prover9", ".pt", null )
-    p9_to_p9( p9_file, pt_file.getCanonicalPath )
-    val ivy_file = File.createTempFile( "gapt-prover9", ".ivy", null )
-    p9_to_ivy( pt_file.getCanonicalPath, ivy_file.getCanonicalPath )
-
-    val iproof = IvyParser( ivy_file.getCanonicalPath, IvyStyleVariables )
+    val iproof = IvyParser( ivy_out, IvyStyleVariables )
     val rproof = IvyToRobinson( iproof )
 
-    //val mproof = InstantiateElimination(rproof)
-    val mproof = rproof
-    //val mproof = if (clauses != None) fixSymmetry(rproof, clauses.get) else rproof
-    pt_file.delete
-    ivy_file.delete
-
-    //    val fs = Prover9TermParser.normalizeFSequent(InferenceExtractor(p9_file))
-
-    val fs = InferenceExtractor.viaLADR( p9_file )
-    val clauses = InferenceExtractor.clausesViaLADR( p9_file )
-    //println("extracted formula: "+fs)
-    ( mproof, fs, clauses )
+    val fs = InferenceExtractor.viaLADR( p9_out )
+    val clauses = InferenceExtractor.clausesViaLADR( p9_out )
+    ( rproof, fs, clauses )
   }
 
-  def parse_prover9LK( p9_file: String, forceSkolemization: Boolean = false ): LKProof = {
+  def parseProver9LK( p9_out: String, forceSkolemization: Boolean = false ): LKProof = {
 
-    val ( proof, endsequent, clauses ) = Prover9.parse_prover9( p9_file )
-    //val sendsequent = skolemize(endsequent)
-    //val folsendsequent= FSequent(sendsequent.antecedent.map(x => hol2fol(x)), sendsequent.succedent.map(x => hol2fol(x)))
+    val ( proof, endsequent, clauses ) = Prover9.parseProver9( p9_out )
 
     if ( !forceSkolemization && !containsStrongQuantifier( endsequent ) ) {
 

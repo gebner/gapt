@@ -88,6 +88,7 @@ import at.logic.algorithms.lksk.{ rule_isomorphic => LKSKrule_isomorphic }
 import at.logic.utils.logging.Stopwatch
 
 import scala.collection.mutable.{ Map => MMap }
+import scala.io.Source
 
 /**
  * *****************************************************************************
@@ -190,11 +191,13 @@ object loadProofs {
 }
 
 object loadProver9Proof {
-  def apply( filename: String ): ( RobinsonResolutionProof, FSequent, FSequent ) = Prover9.parse_prover9( filename )
+  def apply( filename: String ): ( RobinsonResolutionProof, FSequent, FSequent ) =
+    Prover9.parseProver9( Source.fromFile( filename ).mkString )
 }
 
 object loadProver9LKProof {
-  def apply( filename: String, forceSkolemization: Boolean = false ) = Prover9.parse_prover9LK( filename, forceSkolemization )
+  def apply( filename: String, forceSkolemization: Boolean = false ) =
+    Prover9.parseProver9LK( Source.fromFile( filename ).mkString, forceSkolemization )
 }
 
 object loadLLK {

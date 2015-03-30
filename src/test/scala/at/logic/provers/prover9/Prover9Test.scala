@@ -10,16 +10,15 @@ import at.logic.calculi.resolution.robinson.{ Formatter, RobinsonResolutionProof
 import at.logic.language.fol._
 import at.logic.parsing.language.simple.SimpleFOLParser
 import at.logic.parsing.readers.StringReader
-import java.io.File.separator
-import java.io.IOException
 
-import at.logic.utils.testing.ClasspathFileCopier
 import org.junit.runner.RunWith
 import org.specs2.mutable._
 import org.specs2.runner.JUnitRunner
 
+import scala.io.Source
+
 @RunWith( classOf[JUnitRunner] )
-class Prover9Test extends SpecificationWithJUnit with ClasspathFileCopier {
+class Prover9Test extends SpecificationWithJUnit {
   def parse( str: String ): FOLFormula = ( new StringReader( str ) with SimpleFOLParser getTerm ).asInstanceOf[FOLFormula]
 
   implicit def fo2occ( f: FOLFormula ) = factory.createFormulaOccurrence( f, Nil )
@@ -83,20 +82,20 @@ class Prover9Test extends SpecificationWithJUnit with ClasspathFileCopier {
   "The Prover9 interface" should {
     "successfully load the goat puzzle PUZ047+1.out" in {
       // if the execution of prooftrans does not work: skip test
-      Prover9.parse_prover9( tempCopyOfClasspathFile( "PUZ047+1.out" ) )
+      Prover9.parseProver9( Source.fromURL( getClass.getResource( "/PUZ047+1.out" ) ).mkString )
 
       "success" must beEqualTo( "success" )
     }
 
     "successfully load the expansion proof paper example cade13example.out" in {
       // if the execution of prooftrans does not work: skip test
-      Prover9.parse_prover9( tempCopyOfClasspathFile( "cade13example.out" ) )
+      Prover9.parseProver9( Source.fromURL( getClass.getResource( "/cade13example.out" ) ).mkString )
 
       "success" must beEqualTo( "success" )
     }
 
     "successfully load a proof with new_symbol" in {
-      val p = Prover9.parse_prover9( tempCopyOfClasspathFile( "ALG138+1.out" ) )
+      val p = Prover9.parseProver9( Source.fromURL( getClass.getResource( "/ALG138+1.out" ) ).mkString )
       Formatter.asHumanReadableString( p._1 )
       ok
     }
@@ -106,7 +105,7 @@ class Prover9Test extends SpecificationWithJUnit with ClasspathFileCopier {
   "The Prover9 interface" should {
     "load a Prover9 proof and verify the validity of the sequent" in {
       for ( testfilename <- "PUZ047+1.out" :: "ALG138+1.out" :: "cade13example.out" :: Nil ) {
-        val ( robResProof, seq, _ ) = Prover9.parse_prover9( tempCopyOfClasspathFile( testfilename ) )
+        val ( robResProof, seq, _ ) = Prover9.parseProver9( Source.fromURL( getClass.getResource( s"/$testfilename" ) ).mkString )
         ( new Prover9Prover ).isValid( seq ) must beTrue
       }
       ok

@@ -43,6 +43,8 @@ import org.specs2.execute.Success
 import org.specs2.mutable.SpecificationWithJUnit
 import org.specs2.runner.JUnitRunner
 
+import scala.io.Source
+
 @RunWith( classOf[JUnitRunner] )
 class MiscTest extends SpecificationWithJUnit with ClasspathFileCopier {
 
@@ -193,9 +195,7 @@ class MiscTest extends SpecificationWithJUnit with ClasspathFileCopier {
       val minisat = FailSafeProver.getProver()
       if ( !Prover9.isInstalled() ) skipped( "Prover9 is not installed" )
 
-      val testFilePath = tempCopyOfClasspathFile( "PUZ002-1.out" )
-
-      val lkproof1 = Prover9.parse_prover9LK( testFilePath )
+      val lkproof1 = Prover9.parseProver9LK( Source.fromURL( getClass.getResource( "/PUZ002-1.out" ) ).mkString )
       val expseq = extractExpansionSequent( lkproof1, false )
       val deep = ETtoDeep( expseq )
 
@@ -210,9 +210,7 @@ class MiscTest extends SpecificationWithJUnit with ClasspathFileCopier {
       if ( !veriT.isInstalled() ) skipped( "VeriT is not installed" )
       if ( !Prover9.isInstalled() ) skipped( "Prover9 is not installed" )
 
-      val testFilePath = tempCopyOfClasspathFile( "ALG004-1.out" )
-
-      val lkProof = Prover9.parse_prover9LK( testFilePath )
+      val lkProof = Prover9.parseProver9LK( Source.fromURL( getClass.getResource( "/ALG004-1.out" ) ).mkString )
       val expansionSequent = extractExpansionSequent( lkProof, false )
       val deep = ETtoDeep( expansionSequent )
 
@@ -222,9 +220,7 @@ class MiscTest extends SpecificationWithJUnit with ClasspathFileCopier {
     "load Prover9 proof without equality reasoning, extract expansion tree E, verify deep formula of E using solvePropositional" in {
       if ( !Prover9.isInstalled() ) skipped( "Prover9 is not installed" )
 
-      val testFilePath = tempCopyOfClasspathFile( "PUZ002-1.out" )
-
-      val lkproof1 = Prover9.parse_prover9LK( testFilePath )
+      val lkproof1 = Prover9.parseProver9LK( Source.fromURL( getClass.getResource( "/PUZ002-1.out" ) ).mkString )
       val expseq = extractExpansionSequent( lkproof1, false )
       val deep = ETtoDeep( expseq )
 
@@ -234,9 +230,7 @@ class MiscTest extends SpecificationWithJUnit with ClasspathFileCopier {
     "load Prover9 proof with top and bottom constants, convert it to sequent calculus and extract the deep formula from its expansion sequent" in {
       if ( !Prover9.isInstalled() ) skipped( "Prover9 is not installed" )
 
-      val testFilePath = tempCopyOfClasspathFile( "NUM484+3.out" )
-
-      val lkproof1 = Prover9.parse_prover9LK( testFilePath )
+      val lkproof1 = Prover9.parseProver9LK( Source.fromURL( getClass.getResource( "/NUM484+3.out" ) ).mkString )
       val expseq = extractExpansionSequent( lkproof1, false )
       val deep = ETtoDeep( expseq )
       success( "everything worked fine" )
