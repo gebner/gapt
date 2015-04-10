@@ -664,7 +664,7 @@ object CutIntroduction extends Logger {
     def getUs( fs: Seq[FOLFormula] ): Seq[Seq[Seq[Seq[FOLTerm]]]] =
       ( 0 to alphas.size ).map( i => fs.map( f => {
         val termlistlist = grammar.us( f )
-        termlistlist.filter( termlist => freeVariables( termlist ).intersect( alphas.take( i ) ).isEmpty )
+        termlistlist.filter( termlist => freeVariables( termlist ).intersect( alphas.take( i ).flatMap( x => x ) ).isEmpty )
       } ) )
 
     val Uleft = getUs( F.antecedent.asInstanceOf[Seq[FOLFormula]] )
@@ -767,7 +767,7 @@ object CutIntroduction extends Logger {
     val proof = ( 0 to alphas.size - 1 ).foldLeft( Lproof_ )( ( lproof, i ) => {
       val left = buildLeftPart( i, quantPart, Aprime, Uleft, Uright, alphas, cutFormulasPrime( i ), lproof )
       trace( " Rproofs_( " + i + " ).root: " + Rproofs_( i ).root )
-      val right = buildRightPart( Rproofs_( i ), cutFormulasPrime( i ), grammar.ss( i )._2.map( _.head ).toList )
+      val right = buildRightPart( Rproofs_( i ), cutFormulasPrime( i ), grammar.ss( i )._2 )
       trace( "right part ES: " + right.root )
       val cut = CutRule( left, right, cutFormulasPrime( i ) )
       val cont1 = ContractionMacroRule( cut, FU( i + 1 ), false )
@@ -805,6 +805,7 @@ object CutIntroduction extends Logger {
         ( fs zip instances ).foldLeft( proof ) {
           case ( proof, ( f, ( ui, uip ) ) ) => {
             trace( "in myWeakQuantRules" )
+            trace( "f: " + f)
             trace( "ui: " + ui )
             trace( "uip: " + uip )
             trace( "ui diff uip: " + ( ui diff uip ) )
@@ -831,12 +832,12 @@ object CutIntroduction extends Logger {
    *
    * (to be used to cut against the result of buildLeftPart)
    */
-  private def buildRightPart( proof: LKProof, a: FOLFormula, s: Seq[FOLTerm] ) =
+  private def buildRightPart( proof: LKProof, a: FOLFormula, s: Seq[Seq[FOLTerm]] ) =
     {
       trace( "calling buildRightPart" )
       trace( "a: " + a )
       trace( "s: " + s )
-      genWeakQuantRules( a, s.map( _ :: Nil ), proof )
+      genWeakQuantRules( a, s, proof )
     }
 
   // Both methods below are responsible for generating the instances of 
