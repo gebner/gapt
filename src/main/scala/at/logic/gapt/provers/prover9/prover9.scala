@@ -65,18 +65,9 @@ class Prover9Prover extends Prover with ExternalProgram {
     val fixedP9Output = "prooftrans" #< new ByteArrayInputStream( p9Output.getBytes() ) !!
 
     val resProof = parseProof( fixedP9Output )
-    val endSequent = withTempFile.fromString( p9Output ) { p9File =>
-      InferenceExtractor.viaLADR( p9File )
-    }
+    val endSequent = sequentForRobinsonProof( resProof )
 
-    val closure = FSequent( endSequent.antecedent.map( x => univclosure( x ) ),
-      endSequent.succedent.map( x => existsclosure( x ) ) )
-
-    val ourCNF = CNFn.toFClauseList( endSequent.toFormula )
-
-    val fixedResProof = fixDerivation( resProof, ourCNF.map( _.toFSequent ) )
-
-    RobinsonToLK( fixedResProof, closure )
+    RobinsonToLK( resProof, endSequent )
   }
 
   private def withRenamedConstants( cnf: List[FClause] )( f: List[FClause] => Option[RobinsonResolutionProof] ): Option[RobinsonResolutionProof] = {
@@ -116,4 +107,14 @@ class Prover9Prover extends Prover with ExternalProgram {
     try {
       ( "prover9 --help" ! ProcessLogger( _ => () ) ) == 1
     } catch { case _: IOException => false }
+}
+
+object sequentForRobinsonProof {
+  private val refl = All( FOLVar( "x" ), Eq( FOLVar( "x" ), FOLVar( "x" ) ) )
+
+  def apply( p: RobinsonResolutionProof ): FSequent =
+    FSequent( initialSequents( p ).toSeq.
+      map( clause => univclosure( clause.toFClause.toFSequent.toFormula ) ).
+      filter( f => f != refl ),
+      Seq() )
 }
