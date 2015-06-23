@@ -61,6 +61,24 @@ object TratGrammar {
 
   def asVectTratGrammarProduction( p: Production ): VectTratGrammar.Production =
     List( p._1 ) -> List( p._2 )
+
+  def apply( axiom: FOLVar, productions: Seq[Production] ): TratGrammar = {
+    var nonTerminals = List[FOLVar]()
+    var toInsert = productions.toSet[Production].flatMap( p => freeVariables( p._2 ) + p._1 )
+    val directSuccessors = productions.groupBy( _._1 ).mapValues( ps => ps.map( _._2 ).flatMap( freeVariables( _ ) ).toSet )
+    while ( toInsert.nonEmpty ) {
+      val alreadyInsertedNonTerminals = nonTerminals.toSet
+      toInsert.find { a =>
+        directSuccessors.getOrElse( a, Set() ) subsetOf alreadyInsertedNonTerminals
+      } match {
+        case Some( a ) =>
+          nonTerminals = a :: nonTerminals
+          toInsert -= a
+        case None => throw new IllegalArgumentException
+      }
+    }
+    TratGrammar( axiom, nonTerminals, productions )
+  }
 }
 
 case class TratGrammar( axiom: FOLVar, nonTerminals: Seq[FOLVar], productions: Seq[TratGrammar.Production] ) {
