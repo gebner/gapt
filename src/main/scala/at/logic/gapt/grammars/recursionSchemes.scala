@@ -146,15 +146,18 @@ object SipRecSchem {
   val A = "A"
   val G = "G"
 
+  type InstanceLanguage = ((Int, Int), Seq[FOLTerm])
+
   def targetFilter: TargetFilter.Type =
     ( from: FOLTerm, to: FOLTerm ) =>
       TargetFilter.default( from, to ).orElse {
         from match {
-          case FOLFunction( A, List( Numeral( n ) ) ) =>
+          case FOLFunction( A, List( x0, y0 ) ) =>
             to match {
               case FOLFunction( A, _ ) => Some( false )
-              case FOLFunction( G, List( FOLFunction( f, _ ), _, _ ) ) if f != "s" && f != "0" => Some( false )
-              case FOLFunction( G, List( x, _, FOLVar( _ ) | Numeral( `n` ) ) ) if termSize( x ) <= n + 1 => None
+              case FOLFunction( G, List( FOLFunction( f, _ ), _ ) ) if f != "s" && f != "0" => Some( false )
+              case FOLFunction( G, List( x, _ ) ) if termSize( x ) <= termSize(x0) => None
+              case FOLFunction( G, List( x, _ ) ) if termSize( x ) <= termSize(y0) => None
               case FOLFunction( G, _ ) => Some( false )
               case _ => None
             }
@@ -175,39 +178,39 @@ object SipRecSchem {
         SipGrammar.tau -> FOLSubstitution( y -> SipGrammar.beta, z -> SipGrammar.alpha )( r )
     } )
 
-  def toTargets( instanceLanguages: Seq[normalFormsSipGrammar.InstanceLanguage] ) =
+  def toTargets( instanceLanguages: Seq[InstanceLanguage] ) =
     instanceLanguages flatMap {
-      case ( n, l ) =>
-        l map ( FOLFunction( A, Numeral( n ) ) -> _ )
+      case ( (x,y), l ) =>
+        l map ( FOLFunction( A, Numeral( x ), Numeral(y) ) -> _ )
     }
 
-  def normalForms( instanceLanguages: Seq[normalFormsSipGrammar.InstanceLanguage] ) = {
+  def normalForms( instanceLanguages: Seq[InstanceLanguage] ) = {
     val rules = Set.newBuilder[Rule]
 
     val Seq( x, y, z ) = Seq( "x", "y", "z" ).map( FOLVar( _ ) )
 
     val allTerms = instanceLanguages flatMap ( _._2 )
-    val topLevelNFs = at.logic.gapt.grammars.normalForms( allTerms, Seq( x, y, z ) ).filter( !_.isInstanceOf[FOLVar] )
-    val argumentNFs = at.logic.gapt.grammars.normalForms( FOLSubTerms( allTerms flatMap { case FOLFunction( _, as ) => as } ), Seq( x, y, z ) )
+    val topLevelNFs = at.logic.gapt.grammars.normalForms( allTerms, Seq( x, y ) ).filter( !_.isInstanceOf[FOLVar] )
+    val argumentNFs = at.logic.gapt.grammars.normalForms( FOLSubTerms( allTerms flatMap { case FOLFunction( _, as ) => as } ), Seq( x, y ) )
 
     for ( nf <- topLevelNFs ) {
       val fvs = freeVariables( nf )
 
-      if ( !fvs.contains( y ) && !fvs.contains( z ) )
-        rules += Rule( FOLFunction( A, x ), nf )
-      else if ( !fvs.contains( x ) )
-        rules += Rule( FOLFunction( G, FOLFunction( "0" ), y, z ), nf )
-      else
-        rules += Rule( FOLFunction( G, FOLFunction( "s", x ), y, z ), nf )
+      rules += Rule( FOLFunction( A, x, y ), nf )
+
+      if (fvs.contains(y) && !fvs.contains(x))
+        rules += Rule(FOLFunction(G, FOLFunction("0"), y), nf)
+      if (fvs.contains(x) || fvs.contains(y))
+        rules += Rule(FOLFunction(G, FOLFunction("s", x), y), nf)
     }
 
-    for ( nf <- argumentNFs ) {
-      val fvs = freeVariables( nf )
+    for ( nf1 <- argumentNFs) {
+      val fvs = freeVariables( nf1 )
 
-      if ( !fvs.contains( y ) && !fvs.contains( z ) )
-        rules += Rule( FOLFunction( A, x ), FOLFunction( G, x, nf, x ) )
+      rules += Rule(FOLFunction(A, x, y), FOLFunction(G, x, nf1))
+      rules += Rule(FOLFunction(A, x, y), FOLFunction(G, y, nf1))
 
-      rules += Rule( FOLFunction( G, FOLFunction( "s", x ), y, z ), FOLFunction( G, x, nf, z ) )
+      rules += Rule( FOLFunction( G, FOLFunction( "s", x ), y ), FOLFunction( G, x, nf1 ) )
     }
 
     RecursionScheme( rules.result() )

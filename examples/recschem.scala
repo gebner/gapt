@@ -16,6 +16,8 @@ import at.logic.gapt.provers.prover9.Prover9Prover
 import at.logic.gapt.provers.veriT.VeriTProver
 import org.apache.log4j.{Logger, Level}
 
+import scala.util.Random
+
 for (c <- Seq(minimizeSipGrammar.getClass, minimizeRecursionScheme.getClass))
   Logger.getLogger(c.getName).setLevel(Level.DEBUG)
 
@@ -55,57 +57,23 @@ if (false) {
 
 if (true) {
 //  val endSequent = FSequent(
-//    Seq("P(0,x)", "P(x,f(y)) & P(x,g(y)) -> P(s(x),y)", "P(x,y) -> Q(x)")
+//    Seq("s(x+y) = s(x)+y", "0+x = x")
 //      map (s => univclosure(parseFormula(s))),
-//    Seq(FOLAtom("Q", SimpleInductionProof.alpha)))
+//    Seq(parseFormula("x+y = y+x")))
 //  val endSequent = FSequent(
-//    Seq("s(x+y) = x+s(y)", "s(x+y) = s(x)+y", "x+0 = x", "0+x = x")
+//    Seq("min(s(x), s(y)) = s(min(x,y))", "min(0,x) = 0", "min(x,0) = 0")
 //      map (s => univclosure(parseFormula(s))),
-//    Seq(Eq(
-//      FOLFunction("+", FOLConst("k"), SimpleInductionProof.alpha),
-//      FOLFunction("+", SimpleInductionProof.alpha, FOLConst("k")))))
-//  val endSequent = FSequent(
-//    Seq(
-//      "f(0) = 1",
-//      "s(x)*f(x) = f(s(x))",
-//      "g(x,0) = x",
-//      "g(x*s(y),y) = g(x,s(y))",
-//      "x*1 = x",
-//      "1*x = x",
-//      "(x*y)*z = x*(y*z)")
-//      map (s => univclosure(parseFormula(s))),
-//    Seq(Eq(
-//      FOLFunction("g", FOLConst("1"), SimpleInductionProof.alpha),
-//      FOLFunction("f", SimpleInductionProof.alpha))))
-//  val instanceProofs = (0 until 5) map { n =>
-//    val instanceSequent = FOLSubstitution( SimpleInductionProof.alpha -> Utils.numeral( n ) )( endSequent )
-//    println( s"[n=$n] Proving $instanceSequent" )
-//    n -> new Prover9Prover().getExpansionSequent( instanceSequent ).get
-//  }
-
-  def removeEqAxioms( eseq: ExpansionSequent ) = {
-    // removes all equality axioms that appear in examples/ProofSequences.scala
-    val R = parse.fol( "Forall x =(x,x)" )
-    val S = parse.fol( "Forall x Forall y Imp =(x,y) =(y,x)" )
-    val T = parse.fol( "Forall x Forall y Forall z Imp And =(x,y) =(y,z) =(x,z)" )
-    val Tprime = parse.fol( "Forall x Forall y Forall z Imp =(x,y) Imp =(y,z) =(x,z)" )
-    val CSuc = parse.fol( "Forall x Forall y Imp =(x,y) =(s(x),s(y))" )
-    val CPlus = parse.fol( "Forall x Forall y Forall u Forall v Imp =(x,y) Imp =(u,v) =(+(x,u),+(y,v))" )
-    val CPlusL = parse.fol( "Forall x Forall y Forall z Imp =(y,z) =(+(y,x),+(z,x))" ) // congruence plus left
-    val CgR = parse.fol( "Forall x Forall y Forall z Imp =(y,z) =(g(x,y),g(x,z))" ) // congruence of g on the right
-    val CMultR = parse.fol( "Forall x Forall y Forall z Imp =(x,y) =(*(z,x),*(z,y))" ) // congruence of mult right
-
-    val eqaxioms = new FSequent( R::S::T::Tprime::CSuc::CPlus::CPlusL::CgR::CMultR::Nil, Nil )
-
-    removeFromExpansionSequent( eseq, eqaxioms )
-  }
+//    Seq(parseFormula("min(x,y) = min(y,x)")))
   val endSequent = FSequent(
-    Seq("s(x+y) = x+s(y)", "x+0 = x")
+    Seq("0 <= x", "x <= y -> x <= s(y)", "x <= x", "x+y = y+x", "x + 0 = x", "x + s(y) = s(x+y)")
       map (s => univclosure(parseFormula(s))),
-    Seq(parseFormula("(x+x)+x = x+(x+x)")))
-  val instanceProofs =
-    (0 -> new Prover9Prover().getExpansionSequent(FOLSubstitution(FOLVar("x") -> Utils.numeral(0))(endSequent)).get) +:
-      (1 until 5).map { n => n -> removeEqAxioms(LKToExpansionProof(UniformAssociativity3ExampleProof(n))) }
+    Seq(parseFormula("x <= y + x")))
+  val instances = Set((0,0), (1,0), (0,1)) ++ (0 until 6).map{_ => (Random.nextInt(3), Random.nextInt(3))}
+  val instanceProofs = instances.par.map { case (x,y) =>
+    val instanceSequent = FOLSubstitution( FOLVar("x") -> Numeral(x), FOLVar("y") -> Numeral(y) )( endSequent )
+    println( s"[$x,$y] Proving $instanceSequent" )
+    (x,y) -> new Prover9Prover().getExpansionSequent( instanceSequent ).get
+  }.seq.toSeq
 
   val termEncoding = InstanceTermEncoding( endSequent )
   var instanceLanguages = instanceProofs map {
@@ -126,18 +94,20 @@ if (true) {
   val minimized = time{minimizeRecursionScheme(nfRecSchem, SipRecSchem.toTargets(instanceLanguages), SipRecSchem.targetFilter)}
   println(minimized);println
 
-  (0 until 10) foreach { i =>
-    val instanceLang = minimized.language(FOLFunction(SipRecSchem.A, Numeral(i)))
-    val instanceSeq = FOLSubstitution(FOLVar("x") -> Numeral(i))(termEncoding.decodeToFSequent(instanceLang))
-    val isCovered = instanceLanguages.find(_._1 == i).map(_._2.toSet subsetOf instanceLang)
+  (0 until 50) foreach { _ =>
+    val x = Random.nextInt(15)
+    val y = Random.nextInt(15)
+    val instanceLang = minimized.language(FOLFunction(SipRecSchem.A, Numeral(x), Numeral(y)))
+    val instanceSeq = FOLSubstitution(FOLVar("x") -> Numeral(x), FOLVar("y") -> Numeral(y))(termEncoding.decodeToFSequent(instanceLang))
+    val isCovered = instanceLanguages.find(_._1 == (x,y)).map(_._2.toSet subsetOf instanceLang)
     val isTaut = new VeriTProver().isValid(instanceSeq)
-    println(s"$i: tautology=$isTaut covers=$isCovered")
+    println(s"[$x,$y]: tautology=$isTaut covers=$isCovered")
   }
 
-  val sipG = SipRecSchem.toSipGrammar(minimized)
-  println(sipG)
+//  val sipG = SipRecSchem.toSipGrammar(minimized)
+//  println(sipG)
 
-  val nfSipG = normalFormsSipGrammar(instanceLanguages)
-  println(nfSipG.productions.size)
-  println(time{minimizeSipGrammar(nfSipG, instanceLanguages)})
+//  val nfSipG = normalFormsSipGrammar(instanceLanguages)
+//  println(nfSipG.productions.size)
+//  println(time{minimizeSipGrammar(nfSipG, instanceLanguages)})
 }
