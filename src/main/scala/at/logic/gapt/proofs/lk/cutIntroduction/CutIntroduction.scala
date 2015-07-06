@@ -8,7 +8,7 @@ package at.logic.gapt.proofs.lk.cutIntroduction
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.fol.FOLSubstitution
 import at.logic.gapt.expr.hol._
-import at.logic.gapt.grammars.findMinimalGrammar
+import at.logic.gapt.grammars.{ findMinimalVectGrammar, findMinimalGrammar }
 import at.logic.gapt.proofs.expansionTrees.{ quantRulesNumber => quantRulesNumberET, toShallow, ExpansionSequent }
 import at.logic.gapt.proofs.lk._
 import at.logic.gapt.proofs.lk.base._
@@ -112,7 +112,7 @@ object CutIntroduction extends Logger {
    * @return A list of cut-formulas.
    * @throws CutIntroException when the cut-formulas are not found.
    */
-  def many_cuts_one_quantifier( proof: LKProof, numcuts: Int, verbose: Boolean ) =
+  def many_cuts_one_quantifier( proof: LKProof, numcuts: Seq[Int], verbose: Boolean ) =
     execute( proof, numcuts, 3600, verbose ) match {
       case ( Some( p ), _, _, None ) => p
       case ( None, _, _, Some( e ) ) => throw e
@@ -132,7 +132,7 @@ object CutIntroduction extends Logger {
    * @return A list of cut-formulas.
    * @throws CutIntroException when the proof is not found.
    */
-  def many_cuts_one_quantifier( es: ExpansionSequent, numcuts: Int, hasEquality: Boolean, verbose: Boolean ) =
+  def many_cuts_one_quantifier( es: ExpansionSequent, numcuts: Seq[Int], hasEquality: Boolean, verbose: Boolean ) =
     execute( es, hasEquality, -1, numcuts, 3600, verbose ) match {
       case ( Some( p ), _, _, None ) => p
       case ( None, _, _, Some( e ) ) => throw e
@@ -157,11 +157,11 @@ object CutIntroduction extends Logger {
     execute( es, hasEquality, true, -1, timeout, false ) match {
       case ( _, status, log, _ ) => ( status, log )
     }
-  def many_cuts_one_quantifier_stat( proof: LKProof, numcuts: Int, timeout: Int ) =
+  def many_cuts_one_quantifier_stat( proof: LKProof, numcuts: Seq[Int], timeout: Int ) =
     execute( proof, numcuts, timeout, false ) match {
       case ( _, status, log, _ ) => ( status, log )
     }
-  def many_cuts_one_quantifier_stat( es: ExpansionSequent, numcuts: Int, hasEquality: Boolean, timeout: Int ) =
+  def many_cuts_one_quantifier_stat( es: ExpansionSequent, numcuts: Seq[Int], hasEquality: Boolean, timeout: Int ) =
     execute( es, hasEquality, -1, numcuts, timeout, false ) match {
       case ( _, status, log, _ ) => ( status, log )
     }
@@ -398,7 +398,7 @@ object CutIntroduction extends Logger {
   }
 
   // MaxSat methods
-  private def execute( proof: LKProof, n: Int, timeout: Int, verbose: Boolean ): ( Option[LKProof], String, LogTuple, Option[Throwable] ) = {
+  private def execute( proof: LKProof, n: Seq[Int], timeout: Int, verbose: Boolean ): ( Option[LKProof], String, LogTuple, Option[Throwable] ) = {
 
     val clean_proof = CleanStructuralRules( proof )
     val num_rules = rulesNumber( clean_proof )
@@ -407,7 +407,7 @@ object CutIntroduction extends Logger {
     execute( ep, hasEquality, num_rules, n, timeout, verbose )
   }
 
-  private def execute( ep: ExpansionSequent, hasEquality: Boolean, num_lk_rules: Int, n: Int, timeout: Int, verbose: Boolean ): ( Option[LKProof], String, LogTuple, Option[Throwable] ) = {
+  private def execute( ep: ExpansionSequent, hasEquality: Boolean, num_lk_rules: Int, n: Seq[Int], timeout: Int, verbose: Boolean ): ( Option[LKProof], String, LogTuple, Option[Throwable] ) = {
 
     val prover = hasEquality match {
       case true  => new EquationalProver()
@@ -457,9 +457,9 @@ object CutIntroduction extends Logger {
         /********** Grammar finding **********/
         phase = "grammar_finding"
 
-        val grammar = findMinimalGrammar( termset.set, n, maxsatsolver ) match {
+        val grammar = findMinimalVectGrammar( termset.set, n, maxsatsolver ) match {
           case g if g.productions.exists( _._1 != g.axiom ) =>
-            simpleToMultiGrammar( termset.encoding, g.toVectTratGrammar )
+            simpleToMultiGrammar( termset.encoding, g )
           case _ =>
             throw new CutIntroUncompressibleException( "Found minimal grammar that consists only of tau-productions." )
         }

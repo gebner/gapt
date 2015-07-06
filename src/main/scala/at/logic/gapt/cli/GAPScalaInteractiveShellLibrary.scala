@@ -443,9 +443,9 @@ object cutIntro {
   def one_cut_many_quantifiers( es: ExpansionSequent, hasEquality: Boolean ) =
     CutIntroduction.one_cut_many_quantifiers( es, hasEquality, true )
 
-  def many_cuts_one_quantifier( p: LKProof, numcuts: Int ) =
+  def many_cuts_one_quantifier( p: LKProof, numcuts: Seq[Int] ) =
     CutIntroduction.many_cuts_one_quantifier( p, numcuts, true )
-  def many_cuts_one_quantifier( es: ExpansionSequent, numcuts: Int, hasEquality: Boolean ) =
+  def many_cuts_one_quantifier( es: ExpansionSequent, numcuts: Seq[Int], hasEquality: Boolean ) =
     CutIntroduction.many_cuts_one_quantifier( es, numcuts, hasEquality, true )
 }
 
