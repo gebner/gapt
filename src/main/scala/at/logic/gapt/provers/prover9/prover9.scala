@@ -13,7 +13,7 @@ import at.logic.gapt.proofs.lk.base.{ LKProof, FSequent }
 import at.logic.gapt.proofs.resolution._
 import at.logic.gapt.proofs.resolution.robinson.RobinsonResolutionProof
 import at.logic.gapt.provers.prover9.commands.InferenceExtractor
-import at.logic.gapt.provers.{ groundFreeVariables, renameConstantsToFi, Prover }
+import at.logic.gapt.provers.{ groundFreeVariables, renameConstantsToSafeNames, Prover }
 import at.logic.gapt.utils.traits.ExternalProgram
 import at.logic.gapt.utils.withTempFile
 
@@ -99,7 +99,7 @@ class Prover9Prover( val extraCommands: ( Map[Const, String] => Seq[String] ) = 
   }
 
   private def withRenamedConstants( cnf: List[FClause] )( f: ( Map[Const, String], List[FClause] ) => Option[RobinsonResolutionProof] ): Option[RobinsonResolutionProof] = {
-    val ( renamedCNF, renaming, invertRenaming ) = renameConstantsToFi( cnf )
+    val ( renamedCNF, renaming, invertRenaming ) = renameConstantsToSafeNames( cnf )
     f( renaming, renamedCNF ) map { renamedProof =>
       NameReplacement( renamedProof, invertRenaming )
     }

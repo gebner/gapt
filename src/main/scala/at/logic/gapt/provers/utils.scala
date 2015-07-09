@@ -7,15 +7,26 @@ import at.logic.gapt.expr.fol.FOLSubstitution
 import at.logic.gapt.proofs.lk.base.FSequent
 import at.logic.gapt.proofs.resolution.FClause
 
-object renameConstantsToFi {
-  private def mkName( i: Int ) = s"f$i"
+object renameConstantsToSafeNames {
+  private def mangleName( sym: String ): String =
+    sym flatMap {
+      case c if 'a' <= c && c <= 'z' => c toString
+      case c if 'A' <= c && c <= 'Z' => c toString
+      case c if '0' <= c && c <= '9' => c toString
+      case '+'                       => "_plus_"
+      case '-'                       => "_minus_"
+      case '*'                       => "_times_"
+      case c                         => s"_${c toInt}_"
+    }
+
   private def getRenaming( seq: FSequent ): Map[Const, String] = getRenaming( constants( seq ) )
   private def getRenaming( cnf: List[FClause] ): Map[Const, String] =
     getRenaming( cnf.flatMap( constants( _ ) ).toSet )
   private def getRenaming( constants: Set[Const] ): Map[Const, String] =
-    constants.toSeq.zipWithIndex.map {
-      case ( c, i ) => c -> mkName( i )
-    }.toMap
+    constants.map( c => c -> c ).toMap mapValues {
+      case FOLAtomHead( sym, arity )     => s"p_${mangleName( sym )}_$arity"
+      case FOLFunctionHead( sym, arity ) => s"f_${mangleName( sym )}_$arity"
+    }
   private def renamingToSymbolMap( renaming: Map[Const, String] ): SymbolMap =
     renaming.map {
       case ( FOLAtomHead( c, arity ), newName )     => c -> ( arity, newName )

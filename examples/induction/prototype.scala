@@ -6,6 +6,7 @@ import at.logic.gapt.formats.tip.TipParser
 import at.logic.gapt.proofs.lk.base.FSequent
 import at.logic.gapt.provers.inductionProver.SimpleInductionProof._
 import at.logic.gapt.provers.inductionProver._
+import at.logic.gapt.provers.prover9.Prover9Prover
 import org.apache.log4j.{Level, Logger}
 
 import scala.io.Source
@@ -28,16 +29,16 @@ val commES = FSequent(
 // doesn't work: associativity instances are too complicated
 val factorialES = FSequent(
   Seq(
-    "f(0) = 1",
+    "f(0) = s(0)",
     "s(x)*f(x) = f(s(x))",
     "g(x,0) = x",
     "g(x*s(y),y) = g(x,s(y))",
-    "x*1 = x",
-    "1*x = x",
+    "x*s(0) = x",
+    "s(0)*x = x",
     "(x*y)*z = x*(y*z)")
     map (s => univclosure(parseFormula(s))),
   Seq(Eq(
-    FOLFunction("g", FOLConst("1"), alpha),
+    FOLFunction("g", Utils.numeral(1), alpha),
     FOLFunction("f", alpha))))
 
 // doesn't work: seems to require Sigma_1-induction
@@ -140,13 +141,15 @@ val evenES = FSequent(
 )
 
 
-val endSequent = commES
+val endSequent = factorialES
 
 println(s"Proving $endSequent")
 
 Logger.getLogger(classOf[SipProver].getName).setLevel(Level.DEBUG)
 
-val sipProver = new SipProver(solutionFinder = new HeuristicSolutionFinder(0), instances = 0 until 3)
+val sipProver = new SipProver(solutionFinder = new HeuristicSolutionFinder(0), instances = 0 until 6,
+  instanceProver = new Prover9Prover(renaming =>
+    Seq(s"function_order([${Seq("f"->1, "s"->1, "0"->0, "*"->2).map{ case (f,a) => renaming(FOLFunctionHead(f,a)) }.mkString(",")}])")))
 
 val maybeIndProof = sipProver.getSimpleInductionProof(endSequent)
 
