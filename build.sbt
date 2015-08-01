@@ -93,6 +93,7 @@ lazy val root = (project in file(".")).
       "org.slf4j" % "slf4j-api" % "1.7.12",
       "org.slf4j" % "slf4j-log4j12" % "1.7.12",
       "xml-resolver" % "xml-resolver" % "1.2",
+      "org.scalaz" %% "scalaz-core" % "7.1.3",
       "org.ow2.sat4j" % "org.ow2.sat4j.core" % "2.3.5",
       "org.ow2.sat4j" % "org.ow2.sat4j.maxsat" % "2.3.5"),
 
