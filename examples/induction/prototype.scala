@@ -4,8 +4,11 @@ import at.logic.gapt.expr.hol.{instantiate, univclosure}
 import at.logic.gapt.formats.prover9.Prover9TermParserLadrStyle.parseFormula
 import at.logic.gapt.formats.tip.TipParser
 import at.logic.gapt.proofs.lk.base.HOLSequent
+import at.logic.gapt.provers.eprover.EProverProver
 import at.logic.gapt.provers.inductionProver.SimpleInductionProof._
 import at.logic.gapt.provers.inductionProver._
+import at.logic.gapt.provers.prover9.Prover9Prover
+import at.logic.gapt.provers.veriT.VeriTProver
 import org.apache.log4j.{Level, Logger}
 
 import scala.io.Source
@@ -169,13 +172,21 @@ val minusES = HOLSequent(List(
     FOLSubstitution(FOLVar("x"),alpha)(parseFormula("0 - x = 0")))
     )
 
-val endSequent = twoPlusDefsES
+val endSequent = commES
 
 println(s"Proving $endSequent")
 
 Logger.getLogger(classOf[SipProver].getName).setLevel(Level.DEBUG)
 
-val sipProver = new SipProver(solutionFinder = new HeuristicSolutionFinder(1), instances = 0 until 3)
+val sipProver = new SipProver(
+//  solutionFinder = new HeuristicSolutionFinder(0, forgetClauses = true),
+  solutionFinder = new BetterSolutionFinder(
+    n = 1,
+    numberOfConsequenceIterations = 2,
+    validityChecker = new Prover9Prover(),
+    prover = new Prover9Prover()
+  ),
+  instanceProver = new Prover9Prover, instances = 0 until 4, testInstances = 0 to 9)
 
 val maybeIndProof = sipProver.getSimpleInductionProof(endSequent)
 

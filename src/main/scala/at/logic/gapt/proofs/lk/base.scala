@@ -368,6 +368,8 @@ class Sequent[+A]( val antecedent: Seq[A], val succedent: Seq[A] ) {
     case Ant( i ) => Sequent( antecedent.updated( i, elem ), succedent )
     case Suc( j ) => Sequent( antecedent, succedent.updated( j, elem ) )
   }
+
+  def swap: Sequent[A] = Sequent( succedent, antecedent )
 }
 
 object Sequent {
