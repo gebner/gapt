@@ -1,5 +1,6 @@
 package at.logic.gapt.grammars
 
+import at.logic.gapt.expr.fol.Utils
 import org.specs2.matcher.MatchResult
 import org.specs2.mutable._
 import at.logic.gapt.expr._
@@ -182,6 +183,16 @@ class GrammarFindingTest extends Specification {
             ( l diff g.language ) must_== Set()
           }
       }
+    }
+  }
+
+  "findMinimalVectGrammar" should {
+    "do weighted minimization" in {
+      val largeTerm = Utils.numeral(100)
+      val l = Set("f", "g", "h") map { FOLFunction(_, largeTerm )}
+      val g = findMinimalVectGrammar(l, Seq(1), weights = p => p._2.map(expressionSize(_)).sum)
+      println(g.productions)
+      ok
     }
   }
 
