@@ -80,7 +80,7 @@ object normalForms {
   }
 }
 
-class TermGenerationFormula( g: VectTratGrammar, t: FOLTerm ) {
+class TermGenerationFormulaOld( g: VectTratGrammar, t: FOLTerm ) {
   import VectTratGrammar._
 
   def vectProductionIsIncluded( p: Production ): FOLFormula = FOLAtom( s"$p" )
@@ -176,18 +176,82 @@ class TermGenerationFormula( g: VectTratGrammar, t: FOLTerm ) {
   }
 }
 
+class TermGenerationFormula( g: VectTratGrammar, t: FOLTerm ) {
+  import VectTratGrammar._
+
+  def vectProductionIsUsed( p: Production ): FOLFormula = FOLAtom( s"$p" )
+  def valueOfNonTerminal( n: FOLVar, value: FOLTerm ): FOLFormula = FOLAtom( s"$n=$value" )
+
+  def formula: FOLFormula = {
+    // we try not generate the formulas for all subterms, but only for those which are needed
+    val assignmentsToHandle = mutable.Queue[( FOLVar, FOLTerm )]()
+
+    val occurringProductions = mutable.Set[Production]()
+
+    def Case( nt: FOLVar, t: FOLTerm ) = {
+      val Some( containingNTVect ) = g.nonTerminals find { _ contains nt }
+      val idx = containingNTVect indexOf nt
+      valueOfNonTerminal( nt, t ) --> Or( g.productions( containingNTVect ).toSeq flatMap {
+        case p @ ( _, s ) =>
+          FOLMatchingAlgorithm.matchTerms( s( idx ), t ) map { matching =>
+            matching.folmap foreach { assignmentsToHandle += _ }
+            occurringProductions += p
+            vectProductionIsUsed( p ) & And( matching.folmap.toSeq map {
+              case ( beta, r ) =>
+                valueOfNonTerminal( beta, r )
+            } )
+          }
+      } )
+    }
+
+    val cs = Seq.newBuilder[FOLFormula]
+
+    // value of axiom must be t
+    cs += valueOfNonTerminal( g.axiom, t )
+
+    // add base cases for subterm discovery
+    assignmentsToHandle += ( g.axiom -> t )
+
+    val alreadyHandledAssignments = mutable.Set[( FOLVar, FOLTerm )]()
+    assignmentsToHandle dequeueAll { assignment =>
+      val ( nt, t ) = assignment
+
+      if ( !( alreadyHandledAssignments contains assignment ) )
+        cs += simplify( Case( nt, t ) )
+
+      alreadyHandledAssignments += assignment
+
+      true // remove this value from the queue
+    }
+
+    for ( ( _, ps ) <- occurringProductions.groupBy( _._1 ) )
+      cs += atMost oneOf ( ps.toSeq map vectProductionIsUsed )
+
+    And( cs.result() )
+  }
+}
+
 class VectGrammarMinimizationFormula( g: VectTratGrammar ) {
   import VectTratGrammar._
 
   def vectProductionIsIncluded( p: Production ) = FOLAtom( s"$p" )
+  def vectProductionIsUsed( t: FOLTerm, p: Production ) = FOLAtom( s"$t:$p" )
   def valueOfNonTerminal( t: FOLTerm, n: FOLVar, rest: FOLTerm ) = FOLAtom( s"$t:$n=$rest" )
 
-  def generatesTerm( t: FOLTerm ) = new TermGenerationFormula( g, t ) {
-    override def vectProductionIsIncluded( p: Production ) =
-      VectGrammarMinimizationFormula.this.vectProductionIsIncluded( p )
-    override def valueOfNonTerminal( n: FOLVar, value: FOLTerm ) =
-      VectGrammarMinimizationFormula.this.valueOfNonTerminal( t, n, value )
-  }.formula
+  def generatesTerm( t: FOLTerm ) = {
+    val cs = mutable.Set[FOLFormula]()
+    cs += new TermGenerationFormula( g, t ) {
+      override def vectProductionIsUsed( p: Production ) = {
+        val isUsed = VectGrammarMinimizationFormula.this.vectProductionIsUsed( t, p )
+        val isInc = VectGrammarMinimizationFormula.this.vectProductionIsIncluded( p )
+        cs += ( isUsed --> isInc )
+        isUsed
+      }
+      override def valueOfNonTerminal( n: FOLVar, value: FOLTerm ) =
+        VectGrammarMinimizationFormula.this.valueOfNonTerminal( t, n, value )
+    }.formula
+    And( cs toSeq )
+  }
 
   def coversLanguage( lang: Traversable[FOLTerm] ) = And( lang map generatesTerm toList )
 }
@@ -195,6 +259,8 @@ class VectGrammarMinimizationFormula( g: VectTratGrammar ) {
 class GrammarMinimizationFormula( g: TratGrammar ) extends VectGrammarMinimizationFormula( g toVectTratGrammar ) {
   def productionIsIncluded( p: TratGrammar.Production ) = FOLAtom( s"p,$p" )
   override def vectProductionIsIncluded( p: VectTratGrammar.Production ) = productionIsIncluded( p._1( 0 ), p._2( 0 ) )
+  def productionIsUsed( t: FOLTerm, p: TratGrammar.Production ) = FOLAtom( s"u,$t,$p" )
+  override def vectProductionIsUsed( t: FOLTerm, p: VectTratGrammar.Production ) = productionIsUsed( t, p._1.head -> p._2.head )
 }
 
 object normalFormsProofGrammar {

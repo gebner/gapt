@@ -124,7 +124,7 @@ class GrammarFindingTest extends Specification {
       val p = List( "z->d" ) map parseProduction unzip
 
       val f = new TermGenerationFormula( g, parseTerm( "r(c)" ) )
-      And( f.formula, Neg( f.vectProductionIsIncluded( p ) ) ) must beSat
+      And( f.formula, Neg( f.vectProductionIsUsed( p ) ) ) must beSat
     }
     "generate term with 2 productions" in {
       val g = tg( "x->f(y)", "y->c" )

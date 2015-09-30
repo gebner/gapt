@@ -103,6 +103,7 @@ case class SipGrammarMinimizationFormula( g: SipGrammar ) {
       case ( n, lang ) =>
         val tratMinForm = new GrammarMinimizationFormula( g.instanceGrammar( n ) ) {
           override def productionIsIncluded( p: TratGrammar.Production ) = FOLAtom( s"p,$n,$p" )
+          override def productionIsUsed( t: FOLTerm, p: TratGrammar.Production ) = FOLAtom( s"u,$n,$t,$p" )
           override def valueOfNonTerminal( t: FOLTerm, a: FOLVar, rest: FOLTerm ) = FOLAtom( s"v,$n,$t,$a=$rest" )
         }
         val instanceCovForm = tratMinForm.coversLanguage( lang )
