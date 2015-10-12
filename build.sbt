@@ -36,7 +36,13 @@ lazy val root = (project in file(".")).
 
     mainClass := Some("at.logic.cli.CLIMain"),
 
-    initialCommands in console := IO.read((resourceDirectory in Compile).value / "gapt-cli-prelude.scala"),
+    initialCommands in console := {
+      val prelude = (resourceDirectory in Compile).value / "gapt-cli-prelude.scala"
+      if (sys.props("os.name").startsWith("Windows"))
+        IO.read(prelude)
+      else
+        s"""ammonite.repl.Repl.run(scala.io.Source.fromFile("$prelude").mkString)"""
+    },
 
     // Release stuff
     test in assembly := {}, // don't execute test when assembling jar
@@ -93,6 +99,7 @@ lazy val root = (project in file(".")).
     // UI
     libraryDependencies ++= Seq(
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
+      "com.lihaoyi" % "ammonite-repl" % "0.4.8" cross CrossVersion.full,
       "jline" % "jline" % "2.13",
       "org.scala-lang.modules" %% "scala-swing" % "2.0.0-M2",
       "com.itextpdf" % "itextpdf" % "5.5.7",
