@@ -9,7 +9,7 @@
 package at.logic.gapt.proofs.lkNew
 
 import at.logic.gapt.expr._
-import at.logic.gapt.proofs.{ Sequent, SequentIndex }
+import at.logic.gapt.proofs.{ Suc, Ant, Sequent, SequentIndex }
 import at.logic.gapt.prooftool.prooftool
 
 class ReductiveCutElimException( msg: String ) extends Exception( msg )
@@ -191,15 +191,21 @@ object ReductiveCutElimination {
     case EqualityRightRule( subProof, _, _, _ ) =>
       EqualityRightRule( cutElim( subProof ), proof.auxFormulas.head( 0 ), proof.auxFormulas.head( 1 ), proof.mainFormulas.head )
 
-    case CutRule( leftSubProof, aux1, rightSubProof, aux2 ) =>
+    case cut @ CutRule( leftSubProof, aux1, rightSubProof, aux2 ) =>
       if ( pred( proof ) )
-        reduceCut( leftSubProof, aux1, rightSubProof, aux2 )
+        reduceCut( cut )
       else
         CutRule( cutElim( leftSubProof ), cutElim( rightSubProof ), proof.auxFormulas.head.head )
   }
 
-  private def reduceCut( left: LKProof, aux1: SequentIndex, right: LKProof, aux2: SequentIndex ): LKProof =
-    reduceGrade( left, aux1, right, aux2 )
+  private def reduceCut( cut: CutRule ): LKProof = {
+    val reduced = reduceGrade( cut.leftSubProof, cut.aux1, cut.rightSubProof, cut.aux2 )
+    require(
+      reduced.endSequent multiSetEquals cut.endSequent,
+      s"reduceCut(${cut.leftSubProof.longName}, ${cut.rightSubProof.longName}) changed the end-sequent"
+    )
+    reduced
+  }
 
   // Grade reduction rules:
   private def reduceGrade( left: LKProof, aux1: SequentIndex, right: LKProof, aux2: SequentIndex ): LKProof =
@@ -209,12 +215,18 @@ object ReductiveCutElimination {
 
       case ( _, LogicalAxiom( _ ) ) => left
 
-      //FIXME: What do we actually do in case of reflexivity axioms?
-      case ( ReflexivityAxiom( s ), LogicalAxiom( _ ) ) =>
-        ReflexivityAxiom( s )
-
       case ( ReflexivityAxiom( s ), TheoryAxiom( sequent ) ) =>
         TheoryAxiom( sequent.delete( aux2 ) )
+
+      case ( ReflexivityAxiom( s ), right: EqualityRule ) if right.mainEqIndex == aux2 =>
+        CutRule( left, aux1, right.subProof, right.getOccConnector.parents( aux2 ).head )
+
+      case ( ReflexivityAxiom( s ), right @ EqualityLeftRule( subProof, eq, a, pos ) ) if right.mainIndex == aux2 =>
+        val cut = CutRule(
+          EqualityRightRule( WeakeningLeftRule( left, subProof.conclusion( eq ) ), Ant( 0 ), Suc( 0 ), pos ), Suc( 0 ),
+          subProof, a
+        )
+        ContractionLeftRule( cut, cut.getLeftOccConnector.children( Ant( 0 ) ).head, cut.getRightOccConnector.children( eq ).head )
 
       case ( TopAxiom, WeakeningLeftRule( subProof, Top() ) ) if right.mainIndices.head == aux2 =>
         subProof
@@ -259,6 +271,36 @@ object ReductiveCutElimination {
 
       case ( DefinitionRightRule( lSubProof, a1, main1 ), DefinitionLeftRule( rSubProof, a2, main2 ) ) if left.mainIndices.head == aux1 && right.mainIndices.head == aux2 =>
         CutRule( lSubProof, a1, rSubProof, a2 )
+
+//      case ( left @ EqualityRightRule( lSubProof, eq, a, pos ), right: EqualityRule )
+//        if left.mainIndex == aux1 && right.mainEqIndex == aux2 =>
+//        val cut =
+//          CutRule( lSubProof, a,
+//            EqualityLeftRule(
+//              WeakeningLeftRule( right, lSubProof.conclusion( eq ) ),
+//              Ant( 0 ), aux2 + 1, pos
+//            ), Ant( 0 ) )
+//        ContractionLeftRule( cut, cut.getLeftOccConnector.children( eq ).head, cut.getRightOccConnector.children( Ant( 1 ) ).head )
+
+      case ( left @ EqualityRightRule( lSubProof, eq, a, pos ), right: EqualityRule )
+        if left.mainIndex == aux1 && right.mainEqIndex == aux2 && (right.leftToRight != (pos.head == 2)) =>
+        val cut =
+          CutRule( lSubProof, a,
+            EqualityLeftRule(
+              WeakeningLeftRule( right, lSubProof.conclusion( eq ) ),
+              Ant( 0 ), aux2 + 1, pos
+            ), Ant( 0 ) )
+        ContractionLeftRule( cut, cut.getLeftOccConnector.children( eq ).head, cut.getRightOccConnector.children( Ant( 1 ) ).head )
+
+      case ( left: EqualityRightRule, right @ EqualityLeftRule( rSubProof, eq, a, pos ) ) if left.mainIndex == aux1 && right.mainIndex == aux2 =>
+        val cut = CutRule(
+          EqualityRightRule(
+            WeakeningLeftRule( left, rSubProof.conclusion( eq ) ),
+            Ant( 0 ), left.mainIndex, pos
+          ), left.mainIndex,
+          rSubProof, a
+        )
+        ContractionLeftRule( cut, cut.getLeftOccConnector.children( Ant( 0 ) ).head, cut.getRightOccConnector.children( eq ).head )
 
       case _ => reduceRankLeft( left, aux1, right, aux2 )
     }
@@ -430,6 +472,24 @@ object ReductiveCutElimination {
         val aNew = cutSub.getLeftOccConnector.children( a ).head
         ExistsRightRule( cutSub, aNew, f, term, quant )
 
+      case l @ EqualityLeftRule( subProof, eq, a, pos ) =>
+        val cutSub = CutRule( subProof, l.getOccConnector.parents( aux1 ).head, right, aux2 )
+        EqualityLeftRule(
+          cutSub,
+          cutSub.getLeftOccConnector.children( eq ).head,
+          cutSub.getLeftOccConnector.children( a ).head,
+          pos
+        )
+
+      case l @ EqualityRightRule( subProof, eq, a, pos ) if l.mainIndex != aux1 =>
+        val cutSub = CutRule( subProof, l.getOccConnector.parents( aux1 ).head, right, aux2 )
+        EqualityRightRule(
+          cutSub,
+          cutSub.getLeftOccConnector.children( eq ).head,
+          cutSub.getLeftOccConnector.children( a ).head,
+          pos
+        )
+
       case _ =>
         reduceRankRight( left, aux1, right, aux2 )
     }
@@ -595,6 +655,24 @@ object ReductiveCutElimination {
         val cutSub = CutRule( left, aux1, r.subProof, aux2Sub )
         val aNew = cutSub.getRightOccConnector.children( a ).head
         ExistsRightRule( cutSub, aNew, f, term, quant )
+
+      case r @ EqualityLeftRule( subProof, eq, a, pos ) if r.mainEqIndex != aux2 && r.mainIndex != aux2 =>
+        val cutSub = CutRule( left, aux1, subProof, r.getOccConnector.parents( aux2 ).head )
+        EqualityLeftRule(
+          cutSub,
+          cutSub.getRightOccConnector.children( eq ).head,
+          cutSub.getRightOccConnector.children( a ).head,
+          pos
+        )
+
+      case r @ EqualityRightRule( subProof, eq, a, pos ) if r.mainEqIndex != aux2 =>
+        val cutSub = CutRule( left, aux1, subProof, r.getOccConnector.parents( aux2 ).head )
+        EqualityRightRule(
+          cutSub,
+          cutSub.getRightOccConnector.children( eq ).head,
+          cutSub.getRightOccConnector.children( a ).head,
+          pos
+        )
 
       case _ =>
         throw new ReductiveCutElimException( "Can't match the case: Cut(" + left.longName + ", " + right.longName + ")" )

@@ -1200,6 +1200,11 @@ abstract class EqualityRule extends UnaryLKProof with CommonRule {
 
   def auxIndices = Seq( Seq( eq, aux ) )
 
+  /** Index of the rewritten formula in the lower sequent. */
+  def mainIndex = mainIndices.head
+  /** Index of the equation in the lower sequent. */
+  def mainEqIndex = getOccConnector.children( eq ).head
+
   override def formulasToBeDeleted = Seq( Seq( aux ) )
 
 }
