@@ -195,7 +195,7 @@ object prototype extends Script {
     )
   )
 
-  val endSequent = commES
+  val endSequent = twoEvenDefsES
 
   println( s"Proving $endSequent" )
 
@@ -204,10 +204,10 @@ object prototype extends Script {
   val sipProver = new SipProver(
     //  solutionFinder = new HeuristicSolutionFinder(0, forgetClauses = true),
     solutionFinder = new BetterSolutionFinder(
-    n = 1,
+    ns = Seq( 1 ),
     numberOfConsequenceIterations = 2,
     validityChecker = Z3,
-    prover = Prover9
+    addImplications = true
   ),
     instanceProver = Prover9, instances = 0 until 4, testInstances = 0 to 9
   )

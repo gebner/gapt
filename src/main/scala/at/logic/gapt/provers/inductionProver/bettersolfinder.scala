@@ -7,20 +7,22 @@ import at.logic.gapt.proofs.FOLClause
 import at.logic.gapt.proofs.resolution.forgetfulPropParam
 import at.logic.gapt.provers.smtlib.SmtlibSession
 import at.logic.gapt.provers.Prover
+import at.logic.gapt.provers.Prover
+import at.logic.gapt.provers.smtlib.SmtlibSession
 
 case class BetterSolutionFinder(
-    n:                             Int,
+    ns:                            Traversable[Int],
     numberOfConsequenceIterations: Int,
     validityChecker:               Prover,
-    prover:                        Prover
+    addImplications:               Boolean
 ) extends SolutionFinder {
   import SimpleInductionProof._
 
   def consequences( clauses: Set[FOLClause] ) =
     for (
       a <- clauses; b <- clauses;
-      c <- forgetfulPropParam( Set( a, b ) ).flatten.map { _.asInstanceOf[FOLClause] } ++ resolvents( a, b )
-    ) yield c
+      c <- forgetfulPropParam( Set( a, b ) ).flatten ++ resolvents( a, b )
+    ) yield c.distinct.sortBy { _.hashCode }
 
   def resolvents( a: FOLClause, b: FOLClause ): Set[FOLClause] =
     for ( p <- a.succedent.toSet[FOLAtom]; n <- b.antecedent if p == n )
@@ -28,26 +30,31 @@ case class BetterSolutionFinder(
 
   override def findSolution( schematicSIP: SimpleInductionProof ): Option[FOLFormula] = {
     val zero = Utils.numeral( 0 )
-    val num = Utils.numeral( n )
-    //    val Gamma0n = FOLSubstitution( alpha, Utils.numeral(n) )( schematicSIP.Gamma0 )
-    //    val Gamma2n = FOLSubstitution( alpha, Utils.numeral(n) )( schematicSIP.Gamma2 )
 
-    var clauses = CNFp.toClauseList( canonicalSolution( schematicSIP, n ) ).toSet
+    var clauses = ns.toSet[Int] flatMap { n =>
+      val num = Utils.numeral( n )
+      var clausesN = CNFp.toClauseList( canonicalSolution( schematicSIP, n ) ).map { _.distinct.sortBy { _.hashCode } }.toSet
 
-    // generate consequences
-    ( 0 until numberOfConsequenceIterations ) foreach { _ =>
-      clauses ++= consequences( clauses )
-    }
+      // generate consequences
+      for ( _ <- 0 until numberOfConsequenceIterations )
+        clausesN ++= consequences( clausesN )
 
-    //    clauses ++= (for (a <- clauses; b <- clauses) yield (a ++ b.swap).distinct)
+      if ( addImplications )
+        clausesN ++= ( for ( a <- clausesN; b <- clausesN; atom <- b.antecedent ) yield ( a :+ atom ).distinct.sortBy { _.hashCode } ) ++
+          ( for ( a <- clausesN; b <- clausesN; atom <- b.succedent ) yield ( atom +: a ).distinct.sortBy { _.hashCode } )
 
-    // generalize n to nu
-    clauses = clauses.flatMap { clause =>
-      val c = clause.toFormula
-      val pos = c.find( num ).toSet
-      pos.subsets() map { subset =>
-        CNFp.toClauseList( subset.foldLeft( c ) { _.replace( _, nu ).asInstanceOf[FOLFormula] } ).head
+      // generalize n to nu
+      clausesN = clausesN.flatMap { clause =>
+        val c = clause.toFormula
+        val pos = c.find( num ).toSet
+        pos.subsets() map { subset =>
+          CNFp.toClauseList( subset.foldLeft( c ) {
+            _.replace( _, nu ).asInstanceOf[FOLFormula]
+          } ).head
+        }
       }
+
+      clausesN
     }
 
     def groundVars( e: LambdaExpression ): LambdaExpression = e match {
@@ -131,7 +138,7 @@ case class BetterSolutionFinder(
       session assert groundVarsF( schematicSIP.Gamma1.toNegFormula )
       clauses.flatMap { clause =>
         session withScope {
-          session assert -groundVarsF( clause.toFormula )
+          session assert -groundVarsF( nu2snu( clause.toFormula ) )
           if ( session.checkSat() ) None
           else Some( clause -> ( session.getUnsatCore() map clausesWithStepTermsT toSet ) )
         }
@@ -163,7 +170,7 @@ case class BetterSolutionFinder(
 
         val solution = And( necessaryClauses.map( _.toFormula.asInstanceOf[FOLFormula] ).toSeq )
 
-        require( schematicSIP.solve( solution ).isSolved( prover ) )
+        require( schematicSIP.solve( solution ).isSolved( validityChecker ) )
 
         solution
       }
