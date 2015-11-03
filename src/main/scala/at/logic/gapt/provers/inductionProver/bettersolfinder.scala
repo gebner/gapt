@@ -2,13 +2,11 @@ package at.logic.gapt.provers.inductionProver
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.fol.Utils
-import at.logic.gapt.expr.hol.CNFp
+import at.logic.gapt.expr.hol.{ simplify, CNFp }
 import at.logic.gapt.proofs.FOLClause
 import at.logic.gapt.proofs.resolution.forgetfulPropParam
 import at.logic.gapt.provers.smtlib.SmtlibSession
 import at.logic.gapt.provers.Prover
-import at.logic.gapt.provers.Prover
-import at.logic.gapt.provers.smtlib.SmtlibSession
 
 case class BetterSolutionFinder(
     ns:                            Traversable[Int],
@@ -168,7 +166,7 @@ case class BetterSolutionFinder(
         while ( !necessaryClauses.flatMap( clauseDeps( _ ) ).subsetOf( necessaryClauses ) )
           necessaryClauses ++= necessaryClauses.flatMap( clauseDeps( _ ) )
 
-        val solution = And( necessaryClauses.map( _.toFormula.asInstanceOf[FOLFormula] ).toSeq )
+        val solution = simplify( And( necessaryClauses.map( _.toImplication ).toSeq ) )
 
         require( schematicSIP.solve( solution ).isSolved( validityChecker ) )
 
