@@ -10,6 +10,8 @@ import at.logic.gapt.proofs.{ Sequent, HOLSequent }
 import at.logic.gapt.provers.inductionProver.SimpleInductionProof._
 import at.logic.gapt.provers.inductionProver._
 import at.logic.gapt.provers.prover9.Prover9
+import at.logic.gapt.provers.smtlib.Z3
+
 import org.apache.log4j.{ Level, Logger }
 
 object prototype extends Script {
@@ -204,7 +206,7 @@ object prototype extends Script {
     solutionFinder = new BetterSolutionFinder(
     n = 1,
     numberOfConsequenceIterations = 2,
-    validityChecker = Prover9,
+    validityChecker = Z3,
     prover = Prover9
   ),
     instanceProver = Prover9, instances = 0 until 4, testInstances = 0 to 9

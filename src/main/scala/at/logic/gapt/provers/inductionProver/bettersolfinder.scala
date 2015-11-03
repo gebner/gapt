@@ -4,8 +4,8 @@ import at.logic.gapt.expr._
 import at.logic.gapt.expr.fol.Utils
 import at.logic.gapt.expr.hol.CNFp
 import at.logic.gapt.proofs.FOLClause
-import at.logic.gapt.proofs.expansion.extractInstances
 import at.logic.gapt.proofs.resolution.forgetfulPropParam
+import at.logic.gapt.provers.smtlib.SmtlibSession
 import at.logic.gapt.provers.Prover
 
 case class BetterSolutionFinder(
@@ -50,14 +50,40 @@ case class BetterSolutionFinder(
       }
     }
 
+    def groundVars( e: LambdaExpression ): LambdaExpression = e match {
+      case App( a, b )     => App( groundVars( a ), groundVars( b ) )
+      case c: Const        => c
+      case Var( name, ty ) => Const( name, ty )
+    }
+    def groundVarsF( f: HOLFormula ): HOLFormula = groundVars( f ).asInstanceOf[HOLFormula]
+
+    def startSession( unsatCores: Boolean = false ) = {
+      val session = validityChecker.startIncrementalSession()
+      if ( unsatCores ) session.asInstanceOf[SmtlibSession].produceUnsatCores()
+      session declareSymbolsIn ( ( schematicSIP.Gamma0 ++ schematicSIP.Gamma1 ++ schematicSIP.Gamma2 ).elements ++ schematicSIP.t ++ schematicSIP.u ++ Seq( FOLFunctionConst( "s", 1 ), FOLConst( "0" ) ) map groundVars )
+      session
+    }
+
     // filter out consequences from Gamma1
-    clauses = clauses.filterNot { clause =>
-      validityChecker.isValid( schematicSIP.Gamma1 :+ clause.toFormula )
+    clauses = for ( session <- startSession() ) yield {
+      session assert groundVarsF( schematicSIP.Gamma1.toNegFormula )
+      clauses.filter { clause =>
+        session withScope {
+          session assert -groundVars( clause.toFormula )
+          session.checkSat()
+        }
+      }
     }
 
     // filter out non-consequences from Gamma0
-    clauses = clauses.filter { clause =>
-      validityChecker.isValid( schematicSIP.Gamma0 :+ FOLSubstitution( nu -> zero, gamma -> beta )( clause.toFormula ) )
+    clauses = for ( session <- startSession() ) yield {
+      session assert groundVarsF( schematicSIP.Gamma0.toNegFormula )
+      clauses.filter { clause =>
+        session withScope {
+          session assert -groundVarsF( FOLSubstitution( nu -> zero, gamma -> beta )( clause.toFormula ) )
+          !session.checkSat()
+        }
+      }
     }
 
     if ( false ) {
@@ -95,18 +121,20 @@ case class BetterSolutionFinder(
     }
 
     val nu2snu = FOLSubstitution( nu -> FOLFunction( "s", nu ) )
-    def findClauseDeps() = {
-      val clausesWithStepTermsT = clauses.map { clause =>
-        clause -> schematicSIP.t.map { t => FOLSubstitution( gamma -> t )( clause.toFormula ) }
-      }
+    def findClauseDeps() = for ( session <- startSession( true ).asInstanceOf[SmtlibSession] ) yield {
+      val clausesWithStepTermsT = clauses.zipWithIndex.map {
+        case ( clause, i ) =>
+          val label = s"c$i"
+          session assert ( groundVarsF( And( schematicSIP.t.map { t => FOLSubstitution( gamma -> t )( clause.toFormula ) } ) ), label )
+          label -> clause
+      }.toMap
+      session assert groundVarsF( schematicSIP.Gamma1.toNegFormula )
       clauses.flatMap { clause =>
-        prover.getExpansionSequent(
-          clausesWithStepTermsT.flatMap( _._2 ) ++: schematicSIP.Gamma1 :+ nu2snu( clause.toFormula )
-        ) map { E =>
-            clause -> extractInstances( E ).elements.flatMap { inst =>
-              clausesWithStepTermsT.filter( _._2 contains inst ).map( _._1 )
-            }.toSet
-          }
+        session withScope {
+          session assert -groundVarsF( clause.toFormula )
+          if ( session.checkSat() ) None
+          else Some( clause -> ( session.getUnsatCore() map clausesWithStepTermsT toSet ) )
+        }
       }.toMap
     }
     var clauseDeps = findClauseDeps()
@@ -117,17 +145,19 @@ case class BetterSolutionFinder(
       clauseDeps = findClauseDeps()
     }
 
-    val clausesWithStepTermsU = clauses.map { clause =>
-      clause -> schematicSIP.u.map { u => FOLSubstitution( nu -> alpha, gamma -> u )( clause.toFormula ) }
-    }
-    prover.getExpansionSequent(
-      clausesWithStepTermsU.flatMap( _._2 ) ++: schematicSIP.Gamma2
-    ) map { E =>
-        val gamma2Deps = extractInstances( E ).elements.flatMap { inst =>
-          clausesWithStepTermsU.filter( _._2 contains inst ).map( _._1 )
-        }.toSet
+    for ( session <- startSession( true ).asInstanceOf[SmtlibSession] ) yield {
+      val clausesWithStepTermsU = clauses.zipWithIndex.map {
+        case ( clause, i ) =>
+          val label = s"c$i"
+          session assert ( groundVarsF( And( schematicSIP.u.map { u => FOLSubstitution( nu -> alpha, gamma -> u )( clause.toFormula ) } ) ), label )
+          label -> clause
+      }.toMap
+      session assert groundVarsF( schematicSIP.Gamma2.toNegFormula )
 
-        var necessaryClauses = gamma2Deps
+      if ( session.checkSat() ) None
+      else Some {
+        var necessaryClauses = session.getUnsatCore() map clausesWithStepTermsU toSet
+
         while ( !necessaryClauses.flatMap( clauseDeps( _ ) ).subsetOf( necessaryClauses ) )
           necessaryClauses ++= necessaryClauses.flatMap( clauseDeps( _ ) )
 
@@ -137,5 +167,6 @@ case class BetterSolutionFinder(
 
         solution
       }
+    }
   }
 }
