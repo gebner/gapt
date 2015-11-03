@@ -1,6 +1,6 @@
 package at.logic.gapt.grammars
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.FOLSubstitution
+import at.logic.gapt.expr.substitution.FOLSubstitution
 
 object VectTratGrammar {
   type NonTerminalVect = List[FOLVar]

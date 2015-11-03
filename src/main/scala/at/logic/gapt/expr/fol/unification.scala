@@ -1,6 +1,7 @@
 package at.logic.gapt.expr.fol
 
 import at.logic.gapt.expr._
+import at.logic.gapt.expr.substitution.FOLSubstitution
 import at.logic.gapt.proofs.HOLSequent
 
 /**

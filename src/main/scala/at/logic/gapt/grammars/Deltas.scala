@@ -2,6 +2,7 @@ package at.logic.gapt.grammars
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.fol._
+import at.logic.gapt.expr.substitution.FOLSubstitution
 
 /**
  * Represents the vector Delta(t_1,...,t_n), i.e. one row of the Delta-table

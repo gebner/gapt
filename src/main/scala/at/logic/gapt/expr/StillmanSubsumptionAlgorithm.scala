@@ -5,8 +5,9 @@
 
 package at.logic.gapt.expr
 
-import at.logic.gapt.expr.fol.{ FOLMatchingAlgorithm, FOLSubstitution }
+import at.logic.gapt.expr.fol.{ FOLMatchingAlgorithm }
 import at.logic.gapt.expr.hol.NaiveIncompleteMatchingAlgorithm
+import at.logic.gapt.expr.substitution.{FOLSubstitution, Substitution}
 import at.logic.gapt.proofs.HOLSequent
 
 // TODO: find a smart way (without reaching out to the lambda layer!!) to not duplicate this code.
@@ -102,7 +103,7 @@ object StillmanSubsumptionAlgorithmFOL extends SubsumptionAlgorithm {
       val sx = sub( x );
       val nsubs = ls2.flatMap( t =>
         matchAlg.matchTerms( sx, sub( t ), restrictedDomain.toSet ) match {
-          case Some( sub2 ) =>
+          case Some( sub2: Substitution ) =>
             val nsub = sub2.compose( sub )
             val st = ST( ls, ls2, nsub, restrictedDomain ++ nsub.folmap.flatMap( s => freeVariables( s._2 ).toList ) )
             if ( st.nonEmpty ) st :: Nil else Nil

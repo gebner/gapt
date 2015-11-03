@@ -2,6 +2,7 @@ package at.logic.gapt.proofs.lk
 
 import at.logic.gapt.expr._
 import BetaReduction._
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.proofs.lk._
 import at.logic.gapt.proofs.lk.ProofTransformationUtils.computeMap
 import at.logic.gapt.proofs.lk.base._

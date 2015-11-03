@@ -1,8 +1,9 @@
 package at.logic.gapt.proofs.lkNew
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.{ FOLPosition, FOLSubstitution, FOLMatchingAlgorithm }
+import at.logic.gapt.expr.fol.{ FOLPosition, FOLMatchingAlgorithm }
 import at.logic.gapt.expr.hol.HOLPosition
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.proofs._
 
 import scala.collection.mutable

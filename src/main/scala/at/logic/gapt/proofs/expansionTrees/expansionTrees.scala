@@ -2,6 +2,7 @@ package at.logic.gapt.proofs.expansionTrees
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol.{ NaiveIncompleteMatchingAlgorithm, containsQuantifier, HOLPosition }
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.proofs.lkNew.solve
 import at.logic.gapt.proofs.{ Sequent, HOLSequent }
 import at.logic.gapt.utils.ds.trees._

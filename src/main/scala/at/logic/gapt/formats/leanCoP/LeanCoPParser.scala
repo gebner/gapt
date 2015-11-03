@@ -3,6 +3,7 @@ package at.logic.gapt.formats.leanCoP
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.fol._
 import at.logic.gapt.expr.hol._
+import at.logic.gapt.expr.substitution.FOLSubstitution
 import at.logic.gapt.proofs.expansionTrees.{ ExpansionTree, ExpansionSequent, formulaToExpansionTree }
 
 import java.io.{ Reader, FileReader }

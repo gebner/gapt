@@ -6,6 +6,7 @@
 package at.logic.gapt.expr.schema
 
 import at.logic.gapt.expr._
+import at.logic.gapt.expr.substitution.Substitution
 
 class SchemaSubstitution( val schemamap: Map[Var, SchemaExpression] ) extends Substitution( schemamap.asInstanceOf[Map[Var, LambdaExpression]] )
 object SchemaSubstitution {

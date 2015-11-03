@@ -11,7 +11,8 @@ import at.logic.gapt.proofs.proofs._
 import at.logic.gapt.expr._
 import at.logic.gapt.utils.ds.trees._
 import base._
-import at.logic.gapt.expr.{ rename => renameLambda, Substitution => SubstitutionLambda, _ }
+import at.logic.gapt.expr.{ rename => renameLambda, _ }
+import at.logic.gapt.expr.substitution.{Substitution => SubstitutionLambda}
 import at.logic.gapt.utils.logging._
 import org.slf4j.LoggerFactory
 

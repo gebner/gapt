@@ -1,6 +1,6 @@
 package at.logic.gapt.expr
 
-import at.logic.gapt.expr.fol.FOLSubstitution
+import at.logic.gapt.expr.substitution.{Substitution, FOLSubstitution}
 
 object syntacticMGU {
   private def unify( eqs: List[( LambdaExpression, LambdaExpression )], env: Map[Var, LambdaExpression], bound: Set[Var] ): Option[Substitution] = eqs match {

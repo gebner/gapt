@@ -2,6 +2,7 @@ package at.logic.gapt.proofs.expansionTrees
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol._
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.grammars.{ Rule, RecursionScheme }
 import at.logic.gapt.proofs._
 import at.logic.gapt.proofs.lkNew.{ LKToExpansionProof, LKProof }

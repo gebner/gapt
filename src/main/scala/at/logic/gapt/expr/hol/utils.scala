@@ -5,7 +5,7 @@
 package at.logic.gapt.expr.hol
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.FOLSubstitution
+import at.logic.gapt.expr.substitution.{FOLSubstitution, Substitution}
 import at.logic.gapt.proofs.{ Sequent, HOLSequent, FOLClause }
 
 /**

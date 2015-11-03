@@ -2,6 +2,7 @@ package at.logic.gapt.formats.tip
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol.univclosure
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.formats.lisp._
 import at.logic.gapt.utils.runProcess
 

@@ -1,6 +1,7 @@
 package at.logic.gapt.algorithms.rewriting
 
 import at.logic.gapt.expr._
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.proofs.lk.{ Util, AtomicExpansion }
 import at.logic.gapt.proofs.lk.base._
 import at.logic.gapt.proofs.occurrences.FormulaOccurrence
@@ -115,7 +116,7 @@ class DefinitionElimination extends at.logic.gapt.utils.logging.Logger {
               val sub = Substitution( pairs )
               println( "Substitution:" )
               println( sub )
-              sub.apply( defined_formula ).asInstanceOf[HOLFormula]
+              sub.apply( defined_formula )
             }
           case _ => f
         }

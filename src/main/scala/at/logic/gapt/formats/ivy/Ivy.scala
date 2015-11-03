@@ -1,9 +1,9 @@
 
 package at.logic.gapt.formats.ivy
 
+import at.logic.gapt.expr.substitution.FOLSubstitution
 import at.logic.gapt.formats.lisp._
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.FOLSubstitution
 import at.logic.gapt.proofs._
 import at.logic.gapt.utils.logging.Logger
 

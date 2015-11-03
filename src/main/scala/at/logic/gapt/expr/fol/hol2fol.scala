@@ -3,6 +3,7 @@ package at.logic.gapt.expr.fol
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol._
 import at.logic.gapt.expr.schema._
+import at.logic.gapt.expr.substitution.{FOLSubstitution, Substitution}
 import at.logic.gapt.proofs.HOLSequent
 
 object reduceHolToFol extends reduceHolToFol

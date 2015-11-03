@@ -2,7 +2,7 @@
 package at.logic.gapt.algorithms.rewriting
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.FOLSubstitution
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.proofs.expansionTrees._
 import at.logic.gapt.utils.logging.Logger
 import at.logic.gapt.proofs.{ HOLSequent, resolution, lkNew }

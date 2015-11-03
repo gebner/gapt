@@ -5,6 +5,7 @@
 
 package at.logic.gapt.proofs.lk
 
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.proofs.occurrences._
 import at.logic.gapt.proofs.proofs._
 import at.logic.gapt.expr._
@@ -471,7 +472,7 @@ class StrongRuleHelper( polarity: Boolean ) extends QuantifierRuleHelper( polari
 }
 
 class WeakRuleHelper( polarity: Boolean ) extends QuantifierRuleHelper( polarity ) {
-  def computeAux( main: HOLFormula, term: LambdaExpression ) = main match {
+  def computeAux( main: HOLFormula, term: LambdaExpression ): (Var, HOLFormula) = main match {
     case All( v, sub ) =>
       val s = Substitution( v, term )
       ( v, betaNormalize( s( sub ) ) )

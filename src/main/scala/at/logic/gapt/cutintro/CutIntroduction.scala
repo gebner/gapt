@@ -1,8 +1,8 @@
 package at.logic.gapt.cutintro
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.FOLSubstitution
 import at.logic.gapt.expr.hol._
+import at.logic.gapt.expr.substitution.FOLSubstitution
 import at.logic.gapt.grammars._
 import at.logic.gapt.proofs._
 import at.logic.gapt.proofs.expansionTrees.{ quantRulesNumber => quantRulesNumberET, _ }
@@ -78,7 +78,7 @@ case class SchematicExtendedHerbrandSequent( us: Sequent[( FOLFormula, List[List
       ss foreach {
         case ( sVars, sInstances ) =>
           instances = for ( instance <- instances; sInstance <- sInstances )
-            yield FOLSubstitution( sVars zip sInstance )( instance ).toList
+            yield FOLSubstitution( sVars zip sInstance )( instance )
       }
       u -> instances
   }

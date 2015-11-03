@@ -5,6 +5,8 @@
 
 package at.logic.gapt.expr
 
+import at.logic.gapt.expr.substitution.Substitution
+
 /* The BetaReduction object encapsulates two functions:
  * 1) betaNormalize, which transforms a lambda expression to beta normal form.
  * 2) betaReduce, which applies only one rewrite step to a lambda expression.

@@ -4,6 +4,7 @@
 
 package at.logic.gapt.expr
 
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.proofs._
 import at.logic.gapt.proofs.lk.{ Axiom, BinaryLKProof, UnaryLKProof }
 import at.logic.gapt.proofs.lk.base._

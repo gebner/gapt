@@ -14,6 +14,7 @@ package at.logic.gapt.formats.xml
 import java.io.{ InputStream, FileInputStream, InputStreamReader }
 import java.util.zip.GZIPInputStream
 
+import at.logic.gapt.expr.substitution.Substitution
 import at.logic.gapt.formats.ParsingException
 import at.logic.gapt.formats.readers.XMLReaders.{ XMLReader, NodeReader }
 import at.logic.gapt.expr._

@@ -1,6 +1,6 @@
 package at.logic.gapt.expr
 
-import at.logic.gapt.expr.fol.FOLSubstitution
+import at.logic.gapt.expr.substitution.{FOLSubstitution, Substitution}
 
 object syntacticMatching {
 

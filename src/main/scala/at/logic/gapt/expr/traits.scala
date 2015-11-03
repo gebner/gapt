@@ -1,7 +1,7 @@
 package at.logic.gapt.expr
 
-import at.logic.gapt.expr.fol.FOLPosition._
 import at.logic.gapt.expr.fol.FOLPosition
+import at.logic.gapt.expr.fol.FOLPosition._
 import at.logic.gapt.expr.hol.HOLPosition
 
 trait HOLFormula extends LambdaExpression {
@@ -72,6 +72,7 @@ private[expr] trait HOLPartialAtom extends LambdaExpression {
 trait FOLTerm extends FOLPartialTerm with FOLExpression {
   private[expr] override val numberOfArguments = 0
 }
+
 trait FOLVar extends Var with FOLTerm
 trait FOLConst extends Const with FOLTerm
 trait FOLFormula extends FOLPartialFormula with HOLFormula with FOLExpression {
@@ -83,6 +84,7 @@ trait FOLFormula extends FOLPartialFormula with HOLFormula with FOLExpression {
   def -->( that: FOLFormula ): FOLFormula = Imp( this, that )
   def <->( that: FOLFormula ) = And( Imp( this, that ), Imp( that, this ) )
 }
+
 trait FOLAtom extends FOLPartialAtom with HOLAtom with FOLFormula {
   private[expr] override val numberOfArguments: Int = 0
 }

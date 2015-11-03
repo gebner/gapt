@@ -3,6 +3,7 @@ package at.logic.gapt.grammars
 import at.logic.gapt.expr.fol._
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol._
+import at.logic.gapt.expr.substitution.{FOLSubstitution, Substitution}
 import at.logic.gapt.provers.maxsat.{ bestAvailableMaxSatSolver, QMaxSAT, MaxSATSolver }
 import at.logic.gapt.utils.logging.Logger
 
