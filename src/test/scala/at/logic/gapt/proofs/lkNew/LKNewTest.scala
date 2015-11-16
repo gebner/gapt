@@ -1394,7 +1394,7 @@ class LKNewTest extends Specification {
       println( InductionRule(
         Seq(
           InductionCase( ax1, FOLConst( "0" ), Seq(), Seq(), Suc( 0 ) ),
-          InductionCase( ax2, FOLFunctionHead( "s", 1 ), Seq( Ant( 0 ) ), Seq( x ), Suc( 0 ) )
+          InductionCase( ax2, FOLFunctionConst( "s", 1 ), Seq( Ant( 0 ) ), Seq( x ), Suc( 0 ) )
         ),
         All( x, Pxy )
       ) )
@@ -1417,6 +1417,15 @@ class LKNewTest extends Specification {
       val p2 = WeakeningRightRule( p1, b )
       val p3 = ExchangeRightMacroRule( p2, Suc( 0 ) )
       p3.endSequent must_== ( a +: Sequent() :+ b :+ a )
+    }
+  }
+
+  "weakening and contraction macro rules" should {
+    "reach a sequent" in {
+      val a = FOLAtom( "a" )
+
+      val desiredES = a +: a +: Sequent() :+ a :+ a
+      WeakeningContractionMacroRule( LogicalAxiom( a ), desiredES, strict = true ).endSequent must_== desiredES
     }
   }
 

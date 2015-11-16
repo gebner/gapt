@@ -36,8 +36,8 @@ case class RecursionScheme( axiom: Const, nonTerminals: Set[Const], rules: Set[R
         parametricLanguage( argtypes.zipWithIndex.map { case ( t, i ) => Const( s"dummy$i", t ) }: _* )
     }
 
-  def rulesFrom( nonTerminal: Const ) =
-    rules filter { _.lhs == nonTerminal }
+  def rulesFrom( nonTerminal: Const ): Set[Rule] =
+    rules collect { case r @ Rule( Apps( `nonTerminal`, _ ), _ ) => r }
 
   def parametricLanguage( params: LambdaExpression* ): Set[LambdaExpression] = {
     require( params.size == arity( axiom ) )
@@ -194,7 +194,7 @@ object minimizeRecursionScheme extends Logger {
 }
 
 object SipRecSchem extends RecSchemTemplate(
-  FOLFunctionHead( "A", 1 ),
+  FOLFunctionConst( "A", 1 ),
   Set(
     FOLFunction( "A", FOLVar( "x" ) ) -> FOLVar( "t1" ),
     FOLFunction( "A", FOLVar( "x" ) ) ->

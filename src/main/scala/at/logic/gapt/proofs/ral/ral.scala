@@ -8,6 +8,8 @@ import RalProof._
 
 object RalProof {
   type Label = Set[LambdaExpression]
+
+  def Label( instances: LambdaExpression* ) = Set( instances: _* )
 }
 
 trait RalProof extends SequentProof[( Label, HOLFormula ), RalProof] {
@@ -181,6 +183,20 @@ case class RalExT( subProof: RalProof, idx: SequentIndex, skolemSymbol: SkolemSy
 
   lazy val skolemTerm = computeSkolemTerm( skolemSymbol, quantifiedType, subProof.labels( idx ) )
   override val newFormulas = Sequent() :+ BetaReduction.betaNormalize( App( sub, skolemTerm ).asInstanceOf[HOLFormula] )
+}
+
+case class RalTopF( subProof: RalProof, idx: SequentIndex ) extends SimpleOneFormulaRule {
+  require( idx isAnt )
+  require( subProof.formulas( idx ) == Top() )
+
+  override val newFormulas = Sequent()
+}
+
+case class RalBottomT( subProof: RalProof, idx: SequentIndex ) extends SimpleOneFormulaRule {
+  require( idx isSuc )
+  require( subProof.formulas( idx ) == Bottom() )
+
+  override val newFormulas = Sequent()
 }
 
 case class RalNegF( subProof: RalProof, idx: SequentIndex ) extends SimpleOneFormulaRule {

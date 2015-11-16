@@ -190,6 +190,26 @@ class GrammarFindingTest extends Specification with SatMatchers {
       )
       doesNotCover( g, "f(c,d)" )
     }
+    "should not require impossible values" in {
+      val g = vtg(
+        Seq( "x", "y", "z" ),
+        Seq( "x->f(y,z)" ),
+        Seq( "y->z" ),
+        Seq( "z->a" )
+      )
+      doesNotCover( g, "f(b,a)" )
+    }
+    "unique vector assignments" in {
+      val g = vtg(
+        Seq( "x", "y1,y2,y3" ),
+        Seq( "x->f(y1,y2)" ),
+        Seq( "x->f(y2,y1)" ),
+        Seq( "x->f(y2,y3)" ),
+        Seq( "y1->c", "y2->d", "y3->d" )
+      )
+      val formula = new TermGenerationFormula( g, parseTerm( "f(c,d)" ) )
+      formula.formula & -formula.vectProductionIsIncluded( List( parseProduction( "x->f(y1,y2)" ) ).unzip ) must beUnsat
+    }
   }
 
   "minimizeGrammar" should {
@@ -197,6 +217,24 @@ class GrammarFindingTest extends Specification with SatMatchers {
       val g = tg( "x->c", "x->d" )
       val minG = minimizeGrammar( g, Set( "c" ) map parseTerm )
       minG.productions must beEqualTo( Seq( "x->c" ) map parseProduction )
+    }
+  }
+
+  "minimizeVectGrammar" should {
+    "take weighting into account" in {
+      val g = vtg(
+        Seq( "x", "y" ),
+        Seq( "x->f(c)" ),
+        Seq( "x->f(y)" ),
+        Seq( "y->c" )
+      )
+      val minG = minimizeVectGrammar( g, Set( "f(c)" ) map parseTerm,
+        weight = prod => if ( prod == List( parseProduction( "x->f(c)" ) ).unzip ) 3 else 1 )
+      minG must_== vtg(
+        Seq( "x", "y" ),
+        Seq( "x->f(y)" ),
+        Seq( "y->c" )
+      )
     }
   }
 

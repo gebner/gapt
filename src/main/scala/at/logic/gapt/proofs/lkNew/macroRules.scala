@@ -961,7 +961,7 @@ object WeakeningContractionMacroRule extends ConvenienceConstructor( "WeakeningC
         throw LKRuleCreationException( "Cannot erase formula occurrences." )
 
       if ( n > nCurrent ) {
-        val ( subProof_, subConnector_ ) = WeakeningLeftMacroRule.withOccConnector( acc._1, f, n - nCurrent )
+        val ( subProof_, subConnector_ ) = WeakeningLeftMacroRule.withOccConnector( acc._1, f, n )
         ( subProof_, subConnector_ * acc._2 )
       } else if ( n == nCurrent )
         acc
@@ -978,7 +978,7 @@ object WeakeningContractionMacroRule extends ConvenienceConstructor( "WeakeningC
         throw LKRuleCreationException( "Cannot erase formula occurrences." )
 
       if ( n > nCurrent ) {
-        val ( subProof_, subConnector_ ) = WeakeningRightMacroRule.withOccConnector( acc._1, f, n - nCurrent )
+        val ( subProof_, subConnector_ ) = WeakeningRightMacroRule.withOccConnector( acc._1, f, n )
         ( subProof_, subConnector_ * acc._2 )
       } else if ( n == nCurrent )
         acc
@@ -1432,7 +1432,7 @@ object NaturalNumberInductionRule extends ConvenienceConstructor( "NaturalNumber
     }
 
     val baseCase = InductionCase( leftSubProof, FOLConst( "0" ), Seq(), Seq(), aux1 )
-    val stepCase = InductionCase( rightSubProof, FOLFunctionHead( "s", 1 ), Seq( aux2 ), Seq( x ), aux3 )
+    val stepCase = InductionCase( rightSubProof, FOLFunctionConst( "s", 1 ), Seq( aux2 ), Seq( x ), aux3 )
 
     InductionRule( Seq( baseCase, stepCase ), mainFormula )
   }
