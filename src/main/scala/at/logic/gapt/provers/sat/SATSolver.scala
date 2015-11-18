@@ -20,7 +20,7 @@ abstract class SATSolver extends Prover {
   }
 
   def solve( formula: HOLFormula ): Option[Interpretation] = {
-    val ( cnf, definitions ) = structuralCNF( formula )
+    val ( cnf, _, definitions ) = structuralCNF( formula )
     solve( cnf ) map {
       case i: MapBasedInterpretation =>
         // remove abbreviations for subformulas

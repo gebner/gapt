@@ -1,6 +1,10 @@
 
 package at.logic.gapt.proofs.resolution
 
+import at.logic.gapt.algorithms.rewriting.TermReplacement
+import at.logic.gapt.expr.hol.structuralCNF
+import at.logic.gapt.expr.{ Apps, BetaReduction, HOLAtomConst, LambdaExpression }
+import at.logic.gapt.proofs.expansionTrees.{ ExpansionSequent, ETAtom, ExpansionProofToLK, ExpansionTree }
 import at.logic.gapt.proofs.lkNew._
 import at.logic.gapt.proofs._
 
@@ -18,6 +22,43 @@ object RobinsonToLK {
   def apply( resolutionProof: ResolutionProof, endSequent: HOLSequent ): LKProof = {
     assert( resolutionProof.conclusion.isEmpty )
     apply( resolutionProof, endSequent, PCNF( endSequent, _ ) )
+  }
+
+  def apply( resolutionProof: ResolutionProof, projections: Map[HOLClause, structuralCNF.Justification], definitions: Map[HOLAtomConst, LambdaExpression] ): LKProof = {
+    require( resolutionProof.conclusion.isEmpty )
+
+    import structuralCNF.{ ProjectionFromEndSequent, Definition }
+
+    val lkProjections = mutable.Map[HOLClause, LKProof]()
+
+    for ( ( clause, ProjectionFromEndSequent( proj ) ) <- projections )
+      lkProjections( clause ) = ExpansionProofToLK( proj ++ clause.map( ETAtom ) )
+
+    val endSequentWithDefs = lkProjections.values.map( _.endSequent ).fold( Sequent() )( _ ++ _ ).distinct
+
+    for ( ( clause, Definition( i, expansion ) ) <- projections ) {
+      val p = ExpansionProofToLK( clause.map( ETAtom ).updated( i, expansion ) )
+      if ( i isAnt )
+        lkProjections( clause ) = DefinitionLeftRule( p, i, clause( i ) )
+      else
+        lkProjections( clause ) = DefinitionRightRule( p, i, clause( i ) )
+    }
+
+    val proofWithDefs = apply( resolutionProof, endSequentWithDefs, lkProjections )
+
+    lazy val recDefElim: PartialFunction[LambdaExpression, LambdaExpression] = {
+      case atomConst: HOLAtomConst if definitions isDefinedAt atomConst =>
+        TermReplacement( definitions( atomConst ), recDefElim )
+    }
+
+    val defElim: PartialFunction[LambdaExpression, LambdaExpression] = {
+      case term: LambdaExpression =>
+        BetaReduction.betaNormalize( TermReplacement( term, recDefElim ) )
+    }
+
+    val proofWithoutDefs = TermReplacement( proofWithDefs, defElim )
+
+    ContractionMacroRule( proofWithoutDefs )
   }
 
   /**
