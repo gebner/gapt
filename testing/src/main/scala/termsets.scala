@@ -23,10 +23,11 @@ object dumpTermsets extends App {
     simplifyNames( FOLInstanceTermEncoding( toShallow( e ) ) encode e map { _.asInstanceOf[FOLTerm] } )
 
   def simplifyNames( termset: Set[FOLTerm] ): Set[FOLTerm] = {
-    val renaming = constants( termset ).toSeq.sortBy( _.toString ).
-      zipWithIndex.map { case ( c: FOLTerm, i ) => c -> Const( s"f$i", c.exptype ).asInstanceOf[FOLTerm] }.
-      toMap
-    termset.map( TermReplacement( _, renaming.toMap[FOLTerm, FOLTerm] ) )
+    val renaming: Map[LambdaExpression, LambdaExpression] =
+      ( constants( termset ).toSeq ++ freeVariables( termset ).toSeq ).sortBy( _.toString ).
+        zipWithIndex.map { case ( c, i ) => c -> Const( s"f$i", c.exptype ) }.
+        toMap
+    termset.map( TermReplacement( _, renaming ).asInstanceOf[FOLTerm] )
   }
 
   def termToString( t: FOLTerm ): String = t match {
@@ -53,7 +54,7 @@ object dumpTermsets extends App {
   }
 
   println( "Proof sequences" )
-  proofSequences foreach { proofSeq =>
+  betterForeach( proofSequences ) { proofSeq =>
     Stream.from( 1 ).map { i =>
       println( s"${proofSeq.name}($i)" )
       i -> termsetFromExpansionProof( LKToExpansionProof( proofSeq( i ) ) )

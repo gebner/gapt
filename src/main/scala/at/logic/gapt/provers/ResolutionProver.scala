@@ -1,14 +1,14 @@
 package at.logic.gapt.provers
 
 import at.logic.gapt.algorithms.rewriting.TermReplacement
-import at.logic.gapt.expr.{ FOLConst, Const }
-import at.logic.gapt.expr.hol.CNFn
+import at.logic.gapt.expr.Const
+import at.logic.gapt.expr.hol.structuralCNF
 import at.logic.gapt.proofs.resolution.{ ResolutionProof, RobinsonToLK, RobinsonToExpansionProof }
 import at.logic.gapt.proofs.{ HOLClause, HOLSequent }
 import at.logic.gapt.proofs.expansionTrees.ExpansionSequent
 import at.logic.gapt.proofs.lkNew.LKProof
 
-abstract class ResolutionProver extends Prover {
+abstract class ResolutionProver extends OneShotProver {
 
   protected def withRenamedConstants( cnf: Traversable[HOLClause] )( f: ( Map[Const, Const], List[HOLClause] ) => Option[ResolutionProof] ): Option[ResolutionProof] = {
     val ( renamedCNF, renaming, invertRenaming ) = renameConstantsToFi( cnf.toList )
@@ -40,8 +40,9 @@ abstract class ResolutionProver extends Prover {
 
   override def getLKProof( seq: HOLSequent ): Option[LKProof] =
     withGroundVariables( seq ) { seq =>
+      val ( cnf, justs, defs ) = structuralCNF( seq, generateJustifications = true, propositional = false )
       getRobinsonProof( seq ) map { robinsonProof =>
-        RobinsonToLK( robinsonProof, seq )
+        RobinsonToLK( robinsonProof, seq, justs toMap, defs )
       }
     }
 
@@ -50,14 +51,15 @@ abstract class ResolutionProver extends Prover {
 
   def getRobinsonProof( seq: HOLSequent ): Option[ResolutionProof] =
     withGroundVariables3( seq ) { seq =>
-      getRobinsonProof( CNFn.toFClauseList( seq.toFormula ) )
+      getRobinsonProof( structuralCNF( seq, generateJustifications = false, propositional = false )._1 )
     }
 
   def getRobinsonProof( seq: Traversable[HOLClause] ): Option[ResolutionProof]
 
   override def getExpansionSequent( seq: HOLSequent ): Option[ExpansionSequent] =
     withGroundVariables2( seq ) { seq =>
-      getRobinsonProof( seq ).map( RobinsonToExpansionProof( _, seq ) )
+      val ( cnf, justs, defs ) = structuralCNF( seq, generateJustifications = true, propositional = false )
+      getRobinsonProof( cnf ).map( RobinsonToExpansionProof( _, seq, justs, defs ) )
     }
 
 }

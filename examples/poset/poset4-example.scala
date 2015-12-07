@@ -1,17 +1,21 @@
-import at.logic.gapt.expr.hol.{CNFp, instantiate}
+import at.logic.gapt.algorithms.rewriting.TermReplacement
+import at.logic.gapt.expr.hol.{existsclosure, CNFp, instantiate}
 import at.logic.gapt.grammars.{recSchemToVTRATG, findMinimalVectGrammar, VectTratGrammar}
+import at.logic.gapt.proofs.ceres.CERES
 import at.logic.gapt.proofs.{Suc, Sequent}
 import at.logic.gapt.proofs.expansionTrees._
 import at.logic.gapt.proofs.lkNew._
 import at.logic.gapt.expr._
 import at.logic.gapt.cutintro._
 import at.logic.gapt.prooftool.prooftool
+import at.logic.gapt.provers.eprover.EProver
 import at.logic.gapt.provers.maxsat.ExternalMaxSATSolver
+import at.logic.gapt.provers.prover9.Prover9
 import at.logic.gapt.provers.sat.Sat4j
 
 val f = FOLFunctionConst("f", 2)
 val Seq(u, v, w, x, y, z) = Seq("u", "v", "w", "x", "y", "z") map { FOLVar(_) }
-val Seq(a, b, c) = Seq("a", "b", "c") map { FOLConst(_) }
+val Seq(a, b, c, d) = Seq("a", "b", "c", "d") map { FOLConst(_) }
 
 val eqRefl = All(x, x === x)
 val eqSymm = All(x, All(y, (x === y) --> (y === x)))
@@ -78,16 +82,24 @@ val lhs = (ProofBuilder
   u (ContractionMacroRule(_))
   qed)
 
-val conc = ((f(a, b) === a) & (f(b, c) === b) & (f(c, a) === c)) --> ((a === b) & (b === c))
+val conc =
+  And.nAry(f(a, b) === a, f(b, c) === b, f(c, d) === c, f(d, a) === d) -->
+  And.nAry(a === b, b === c, c === d)
 
 val rhs = (ProofBuilder
   c solve.solvePropositional(
+    instantiate(cutf, Seq(a,b,c)) +:
+    instantiate(cutf, Seq(c,d,a)) +:
     instantiate(cutf, Seq(b,c,a)) +:
+    instantiate(cutf, Seq(d,a,c)) +:
     instantiate(cutf, Seq(c,a,b)) +:
     Sequent()
     :+ conc
   ).get
+  u (ForallLeftBlock(_, cutf, Seq(a,b,c)))
+  u (ForallLeftBlock(_, cutf, Seq(c,d,a)))
   u (ForallLeftBlock(_, cutf, Seq(b,c,a)))
+  u (ForallLeftBlock(_, cutf, Seq(d,a,c)))
   u (ForallLeftBlock(_, cutf, Seq(c,a,b)))
   u (ContractionMacroRule(_))
   qed)
@@ -95,29 +107,26 @@ val rhs = (ProofBuilder
 // proof with cut
 val pwc = CutRule(lhs, rhs, cutf)
 
-val p = ReductiveCutElimination(pwc)
-val (terms, encoding) = FOLInstanceTermEncoding(p)
-terms foreach println
+val encoding = FOLInstanceTermEncoding(pwc.endSequent)
 
-if (true) {
-  val recSchem = extractRecSchem(pwc)
-  println("Recursion scheme of proof:")
-  println(recSchem)
-  println(s"Size: ${recSchem.rules.size} rules")
-  val encRecSchem = encoding encode recSchem
-  val vtratg = recSchemToVTRATG(encRecSchem)
-  val sehs = vtratgToSEHS(encoding, vtratg)
-  val canSol = CutIntroduction.computeCanonicalSolution(sehs)
-  val canEHS = ExtendedHerbrandSequent(sehs, canSol)
-  val minSol = improveSolutionLK(canEHS, Sat4j, hasEquality = false)
-  println("Automatically improved cut-formula for grammar extracted from proof:")
-  println(minSol.cutFormulas.head)
+val recSchem = extractRecSchem(pwc)
+val encRecSchem = encoding encode recSchem
+println("Recursion scheme of proof:")
+println(encRecSchem)
+println(s"Size: ${encRecSchem.rules.size} rules")
+val vtratg = recSchemToVTRATG(encRecSchem)
+val sehs = vtratgToSEHS(encoding, vtratg)
+val canSol = CutIntroduction.computeCanonicalSolution(sehs)
+val canEHS = ExtendedHerbrandSequent(sehs, canSol)
+val minSol = improveSolutionLK(canEHS, Sat4j, hasEquality = false)
+println("Automatically improved cut-formula for grammar extracted from proof:")
+println(minSol.cutFormulas.head)
+CutIntroduction.constructLKProof(minSol, hasEquality = false)
 
-  CutIntroduction.constructLKProof(minSol, hasEquality = false)
-}
+// reductive cut-elimination takes too long and CERES produces too few weak quantfier inferences?
+val p = encoding decodeToExpansionSequent encRecSchem.language
 
-
-CutIntroduction.compressLKProof(p,
+CutIntroduction.compressToLK(p, hasEquality = false,
   method = new GrammarFindingMethod {
     override def findGrammars(lang: Set[FOLTerm]): Option[VectTratGrammar] = {
       Some(findMinimalVectGrammar(lang, Seq(3),

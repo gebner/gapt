@@ -1,13 +1,23 @@
+import java.io.ByteArrayOutputStream
+
 import org.apache.commons.compress.archivers.tar.{TarArchiveEntry, TarArchiveOutputStream}
 import com.typesafe.sbt.SbtScalariform._
 import scalariform.formatter.preferences._
 
 lazy val commonSettings = Seq(
   organization := "at.logic.gapt",
-  organizationHomepage := Some(url("https://gapt.github.io/")),
-  licenses += ("GNU GPL v3", url("http://www.gnu.org/licenses/gpl.html")),
+  homepage := Some(url("https://logic.at/gapt/")),
+  organizationHomepage := homepage.value,
+  licenses += ("GPL-3.0" -> url("http://www.gnu.org/licenses/gpl-3.0.html")),
   startYear := Some(2008),
   version := "1.11-SNAPSHOT",
+
+  bintrayOrganization := Some("gapt"),
+  scmInfo := Some(ScmInfo(
+    browseUrl = url("https://github.com/gapt/gapt"),
+    connection = "scm:git:https://github.com/gapt/gapt.git",
+    devConnection = Some("scm:git:git@github.com:gapt/gapt.git")
+  )),
 
   scalaVersion := "2.11.7",
   scalacOptions in Compile ++= Seq("-deprecation"),
@@ -91,16 +101,29 @@ lazy val root = (project in file(".")).
       archiveFile
     },
 
+    evalUserManual := {
+      val userManFn = "doc/user_manual.tex"
+      val out = new ByteArrayOutputStream
+      val exitVal = new Fork("java", Some("at.logic.gapt.testing.evalCodeSnippetsInLatex")).fork(ForkOptions(
+        outputStrategy = Some(CustomOutput(out)),
+        workingDirectory = Some(file(".")),
+        javaHome = javaHome.value,
+        runJVMOptions = javaOptions.value ++ Seq("-cp", Path.makeString(Attributed.data((fullClasspath in Test).value))),
+        connectInput = false),
+        Seq(userManFn)).exitValue()
+      if (exitVal == 0) IO.write(file(userManFn), out.toByteArray)
+    },
+
     testForkedParallel in Test := true,
 
     libraryDependencies ++= Seq(
       "org.scala-lang.modules" %% "scala-parser-combinators" % "1.0.4",
       "org.parboiled" %% "parboiled" % "2.1.0",
-      "org.scalaz" %% "scalaz-core" % "7.1.4",
+      "org.scalaz" %% "scalaz-core" % "7.1.5",
       "org.scala-lang.modules" %% "scala-xml" % "1.0.5",
       "org.apache.commons" % "commons-lang3" % "3.4",
-      "org.slf4j" % "slf4j-api" % "1.7.12",
-      "org.slf4j" % "slf4j-log4j12" % "1.7.12",
+      "org.slf4j" % "slf4j-api" % "1.7.13",
+      "org.slf4j" % "slf4j-log4j12" % "1.7.13",
       "xml-resolver" % "xml-resolver" % "1.2",
       "org.ow2.sat4j" % "org.ow2.sat4j.core" % "2.3.5",
       "org.ow2.sat4j" % "org.ow2.sat4j.maxsat" % "2.3.5"),
@@ -110,7 +133,7 @@ lazy val root = (project in file(".")).
       "org.scala-lang" % "scala-compiler" % scalaVersion.value,
       "jline" % "jline" % "2.13",
       "org.scala-lang.modules" %% "scala-swing" % "2.0.0-M2",
-      "com.itextpdf" % "itextpdf" % "5.5.7",
+      "com.itextpdf" % "itextpdf" % "5.5.8",
       "org.scilab.forge" % "jlatexmath" % "1.0.2")
   )
 
@@ -131,10 +154,12 @@ lazy val testing = (project in file("testing")).
 
 lazy val releaseDist = TaskKey[File]("release-dist", "Creates the release tar ball.")
 
+lazy val evalUserManual = TaskKey[Unit]("eval-user-manual", "Evaluates the snippets in the user manual.")
+
 lazy val testDependencies = Seq(
-  "org.specs2" %% "specs2-core" % "3.6.5",
-  "org.specs2" %% "specs2-junit" % "3.6.5",  // needed for junitxml output
-  "org.specs2" %% "specs2-matcher" % "3.6.5")
+  "org.specs2" %% "specs2-core" % "3.6.6",
+  "org.specs2" %% "specs2-junit" % "3.6.6",  // needed for junitxml output
+  "org.specs2" %% "specs2-matcher" % "3.6.6")
 
 def recursiveListFiles(f: File): Seq[File] =
   if (f.isDirectory)
