@@ -4,15 +4,16 @@ import org.apache.commons.compress.archivers.tar.{TarArchiveEntry, TarArchiveOut
 import com.typesafe.sbt.SbtScalariform._
 import scalariform.formatter.preferences._
 
+val Version = "1.11-SNAPSHOT"
+
 lazy val commonSettings = Seq(
   organization := "at.logic.gapt",
   homepage := Some(url("https://logic.at/gapt/")),
   organizationHomepage := homepage.value,
   licenses += ("GPL-3.0" -> url("http://www.gnu.org/licenses/gpl-3.0.html")),
   startYear := Some(2008),
-  version := "1.11-SNAPSHOT",
+  version := Version,
 
-  bintrayOrganization := Some("gapt"),
   scmInfo := Some(ScmInfo(
     browseUrl = url("https://github.com/gapt/gapt"),
     connection = "scm:git:https://github.com/gapt/gapt.git",
@@ -20,7 +21,7 @@ lazy val commonSettings = Seq(
   )),
 
   scalaVersion := "2.11.7",
-  scalacOptions in Compile ++= Seq("-deprecation"),
+  scalacOptions in Compile ++= Seq("-deprecation", "-language:postfixOps", "-language:implicitConversions", "-feature"),
   testOptions in Test += Tests.Argument(TestFrameworks.Specs2, "junitxml", "console"),
   libraryDependencies ++= testDependencies map(_ % Test),
 
@@ -40,8 +41,26 @@ lazy val commonSettings = Seq(
     .setPreference(DoubleIndentClassDeclaration, true)
     .setPreference(SpaceInsideParentheses, true))
 
+lazy val publishSettings =
+  if (Version endsWith "-SNAPSHOT") {
+    Seq(
+      bintrayReleaseOnPublish := false,
+      publishTo := Some("Artifactory Realm" at "http://oss.jfrog.org/artifactory/oss-snapshot-local/"),
+      credentials := {
+        Credentials.loadCredentials(bintrayCredentialsFile.value) match {
+          case Right(bintrayCreds) =>
+            Seq(Credentials("Artifactory Realm", "oss.jfrog.org", bintrayCreds.userName, bintrayCreds.passwd))
+          case Left(error) => Seq()
+        }
+      }
+    )
+  } else {
+    Seq(bintrayOrganization := Some("gapt"))
+  }
+
 lazy val root = (project in file(".")).
   settings(commonSettings: _*).
+  settings(publishSettings: _*).
   disablePlugins(JUnitXmlReportPlugin).
   settings(
     name := "gapt",
