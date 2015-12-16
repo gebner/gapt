@@ -5,18 +5,16 @@ import at.logic.gapt.expr.hol._
 import at.logic.gapt.expr.schema._
 import at.logic.gapt.expr.hol.isAtom
 import at.logic.gapt.proofs._
-import at.logic.gapt.proofs.expansionTrees.{ BinaryExpansionTree, ExpansionSequent, ExpansionTree, ETStrongQuantifier, UnaryExpansionTree, ETWeakQuantifier, getETOfFormula, toShallow, ETAtom => AtomET, ETWeakening }
-import at.logic.gapt.proofs.lk.base._
-import at.logic.gapt.proofs.lkNew.lkOld2New
-import at.logic.gapt.proofs.shlk._
+import at.logic.gapt.proofs.expansionTrees._
 import at.logic.gapt.provers.{ OneShotProver, Prover }
+import at.logic.gapt.utils.logging.Logger
 
 /**
  * Bottom-up construction of sequent calculus proofs.
  *
  * Currently supports propositional logic as well as proof construction using expansion trees.
  */
-object solve extends at.logic.gapt.utils.logging.Logger {
+object solve extends Logger {
   val nLine = sys.props( "line.separator" )
 
   /**
@@ -69,9 +67,9 @@ object solve extends at.logic.gapt.utils.logging.Logger {
 
   private def prove( seq: HOLSequent, strategy: ProofStrategy ): Option[LKProof] = {
     // we are only proving set-normalized sequents
-    val ant_set = seq.antecedent.toSet
-    val suc_set = seq.succedent.toSet
-    assert( ant_set.size == seq.antecedent.size && suc_set.size == seq.succedent.size )
+    val antSet = seq.antecedent.toSet
+    val sucSet = seq.succedent.toSet
+    assert( antSet.size == seq.antecedent.size && sucSet.size == seq.succedent.size )
 
     trace( "proving: " + seq )
     trace( "with strat: " + strategy )
@@ -91,7 +89,7 @@ object solve extends at.logic.gapt.utils.logging.Logger {
 
       // main step: ask strategy what to do
       strategy.calcNextStep( seq ) match {
-        case Some( action ) => {
+        case Some( action ) =>
           trace( "strategy has selected: " + action + " action.form: " + action.formula + nLine )
 
           // apply whatever rule matches to this formula
@@ -104,7 +102,6 @@ object solve extends at.logic.gapt.utils.logging.Logger {
               assert( seq.succedent.contains( action.formula ) )
               applyActionSuccedent( action, seq )
           }
-        }
 
         case None => None
       }
@@ -112,17 +109,17 @@ object solve extends at.logic.gapt.utils.logging.Logger {
   }
 
   private def applyActionAntecedent( action: ProofStrategy.Action, seq: HOLSequent ): Option[LKProof] = {
-    // sequent without principal sequent to help building upper goal sequent
+    // sequent without principal formula to help building upper goal sequent
     val rest = HOLSequent( seq.antecedent.diff( action.formula :: Nil ), seq.succedent )
     // proof strategies for children (with expansion sequents according to children or no changes in the propositional case)
-    val nextProofStrategies = action.getNextStrategies()
+    val nextProofStrategies = action.getNextStrategies
 
     val rv = action.formula match {
 
       // Quantifier Rules
 
       case All( v, f ) => {
-        val quantifiedTerm = action.getQuantifiedTerm().get // must be defined in this case
+        val quantifiedTerm = action.getQuantifiedTerm.get // must be defined in this case
         val auxFormula = Substitution( v, quantifiedTerm )( f )
 
         val p_ant = if ( seq.antecedent.contains( auxFormula ) ) seq.antecedent else auxFormula +: seq.antecedent
@@ -130,9 +127,9 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val premise = HOLSequent( p_ant, p_suc )
 
         prove( premise, nextProofStrategies( 0 ) ).map( proof => {
-          if ( proof.root.toHOLSequent.antecedent.contains( auxFormula ) && !rest.antecedent.contains( auxFormula ) ) {
-            val proof1 = ForallLeftRule( proof, auxFormula, action.formula, quantifiedTerm )
-            if ( proof.root.toHOLSequent.antecedent.contains( action.formula ) ) // main formula already appears in upper proof
+          if ( proof.endSequent.antecedent.contains( auxFormula ) && !rest.antecedent.contains( auxFormula ) ) {
+            val proof1 = ForallLeftRule( proof, action.formula, quantifiedTerm )
+            if ( proof.endSequent.antecedent.contains( action.formula ) ) // main formula already appears in upper proof
               ContractionLeftRule( proof1, action.formula )
             else
               proof1
@@ -142,7 +139,7 @@ object solve extends at.logic.gapt.utils.logging.Logger {
       }
 
       case Ex( v, f ) => {
-        val eigenVar = action.getQuantifiedTerm().get.asInstanceOf[Var]
+        val eigenVar = action.getQuantifiedTerm.get.asInstanceOf[Var]
         val auxFormula = Substitution( v, eigenVar )( f )
 
         val p_ant = if ( seq.antecedent.contains( auxFormula ) ) rest.antecedent else auxFormula +: rest.antecedent
@@ -150,14 +147,14 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val premise = HOLSequent( p_ant, p_suc )
 
         prove( premise, nextProofStrategies( 0 ) ).map( proof =>
-          if ( proof.root.toHOLSequent.antecedent.contains( auxFormula ) && !rest.antecedent.contains( auxFormula ) )
-            ExistsLeftRule( proof, auxFormula, action.formula, eigenVar )
+          if ( proof.endSequent.antecedent.contains( auxFormula ) && !rest.antecedent.contains( auxFormula ) )
+            ExistsLeftRule( proof, action.formula, eigenVar )
           else
             proof )
       }
 
       // Nullary rules
-      case Bottom() => Some( Axiom( seq ) ) // FIXME: add rules for top/bottom?
+      case Bottom() => Some( WeakeningMacroRule( BottomAxiom, seq ) )
 
       // Unary Rules
 
@@ -167,7 +164,7 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val premise = HOLSequent( p_ant, p_suc )
 
         prove( premise, nextProofStrategies( 0 ) ).map( proof =>
-          if ( proof.root.toHOLSequent.succedent.contains( f1 ) && !rest.succedent.contains( f1 ) )
+          if ( proof.endSequent.succedent.contains( f1 ) && !rest.succedent.contains( f1 ) )
             NegLeftRule( proof, f1 )
           else
             proof )
@@ -180,14 +177,11 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val p_suc = rest.succedent
         val premise = HOLSequent( p_ant, p_suc )
 
-        prove( premise, nextProofStrategies( 0 ) ).map( proof => {
-          val infer_on_f1 = proof.root.toHOLSequent.antecedent.contains( f1 ) && !rest.antecedent.contains( f1 )
-          val infer_on_f2 = proof.root.toHOLSequent.antecedent.contains( f2 ) && !( f1_opt ++ rest.antecedent ).contains( f2 )
-
-          val proof1 = if ( infer_on_f1 ) AndLeft1Rule( proof, f1, f2 ) else proof
-          val proof2 = if ( infer_on_f2 ) AndLeft2Rule( proof1, f1, f2 ) else proof1
-          if ( infer_on_f1 && infer_on_f2 ) ContractionLeftRule( proof2, action.formula ) else proof2
-        } )
+        prove( premise, nextProofStrategies( 0 ) ).map( proof =>
+          if ( proof.endSequent.antecedent.contains( f1 ) || proof.endSequent.antecedent.contains( f2 ) )
+            AndLeftMacroRule( proof, f1, f2 )
+          else
+            proof )
       }
 
       // Binary Rules
@@ -199,14 +193,14 @@ object solve extends at.logic.gapt.utils.logging.Logger {
 
         prove( premise1, nextProofStrategies( 0 ) ) match {
           case Some( proof1 ) =>
-            if ( proof1.root.toHOLSequent.antecedent.contains( f1 ) && !rest.antecedent.contains( f1 ) ) {
+            if ( proof1.endSequent.antecedent.contains( f1 ) && !rest.antecedent.contains( f1 ) ) {
               val p_ant2 = if ( rest.antecedent.contains( f2 ) ) rest.antecedent else f2 +: rest.antecedent
               val p_suc2 = rest.succedent
               val premise2 = HOLSequent( p_ant2, p_suc2 )
 
               prove( premise2, nextProofStrategies( 1 ) ).map( proof2 =>
-                if ( proof2.root.toHOLSequent.antecedent.contains( f2 ) && !rest.antecedent.contains( f2 ) )
-                  ContractionMacroRule( OrLeftRule( proof1, proof2, f1, f2 ) )
+                if ( proof2.endSequent.antecedent.contains( f2 ) && !rest.antecedent.contains( f2 ) )
+                  ContractionMacroRule( OrLeftRule( proof1, f1, proof2, f2 ) )
                 else
                   proof2 )
             } else {
@@ -223,14 +217,14 @@ object solve extends at.logic.gapt.utils.logging.Logger {
 
         prove( premise1, nextProofStrategies( 0 ) ) match {
           case Some( proof1 ) =>
-            if ( proof1.root.toHOLSequent.succedent.contains( f1 ) && !rest.succedent.contains( f1 ) ) {
+            if ( proof1.endSequent.succedent.contains( f1 ) && !rest.succedent.contains( f1 ) ) {
               val p_ant2 = if ( rest.antecedent.contains( f2 ) ) rest.antecedent else f2 +: rest.antecedent
               val p_suc2 = rest.succedent
               val premise2 = HOLSequent( p_ant2, p_suc2 )
 
               prove( premise2, nextProofStrategies( 1 ) ).map( proof2 =>
-                if ( proof2.root.toHOLSequent.antecedent.contains( f2 ) && !rest.antecedent.contains( f2 ) )
-                  ContractionMacroRule( ImpLeftRule( proof1, proof2, f1, f2 ) )
+                if ( proof2.endSequent.antecedent.contains( f2 ) && !rest.antecedent.contains( f2 ) )
+                  ContractionMacroRule( ImpLeftRule( proof1, f1, proof2, f2 ) )
                 else
                   proof2 )
             } else {
@@ -241,7 +235,7 @@ object solve extends at.logic.gapt.utils.logging.Logger {
       }
 
       // Schematic Rules
-
+      /*
       case BigAnd( i, iter, from, to ) =>
         val i = IntVar( "i" )
         if ( from == to ) {
@@ -312,27 +306,27 @@ object solve extends at.logic.gapt.utils.logging.Logger {
             case None => None
           }
         } // end of BigOr
-
+*/
       case _ => throw new IllegalArgumentException( "Invalid formula in prove: " + action.formula )
 
     } // end of match formula
 
     // invariant: we have constructed a proof of a subsequent of seq
-    if ( rv.isDefined ) assert( rv.get.root.toHOLSequent.isSubsetOf( seq ) )
+    if ( rv.isDefined ) assert( rv.get.endSequent.isSubsetOf( seq ) )
 
     rv
   }
 
   private def applyActionSuccedent( action: ProofStrategy.Action, seq: HOLSequent ): Option[LKProof] = {
     val rest = HOLSequent( seq.antecedent, seq.succedent.diff( action.formula :: Nil ) )
-    val nextProofStrategies = action.getNextStrategies()
+    val nextProofStrategies = action.getNextStrategies
 
     val rv = action.formula match {
 
       // Quantifier Rules
 
       case All( v, f ) => {
-        val eigenVar = action.getQuantifiedTerm().get.asInstanceOf[Var]
+        val eigenVar = action.getQuantifiedTerm.get.asInstanceOf[Var]
         val auxFormula = Substitution( v, eigenVar )( f )
 
         val p_ant = rest.antecedent
@@ -340,14 +334,14 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val premise = HOLSequent( p_ant, p_suc )
 
         prove( premise, nextProofStrategies( 0 ) ).map( proof =>
-          if ( proof.root.toHOLSequent.succedent.contains( auxFormula ) && !rest.succedent.contains( auxFormula ) )
-            ForallRightRule( proof, auxFormula, action.formula, eigenVar )
+          if ( proof.endSequent.succedent.contains( auxFormula ) && !rest.succedent.contains( auxFormula ) )
+            ForallRightRule( proof, action.formula, eigenVar )
           else
             proof )
       }
 
       case Ex( v, f ) => {
-        val quantifiedTerm = action.getQuantifiedTerm().get
+        val quantifiedTerm = action.getQuantifiedTerm.get
         val auxFormula = Substitution( v, quantifiedTerm )( f )
 
         val p_ant = rest.antecedent
@@ -355,9 +349,9 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val premise = HOLSequent( p_ant, p_suc )
 
         prove( premise, nextProofStrategies( 0 ) ).map( proof => {
-          if ( proof.root.toHOLSequent.succedent.contains( auxFormula ) && !rest.succedent.contains( auxFormula ) ) {
-            val proof1 = ExistsRightRule( proof, auxFormula, action.formula, quantifiedTerm )
-            if ( proof.root.toHOLSequent.succedent.contains( action.formula ) )
+          if ( proof.endSequent.succedent.contains( auxFormula ) && !rest.succedent.contains( auxFormula ) ) {
+            val proof1 = ExistsRightRule( proof, action.formula, quantifiedTerm )
+            if ( proof.endSequent.succedent.contains( action.formula ) )
               ContractionRightRule( proof1, action.formula )
             else
               proof1
@@ -367,7 +361,7 @@ object solve extends at.logic.gapt.utils.logging.Logger {
       }
 
       // Nullary rules
-      case Top() => Some( Axiom( seq ) ) // FIXME: add rules for top/bottom?
+      case Top() => Some( WeakeningMacroRule( TopAxiom, seq ) )
 
       // Unary Rules
 
@@ -377,7 +371,7 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val premise = HOLSequent( p_ant, p_suc )
 
         prove( premise, nextProofStrategies( 0 ) ).map( proof =>
-          if ( proof.root.toHOLSequent.antecedent.contains( f1 ) && !rest.antecedent.contains( f1 ) )
+          if ( proof.endSequent.antecedent.contains( f1 ) && !rest.antecedent.contains( f1 ) )
             NegRightRule( proof, f1 )
           else
             proof )
@@ -389,8 +383,8 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val premise = HOLSequent( p_ant, p_suc )
 
         prove( premise, nextProofStrategies( 0 ) ).map( proof => {
-          val infer_on_f1 = proof.root.toHOLSequent.antecedent.contains( f1 ) && !rest.antecedent.contains( f1 )
-          val infer_on_f2 = proof.root.toHOLSequent.succedent.contains( f2 ) && !rest.succedent.contains( f2 )
+          val infer_on_f1 = proof.endSequent.antecedent.contains( f1 ) && !rest.antecedent.contains( f1 )
+          val infer_on_f2 = proof.endSequent.succedent.contains( f2 ) && !rest.succedent.contains( f2 )
 
           if ( infer_on_f1 || infer_on_f2 ) { // need to infer main formula
             val proof1 = if ( !infer_on_f1 ) WeakeningLeftRule( proof, f1 ) else proof
@@ -409,14 +403,11 @@ object solve extends at.logic.gapt.utils.logging.Logger {
         val p_suc = f1_opt ++ f2_opt ++ rest.succedent
         val premise = HOLSequent( p_ant, p_suc )
 
-        prove( premise, nextProofStrategies( 0 ) ).map( proof => {
-          val infer_on_f1 = proof.root.toHOLSequent.succedent.contains( f1 ) && !rest.succedent.contains( f1 )
-          val infer_on_f2 = proof.root.toHOLSequent.succedent.contains( f2 ) && !( f1_opt ++ rest.succedent ).contains( f2 )
-
-          val proof1 = if ( infer_on_f1 ) OrRight1Rule( proof, f1, f2 ) else proof
-          val proof2 = if ( infer_on_f2 ) OrRight2Rule( proof1, f1, f2 ) else proof1
-          if ( infer_on_f1 && infer_on_f2 ) ContractionRightRule( proof2, action.formula ) else proof2
-        } )
+        prove( premise, nextProofStrategies( 0 ) ).map( proof =>
+          if ( proof.endSequent.succedent.contains( f1 ) || proof.endSequent.succedent.contains( f2 ) )
+            OrRightMacroRule( proof, f1, f2 )
+          else
+            proof )
       }
 
       // Binary Rules
@@ -428,14 +419,14 @@ object solve extends at.logic.gapt.utils.logging.Logger {
 
         prove( premise1, nextProofStrategies( 0 ) ) match {
           case Some( proof1 ) =>
-            if ( proof1.root.toHOLSequent.succedent.contains( f1 ) && !rest.succedent.contains( f1 ) ) {
+            if ( proof1.endSequent.succedent.contains( f1 ) && !rest.succedent.contains( f1 ) ) {
               val p_ant2 = rest.antecedent
               val p_suc2 = if ( rest.succedent.contains( f2 ) ) rest.succedent else f2 +: rest.succedent
               val premise2 = HOLSequent( p_ant2, p_suc2 )
 
               prove( premise2, nextProofStrategies( 1 ) ).map( proof2 =>
-                if ( proof2.root.toHOLSequent.succedent.contains( f2 ) && !rest.succedent.contains( f2 ) )
-                  ContractionMacroRule( AndRightRule( proof1, proof2, f1, f2 ) )
+                if ( proof2.endSequent.succedent.contains( f2 ) && !rest.succedent.contains( f2 ) )
+                  ContractionMacroRule( AndRightRule( proof1, f1, proof2, f2 ) )
                 else
                   proof2 )
             } else {
@@ -446,7 +437,7 @@ object solve extends at.logic.gapt.utils.logging.Logger {
       }
 
       // Schematic Rules
-
+      /*
       case BigOr( i, iter, from, to ) =>
         val i = IntVar( "i" )
         if ( from == to ) {
@@ -513,13 +504,13 @@ object solve extends at.logic.gapt.utils.logging.Logger {
             case None => None
           }
         }
-
+*/
       case _ => throw new IllegalArgumentException( "Invalid formula in prove: " + action.formula )
 
     } // end of match formula
 
     // invariant: we have constructed a proof of a subsequent of seq
-    if ( rv.isDefined ) assert( rv.get.root.toHOLSequent.isSubsetOf( seq ) )
+    if ( rv.isDefined ) assert( rv.get.endSequent.isSubsetOf( seq ) )
 
     rv
   }
@@ -539,12 +530,12 @@ object ProofStrategy {
   object FormulaLocation extends Enumeration { val Succedent, Antecedent = Value }
 
   class Action( val formula: HOLFormula, val loc: FormulaLocation.Value, private val oldStrategy: Option[ProofStrategy] ) {
-    override def toString() = "ProofStrategy.Action(" + formula + ", " + loc + ")"
+    override def toString = "ProofStrategy.Action(" + formula + ", " + loc + ")"
 
     /**
      * Returns strategy to use for proving children
      */
-    def getNextStrategies(): Seq[ProofStrategy] = {
+    def getNextStrategies: Seq[ProofStrategy] = {
       formula match { // either one or two branches
         case ( Or( _, _ ) | BigOr( _, _, _, _ ) | Imp( _, _ ) ) if loc == FormulaLocation.Antecedent => List( oldStrategy.get, oldStrategy.get )
         case ( And( _, _ ) | BigAnd( _, _, _, _ ) ) if loc == FormulaLocation.Succedent => List( oldStrategy.get, oldStrategy.get )
@@ -552,14 +543,14 @@ object ProofStrategy {
       }
     }
 
-    def getQuantifiedTerm(): Option[LambdaExpression] = None
+    def getQuantifiedTerm: Option[LambdaExpression] = None
   }
 }
 
 /**
  * Strategy for proving propositional sequents.
  */
-class PropositionalProofStrategy extends ProofStrategy with at.logic.gapt.utils.logging.Logger {
+class PropositionalProofStrategy extends ProofStrategy with Logger {
   val FormulaLocation = ProofStrategy.FormulaLocation // shortcut
 
   override def calcNextStep( seq: HOLSequent ): Option[ProofStrategy.Action] = {
@@ -584,12 +575,12 @@ class PropositionalProofStrategy extends ProofStrategy with at.logic.gapt.utils.
   }
 
   def findNullaryLeft( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.antecedent.find( f => f match {
+    seq.antecedent.find( {
       case Bottom() => true
       case _        => false
     } ).map( new ProofStrategy.Action( _, FormulaLocation.Antecedent, Some( this ) ) )
   def findNullaryRight( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.succedent.find( f => f match {
+    seq.succedent.find( {
       case Top() => true
       case _     => false
     } ).map( new ProofStrategy.Action( _, FormulaLocation.Succedent, Some( this ) ) )
@@ -597,12 +588,12 @@ class PropositionalProofStrategy extends ProofStrategy with at.logic.gapt.utils.
   // Tries to find a formula on the left or on the right such that its
   // introduction rule is unary.
   def findUnaryLeft( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.antecedent.find( f => f match {
+    seq.antecedent.find( {
       case Neg( _ ) | And( _, _ ) | BigAnd( _, _, _, _ ) => true
       case _ => false
     } ).map( new ProofStrategy.Action( _, FormulaLocation.Antecedent, Some( this ) ) )
   def findUnaryRight( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.succedent.find( f => f match {
+    seq.succedent.find( {
       case Neg( _ ) | Imp( _, _ ) | Or( _, _ ) | BigOr( _, _, _, _ ) => true
       case _ => false
     } ).map( new ProofStrategy.Action( _, FormulaLocation.Succedent, Some( this ) ) )
@@ -610,12 +601,12 @@ class PropositionalProofStrategy extends ProofStrategy with at.logic.gapt.utils.
   // Tries to find a formula on the left or on the right such that its
   // introduction rule is binary.
   def findBinaryLeft( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.antecedent.find( f => f match {
+    seq.antecedent.find( {
       case Imp( _, _ ) | Or( _, _ ) | BigOr( _, _, _, _ ) => true
       case _ => false
     } ).map( new ProofStrategy.Action( _, FormulaLocation.Antecedent, Some( this ) ) )
   def findBinaryRight( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.succedent.find( f => f match {
+    seq.succedent.find( {
       case And( _, _ ) | BigAnd( _, _, _, _ ) => true
       case _                                  => false
     } ).map( new ProofStrategy.Action( _, FormulaLocation.Succedent, Some( this ) ) )
@@ -631,7 +622,7 @@ class PropositionalProofStrategy extends ProofStrategy with at.logic.gapt.utils.
  */
 class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) extends PropositionalProofStrategy with at.logic.gapt.utils.logging.Logger {
 
-  override def toString(): String = "ExpansionTreeProofStrategy(" + expansionSequent + ")"
+  override def toString: String = "ExpansionTreeProofStrategy(" + expansionSequent + ")"
 
   override def calcNextStep( seq: HOLSequent ): Option[ProofStrategy.Action] = {
     if ( SolveUtils.isAxiom( seq ) || SolveUtils.findNonschematicAxiom( seq ).isDefined ) {
@@ -666,11 +657,11 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
    * formulas in seq.
    */
   private def removeWeakFormulas( seq: HOLSequent ) = {
-    val w_ant = expansionSequent.antecedent.filter( e => e match {
+    val w_ant = expansionSequent.antecedent.filter( {
       case ETWeakening( _ ) => true
       case _                => false
     } ).map( toShallow( _ ) )
-    val w_suc = expansionSequent.succedent.filter( e => e match {
+    val w_suc = expansionSequent.succedent.filter( {
       case ETWeakening( _ ) => true
       case _                => false
     } ).map( toShallow( _ ) )
@@ -685,7 +676,7 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
    * need to override find-methods as we keep track of the state of the expansion sequent here
    */
   override def findUnaryLeft( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.antecedent.find( f => f match {
+    seq.antecedent.find( {
       case Neg( _ ) | And( _, _ ) => true
       case BigAnd( _, _, _, _ )   => throw new IllegalArgumentException( "Found BigAnd in expansionProofToLKProof (Schema formulas are not supported by expansion trees)" )
       case _                      => false
@@ -702,13 +693,12 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
           et.asInstanceOf[BinaryExpansionTree].children( 1 )._1.asInstanceOf[ExpansionTree] +:
             et.asInstanceOf[BinaryExpansionTree].children( 0 )._1.asInstanceOf[ExpansionTree] +:
             expansionSequent.removeFromAntecedent( et )
-
         val ps1 = new ExpansionTreeProofStrategy( etSeq )
         new ExpansionTreeProofStrategy.ExpansionTreeAction( formula, FormulaLocation.Antecedent, None, List[ProofStrategy]( ps1 ) )
     } )
 
   override def findUnaryRight( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.succedent.find( f => f match {
+    seq.succedent.find( {
       case Neg( _ ) | Imp( _, _ ) | Or( _, _ ) => true
       case BigOr( _, _, _, _ )                 => throw new IllegalArgumentException( "Found BigOr in expansionProofToLKProof (Schema formulas are not supported by expansion trees)" )
       case _                                   => false
@@ -738,7 +728,7 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
     } )
 
   override def findBinaryRight( seq: HOLSequent ): Option[ProofStrategy.Action] =
-    seq.succedent.find( f => f match {
+    seq.succedent.find( {
       case And( _, _ )          => true
       case BigAnd( _, _, _, _ ) => throw new IllegalArgumentException( "Found BigAnd in expansionProofToLKProof (Schema formulas are not supported by expansion trees)" )
       case _                    => false
@@ -753,7 +743,7 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
     } )
 
   override def findBinaryLeft( seq: HOLSequent ): Option[ProofStrategy.Action] = {
-    seq.antecedent.find( f => f match {
+    seq.antecedent.find( {
       case Imp( _, _ ) | Or( _, _ ) => true
       case BigOr( _, _, _, _ )      => throw new IllegalArgumentException( "Found BigOr in expansionProofToLKProof (Schema formulas are not supported by expansion trees)" )
       case _                        => false
@@ -816,8 +806,9 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
       case BinaryExpansionTree( child1, child2 ) =>
         doVariablesAppearInStrongQuantifier( vars, child1 ) || doVariablesAppearInStrongQuantifier( vars, child2 )
       case UnaryExpansionTree( child1 ) => doVariablesAppearInStrongQuantifier( vars, child1 )
-      case AtomET( _ )                  => false
+      case ETAtom( _ )                  => false
       case ETWeakening( _ )             => false
+      case ETTop | ETBottom             => false
     }
   }
 
@@ -830,7 +821,7 @@ class ExpansionTreeProofStrategy( val expansionSequent: ExpansionSequent ) exten
     // quantifier instances are checked here
 
     def getFirstApplicableInstanceOfWeakQuantifier( instances: Seq[( ExpansionTree, LambdaExpression )] ) = {
-      val firstApplicable = instances.find( inst => inst match {
+      val firstApplicable = instances.find( {
         case ( et: ExpansionTree, term: LambdaExpression ) =>
           // check if free variables of term appear in any strong quantifier
           val vars = freeVariables( term )
@@ -891,9 +882,9 @@ object ExpansionTreeProofStrategy {
   class ExpansionTreeAction( override val formula: HOLFormula, override val loc: ProofStrategy.FormulaLocation.Value,
                              val quantifiedTerm: Option[LambdaExpression], val subStrategy: Seq[ProofStrategy] )
       extends ProofStrategy.Action( formula, loc, None ) {
-    override def toString() = "ExpansionTreeAction(" + formula + ", " + loc + ", " + quantifiedTerm + "," + subStrategy + ")"
-    override def getNextStrategies(): Seq[ProofStrategy] = subStrategy
-    override def getQuantifiedTerm(): Option[LambdaExpression] = quantifiedTerm
+    override def toString = "ExpansionTreeAction(" + formula + ", " + loc + ", " + quantifiedTerm + "," + subStrategy + ")"
+    override def getNextStrategies: Seq[ProofStrategy] = subStrategy
+    override def getQuantifiedTerm: Option[LambdaExpression] = quantifiedTerm
   }
 }
 
@@ -901,18 +892,12 @@ private object SolveUtils extends at.logic.gapt.utils.logging.Logger {
   val nLine = sys.props( "line.separator" )
 
   // Checks if the sequent is of the form A, \Gamma |- A, \Delta
-  def isAxiom( seq: HOLSequent ): Boolean = {
-    seq.antecedent.exists( f =>
-      isAtom( f ) &&
-        seq.succedent.exists( f2 =>
-          f.syntaxEquals( f2 ) ) )
-  }
+  def isAxiom( seq: HOLSequent ): Boolean = seq.antecedent intersect seq.succedent exists { isAtom( _ ) }
 
   def findNonschematicAxiom( seq: HOLSequent ): Option[( HOLFormula, HOLFormula )] = {
     val axs = for (
       f <- seq.antecedent.toList;
-      g <- seq.succedent.toList;
-      if f == g && isNotSchematic( f )
+      g <- seq.succedent.toList if f == g && isNotSchematic( f )
     ) yield { ( f, g ) }
 
     axs match {
@@ -961,14 +946,14 @@ private object SolveUtils extends at.logic.gapt.utils.logging.Logger {
   }
 
   def removefromExpSeqAnt( seq: ExpansionSequent, f: HOLFormula ): ExpansionSequent = {
-    getETOfFormula( seq, f, /*isAntecedent*/ true ) match {
+    getETOfFormula( seq, f, isAntecedent = true ) match {
       case Some( et ) => seq.removeFromAntecedent( et )
       case None       => throw new IllegalArgumentException( "Formula " + f + " not contained in expansion sequent " + seq )
     }
   }
 
   def removefromExpSeqSucc( seq: ExpansionSequent, f: HOLFormula ): ExpansionSequent = {
-    getETOfFormula( seq, f, /*isAntecedent*/ false ) match {
+    getETOfFormula( seq, f, isAntecedent = false ) match {
       case Some( et ) => seq.removeFromSuccedent( et )
       case None       => throw new IllegalArgumentException( "Formula " + f + " not contained in expansion sequent " + seq )
     }
@@ -982,8 +967,8 @@ private object SolveUtils extends at.logic.gapt.utils.logging.Logger {
   }
 }
 
-class LKProver extends OneShotProver {
-  def getLKProof( seq: HOLSequent ): Option[lkNew.LKProof] = solve.solvePropositional( seq ) map { lkOld2New( _ ) }
+object LKProver extends OneShotProver {
+  def getLKProof( seq: HOLSequent ): Option[LKProof] = solve.solvePropositional( seq )
 }
 
 object AtomicExpansion {
@@ -995,7 +980,7 @@ object AtomicExpansion {
     //find a formula occurring on both sides
     SolveUtils.findNonschematicAxiom( fs ) match {
       case ( Some( ( f, g ) ) ) =>
-        apply( fs, f, g )
+        WeakeningMacroRule( apply( f ), fs )
       case None =>
         throw new Exception( "Could not find a (non-schematic) formula in " + fs + " which occurs on both sides!" )
     }
@@ -1003,192 +988,125 @@ object AtomicExpansion {
 
   def apply( p: LKProof ): LKProof = expandProof( p )
 
-  /* Same as apply(fs:FSequent) but you can specify the formula on the lhs (f1) and rhs (f2) */
-  def apply( fs: HOLSequent, f1: HOLFormula, f2: HOLFormula ) = {
+  def apply( f: HOLFormula ): LKProof = f match {
+    case a: HOLAtom  => LogicalAxiom( a )
 
-    val atomic_proof = atomicExpansion_( f1, f2 )
+    case Bottom()    => WeakeningRightRule( BottomAxiom, Bottom() )
+    case Top()       => WeakeningLeftRule( TopAxiom, Top() )
 
-    WeakeningMacroRule( atomic_proof, fs )
-  }
+    case Neg( l )    => NegLeftRule( NegRightRule( apply( l ), Ant( 0 ) ), Suc( 0 ) )
 
-  // assumes f1 == f2
-  private def atomicExpansion_( f1: HOLFormula, f2: HOLFormula ): LKProof = {
-    try {
-      ( f1, f2 ) match {
-        case ( Bottom(), Bottom() ) => Axiom( HOLSequent( Seq( Bottom() ), Seq( Bottom() ) ) )
-        case ( Top(), Top() )       => Axiom( HOLSequent( Seq( Top() ), Seq( Top() ) ) )
+    case And( l, r ) => AndLeftRule( AndRightRule( apply( l ), Suc( 0 ), apply( r ), Suc( 0 ) ), Ant( 0 ), Ant( 1 ) )
+    case Or( l, r )  => OrRightRule( OrLeftRule( apply( l ), Ant( 0 ), apply( r ), Ant( 0 ) ), Suc( 0 ), Suc( 1 ) )
+    case Imp( l, r ) => ImpRightRule( ImpLeftRule( apply( l ), Suc( 0 ), apply( r ), Ant( 0 ) ), Ant( 1 ), Suc( 0 ) )
 
-        case ( Neg( l1 ), Neg( l2 ) ) =>
-          val parent = atomicExpansion_( l1, l2 )
-          NegLeftRule( NegRightRule( parent, l1 ), l2 )
-
-        case ( And( l1, r1 ), And( l2, r2 ) ) =>
-          val parent1 = atomicExpansion_( l1, l2 )
-          val parent2 = atomicExpansion_( r1, r2 )
-          val i1 = AndLeft1Rule( parent1, l1, r1 )
-          val i2 = AndLeft2Rule( parent2, l2, r2 )
-          val i3 = AndRightRule( i1, i2, l1, r1 )
-          ContractionLeftRule( i3, f1 )
-
-        case ( Or( l1, r1 ), Or( l2, r2 ) ) =>
-          val parent1 = atomicExpansion_( l1, l2 )
-          val parent2 = atomicExpansion_( r1, r2 )
-          val i1 = OrRight1Rule( parent1, l1, r1 )
-          val i2 = OrRight2Rule( parent2, l2, r2 )
-          val i3 = OrLeftRule( i1, i2, l1, r1 )
-          ContractionRightRule( i3, f1 )
-
-        case ( Imp( l1, r1 ), Imp( l2, r2 ) ) =>
-          val parent1 = atomicExpansion_( l1, l2 )
-          val parent2 = atomicExpansion_( r1, r2 )
-          val i1 = ImpLeftRule( parent1, parent2, l1, r1 )
-          ImpRightRule( i1, l2, r2 )
-
-        case ( All( x1: Var, l1 ), All( x2: Var, l2 ) ) =>
-          val eigenvar = rename( x1, freeVariables( l1 ).toList ++ freeVariables( l2 ).toList )
-          val sub1 = Substitution( List( ( x1, eigenvar ) ) )
-          val sub2 = Substitution( List( ( x2, eigenvar ) ) )
-          val aux1 = sub1( l1 )
-          val aux2 = sub2( l2 )
-
-          val parent = atomicExpansion_( aux1, aux2 )
-          val i1 = ForallLeftRule( parent, aux1, f1, eigenvar )
-          ForallRightRule( i1, aux2, f2, eigenvar )
-
-        case ( Ex( x1: Var, l1 ), Ex( x2: Var, l2 ) ) =>
-          val eigenvar = rename( x1, freeVariables( l1 ).toList ++ freeVariables( l2 ).toList )
-          val sub1 = Substitution( List( ( x1, eigenvar ) ) )
-          val sub2 = Substitution( List( ( x2, eigenvar ) ) )
-          val aux1 = sub1( l1 )
-          val aux2 = sub2( l2 )
-
-          val parent = atomicExpansion_( aux1, aux2 )
-          val i1 = ExistsRightRule( parent, aux2, f2, eigenvar )
-          ExistsLeftRule( i1, aux1, f1, eigenvar )
-
-        case ( a1, a2 ) if isAtom( a1 ) && isAtom( a2 ) =>
-          Axiom( a1 :: Nil, a2 :: Nil )
-
-        case _ =>
-          throw new Exception( "" + f1 + " and "
-            + f2 + " do not have the same outermost operator or operator unhandled!" )
-
-      }
-    } catch {
-      case e: Exception =>
-        throw new Exception( "Error in non-atomic axiom expansion handling " + f1 + " and " + f2 + ": " + e.getMessage, e )
-    }
+    case All( x, l ) => ForallRightRule( ForallLeftRule( apply( l ), Ant( 0 ), l, x, x ), Suc( 0 ), x, x )
+    case Ex( x, l )  => ExistsLeftRule( ExistsRightRule( apply( l ), Suc( 0 ), l, x, x ), Ant( 0 ), x, x )
   }
 
   def expandProof( p: LKProof ): LKProof = p match {
-    case Axiom( seq @ OccSequent( antd, succd ) ) =>
-      val tautology_formulas = for ( a <- antd; s <- succd; if a.formula == s.formula && !isAtom( a.formula ) ) yield { a.formula }
+    case InitialSequent( seq @ Sequent( antd, succd ) ) =>
+      val tautology_formulas = for ( a <- antd; s <- succd; if a == s && !isAtom( a ) ) yield { a }
       if ( tautology_formulas.nonEmpty ) {
         val tf = tautology_formulas( 0 )
         //println("Expanding "+tf)
-        AtomicExpansion( seq.toHOLSequent, tf, tf )
+        WeakeningMacroRule( AtomicExpansion( tf ), seq )
       } else {
         p
       }
 
     //structural rules
-    case ContractionLeftRule( uproof, root, aux1, aux2, _ ) =>
-      val duproof = expandProof( uproof )
-      ContractionLeftRule( duproof, aux1.formula )
-    case ContractionRightRule( uproof, root, aux1, aux2, _ ) =>
-      val duproof = expandProof( uproof )
-      ContractionRightRule( duproof, aux1.formula )
-    case WeakeningLeftRule( uproof, root, aux1 ) =>
-      val duproof = expandProof( uproof )
-      WeakeningLeftRule( duproof, aux1.formula )
-    case WeakeningRightRule( uproof, root, aux1 ) =>
-      val duproof = expandProof( uproof )
-      WeakeningRightRule( duproof, aux1.formula )
-    case CutRule( uproof1, uproof2, root, aux1, aux2 ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      CutRule( duproof1, duproof2, aux1.formula )
+    case r @ ContractionLeftRule( subProof, _, _ ) =>
+      val subProofNew = expandProof( subProof )
+      ContractionLeftRule( subProofNew, r.mainFormula )
+
+    case r @ ContractionRightRule( subProof, _, _ ) =>
+      val subProofNew = expandProof( subProof )
+      ContractionRightRule( subProofNew, r.mainFormula )
+
+    case WeakeningLeftRule( subProof, main ) =>
+      val subProofNew = expandProof( subProof )
+      WeakeningLeftRule( subProofNew, main )
+
+    case WeakeningRightRule( subProof, main ) =>
+      val subProofNew = expandProof( subProof )
+      WeakeningRightRule( subProofNew, main )
+
+    case r @ CutRule( subProof1, _, subProof2, _ ) =>
+      val subProof1New = expandProof( subProof1 )
+      val subProof2New = expandProof( subProof2 )
+      CutRule( subProof1New, subProof2New, r.cutFormula )
 
     //Unary Logical rules
-    case NegLeftRule( uproof, root, aux1, _ ) =>
-      val duproof = expandProof( uproof )
-      NegLeftRule( duproof, aux1.formula )
-    case NegRightRule( uproof, root, aux1, _ ) =>
-      val duproof = expandProof( uproof )
-      NegRightRule( duproof, aux1.formula )
-    case ImpRightRule( uproof, root, aux1, aux2, _ ) =>
-      val duproof = expandProof( uproof )
-      ImpRightRule( duproof, aux1.formula, aux2.formula )
-    case OrRight1Rule( uproof, root, aux1, prin ) =>
-      val duproof = expandProof( uproof )
-      val f = prin.formula match { case Or( _, x ) => x }
-      OrRight1Rule( duproof, aux1.formula, f )
-    case OrRight2Rule( uproof, root, aux1, prin ) =>
-      val duproof = expandProof( uproof )
-      val f = prin.formula match { case Or( x, _ ) => x }
-      OrRight2Rule( duproof, f, aux1.formula )
-    case AndLeft1Rule( uproof, root, aux1, prin ) =>
-      val duproof = expandProof( uproof )
-      val f = prin.formula match { case And( _, x ) => x }
-      AndLeft1Rule( duproof, aux1.formula, f )
-    case AndLeft2Rule( uproof, root, aux1, prin ) =>
-      val duproof = expandProof( uproof )
-      val f = prin.formula match { case And( x, _ ) => x }
-      AndLeft2Rule( duproof, f, aux1.formula )
+    case r @ NegLeftRule( subProof, _ ) =>
+      val subProofNew = expandProof( subProof )
+      NegLeftRule( subProofNew, r.auxFormulas.head.head )
+
+    case r @ NegRightRule( subProof, _ ) =>
+      val subProofNew = expandProof( subProof )
+      NegRightRule( subProofNew, r.auxFormulas.head.head )
+
+    case r @ ImpRightRule( subProof, _, _ ) =>
+      val subProofNew = expandProof( subProof )
+      ImpRightRule( subProofNew, r.mainFormula )
+
+    case r @ OrRightRule( subProof, _, _ ) =>
+      val subProofNew = expandProof( subProof )
+      OrRightRule( subProofNew, r.mainFormula )
+
+    case r @ AndLeftRule( subProof, _, _ ) =>
+      val subProofNew = expandProof( subProof )
+      AndLeftRule( subProofNew, r.mainFormula )
 
     //Binary Logical Rules
-    case ImpLeftRule( uproof1, uproof2, root, aux1, aux2, prin ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      ImpLeftRule( duproof1, duproof2, aux1.formula, aux2.formula )
-    case OrLeftRule( uproof1, uproof2, root, aux1, aux2, prin ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      OrLeftRule( duproof1, duproof2, aux1.formula, aux2.formula )
-    case AndRightRule( uproof1, uproof2, root, aux1, aux2, prin ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      AndRightRule( duproof1, duproof2, aux1.formula, aux2.formula )
+    case r @ ImpLeftRule( subProof1, _, subProof2, _ ) =>
+      val subProof1New = expandProof( subProof1 )
+      val subProof2New = expandProof( subProof2 )
+      ImpLeftRule( subProof1New, subProof2New, r.mainFormula )
+
+    case r @ OrLeftRule( subProof1, _, subProof2, _ ) =>
+      val subProof1New = expandProof( subProof1 )
+      val subProof2New = expandProof( subProof2 )
+      OrLeftRule( subProof1New, subProof2New, r.mainFormula )
+
+    case r @ AndRightRule( subProof1, _, subProof2, _ ) =>
+      val subProof1New = expandProof( subProof1 )
+      val subProof2New = expandProof( subProof2 )
+      AndRightRule( subProof1New, subProof2New, r.mainFormula )
 
     //Quantifier Rules
-    case ForallLeftRule( uproof, root, aux, prin, sub ) =>
-      val duproof = expandProof( uproof )
-      ForallLeftRule( duproof, aux.formula, prin.formula, sub )
-    case ForallRightRule( uproof, root, aux, prin, sub ) =>
-      val duproof = expandProof( uproof )
-      ForallRightRule( duproof, aux.formula, prin.formula, sub )
-    case ExistsLeftRule( uproof, root, aux, prin, sub ) =>
-      val duproof = expandProof( uproof )
-      ExistsLeftRule( duproof, aux.formula, prin.formula, sub )
-    case ExistsRightRule( uproof, root, aux, prin, sub ) =>
-      val duproof = expandProof( uproof )
-      ExistsRightRule( duproof, aux.formula, prin.formula, sub )
+    case r @ ForallLeftRule( subProof, _, _, term, _ ) =>
+      val subProofNew = expandProof( subProof )
+      ForallLeftRule( subProofNew, r.mainFormula, term )
+
+    case r @ ForallRightRule( subProof, _, eigen, _ ) =>
+      val subProofNew = expandProof( subProof )
+      ForallRightRule( subProofNew, r.mainFormula, eigen )
+
+    case r @ ExistsLeftRule( subProof, _, eigen, _ ) =>
+      val subProofNew = expandProof( subProof )
+      ExistsLeftRule( subProofNew, r.mainFormula, eigen )
+
+    case r @ ExistsRightRule( subProof, _, _, term, _ ) =>
+      val subProofNew = expandProof( subProof )
+      ExistsRightRule( subProofNew, r.mainFormula, term )
 
     //equality and definitions
-    case EquationLeft1Rule( uproof1, uproof2, root, aux1, aux2, _, prin ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      EquationLeftRule( duproof1, duproof2, aux1.formula, aux2.formula, prin.formula )
-    case EquationLeft2Rule( uproof1, uproof2, root, aux1, aux2, _, prin ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      EquationLeft2Rule( duproof1, duproof2, aux1.formula, aux2.formula, prin.formula )
-    case EquationRight1Rule( uproof1, uproof2, root, aux1, aux2, _, prin ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      EquationRightRule( duproof1, duproof2, aux1.formula, aux2.formula, prin.formula )
-    case EquationRight2Rule( uproof1, uproof2, root, aux1, aux2, _, prin ) =>
-      val duproof1 = expandProof( uproof1 )
-      val duproof2 = expandProof( uproof2 )
-      EquationRightRule( duproof1, duproof2, aux1.formula, aux2.formula, prin.formula )
+    case r @ EqualityLeftRule( subProof, eq, aux, pos ) =>
+      val subProofNew = expandProof( subProof )
+      EqualityLeftRule( subProofNew, r.equation, r.auxFormula, r.mainFormula )
 
-    case DefinitionLeftRule( uproof, root, aux, prin ) =>
-      val duproof = expandProof( uproof )
-      DefinitionLeftRule( duproof, aux.formula, prin.formula )
-    case DefinitionRightRule( uproof, root, aux, prin ) =>
-      val duproof = expandProof( uproof )
-      DefinitionRightRule( duproof, aux.formula, prin.formula )
+    case r @ EqualityRightRule( subProof, eq, aux, pos ) =>
+      val subProofNew = expandProof( subProof )
+      EqualityRightRule( subProofNew, r.equation, r.auxFormula, r.mainFormula )
 
+    case r @ DefinitionLeftRule( subProof, _, main ) =>
+      val subProofNew = expandProof( subProof )
+      DefinitionLeftRule( subProofNew, r.auxFormulas.head.head, main )
+
+    case r @ DefinitionRightRule( subProof, _, main ) =>
+      val subProofNew = expandProof( subProof )
+      DefinitionRightRule( subProofNew, r.auxFormulas.head.head, main )
   }
 
 }

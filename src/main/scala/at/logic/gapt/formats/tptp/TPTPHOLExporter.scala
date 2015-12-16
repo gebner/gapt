@@ -3,7 +3,6 @@ package at.logic.gapt.formats.tptp
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol._
 import at.logic.gapt.proofs.HOLSequent
-import at.logic.gapt.proofs.lk.base.LKProof
 
 /**
  * Created by marty on 12/10/13.
@@ -23,6 +22,10 @@ class TPTPHOLExporter {
     val ( vs, vnames, cs, cnames ) = createNamesFromSequent( l )
 
     var index = 0
+
+    val types = for ( seq <- l; f <- seq.elements; st <- subTerms( f ); t <- baseTypes( st.exptype ) ) yield t
+    val tdecls = for ( t <- types.distinct if t != Ti && t != To ) yield { index += 1; s"thf($index, type, $t: $$tType).$nLine" }
+
     val vdecs_ = for ( v <- vs ) yield {
       index = index + 1
       thf_type_dec( index, v, vnames ) + nLine
@@ -51,8 +54,9 @@ class TPTPHOLExporter {
 
     }
 
-    //"% variable type declarations" + nLine + vdecs +
-    "% constant type declarations" + nLine + cdecs +
+    s"% type declarations$nLine" + tdecls.mkString +
+      //"% variable type declarations" + nLine + vdecs +
+      "% constant type declarations" + nLine + cdecs +
       "% sequents" + nLine + sdecs.foldLeft( "" )( ( s, x ) => s + x + nLine )
 
   }
@@ -187,6 +191,7 @@ class TPTPHOLExporter {
   def getTypeString( t: Ty, outer: Boolean ): String = t match {
     case Ti                => "$i"
     case To                => "$o"
+    case TBase( name )     => name
     case t1 -> t2 if outer => getTypeString( t1, false ) + " > " + getTypeString( t2, false )
     case t1 -> t2          => "(" + getTypeString( t1, false ) + " > " + getTypeString( t2, false ) + ")"
     case _                 => throw new Exception( "TPTP type export for " + t + " not implemented!" )

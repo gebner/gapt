@@ -4,7 +4,7 @@ package at.logic.gapt.proofs.resolution
 import at.logic.gapt.expr.hol.structuralCNF
 import at.logic.gapt.expr.{ HOLAtomConst, LambdaExpression }
 import at.logic.gapt.proofs.expansionTrees._
-import at.logic.gapt.proofs.lkNew._
+import at.logic.gapt.proofs.lk._
 import at.logic.gapt.proofs._
 
 import scala.collection.mutable
@@ -85,17 +85,19 @@ object RobinsonToLK {
         )
       case p @ Paramodulation( p1, eq, p2, lit @ Ant( _ ), poss, dir ) =>
         ContractionMacroRule(
-          ParamodulationLeftRule( f( p1 ), p1.conclusion( eq ), f( p2 ), p2.conclusion( lit ), p.rewrittenAtom ),
+          ParamodulationLeftRule( f( p1 ), p1.conclusion( eq ),
+            f( p2 ), p2.conclusion( lit ), p.rewrittenAtom ),
           endSequent ++ p.conclusion, strict = false
         )
       case p @ Paramodulation( p1, eq, p2, lit @ Suc( _ ), poss, dir ) =>
         ContractionMacroRule(
-          ParamodulationRightRule( f( p1 ), p1.conclusion( eq ), f( p2 ), p2.conclusion( lit ), p.rewrittenAtom ),
+          ParamodulationRightRule( f( p1 ), p1.conclusion( eq ),
+            f( p2 ), p2.conclusion( lit ), p.rewrittenAtom ),
           endSequent ++ p.conclusion, strict = false
         )
     } )
-
-    WeakeningContractionMacroRule( f( resolutionDerivation ), endSequent )
+    val rproof = f( resolutionDerivation )
+    WeakeningContractionMacroRule( rproof, endSequent )
   }
 
 }

@@ -1,3 +1,6 @@
+<!---
+vim:spell spelllang=en:
+-->
 ## GAPT: General Architecture for Proof Theory
 [![Build Status](https://travis-ci.org/gapt/gapt.svg?branch=master)](https://travis-ci.org/gapt/gapt) [![Coverage Status](https://coveralls.io/repos/gapt/gapt/badge.svg?branch=master)](https://coveralls.io/r/gapt/gapt?branch=master)
 
@@ -14,7 +17,7 @@ Contact: gapt@logic.at
 
 ### Example
 
-One of the many features GAPT supports is an implementation of [Hebrand's
+One of the many features GAPT supports is an implementation of [Herbrand's
 theorem](https://en.wikipedia.org/wiki/Herbrand%27s_theorem).  Here is how can
 automatically generate a Herbrand sequent in GAPT:
 ```scala
@@ -38,7 +41,7 @@ need to have Java installed to run them:
 wget https://logic.at/gapt/downloads/gapt-1.10.tar.gz
 tar xf gapt-1.10.tar.gz
 cd gapt-1.10
-./cli.sh
+./gapt.sh
 ```
 This will drop you into a scala REPL with GAPT pre-loaded.
 
@@ -49,7 +52,7 @@ libraryDependencies += "at.logic.gapt" %% "gapt" % "1.10"
 ```
 
 If you want to use the unstable git version of GAPT, you can use `sbt
-console`--this will drop you into the same environment as `./cli.sh` in the
+console`--this will drop you into the same environment as `./gapt.sh` in the
 binary distribution.
 
 See [the wiki](https://github.com/gapt/gapt/wiki/Compiling-and-running-from-source)

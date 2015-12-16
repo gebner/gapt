@@ -1,16 +1,13 @@
-package at.logic.gapt.proofs.lkNew
-
-import java.util.zip.GZIPInputStream
+package at.logic.gapt.proofs.lk
 
 import at.logic.gapt.examples.Pi2Pigeonhole
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.{ reduceHolToFol, Numeral, Utils }
+import at.logic.gapt.expr.fol.Numeral
 import at.logic.gapt.expr.hol.{ existsclosure, instantiate }
-import at.logic.gapt.formats.readers.XMLReaders.XMLReader
+import at.logic.gapt.formats.prover9.Prover9TermParserLadrStyle.parseFormula
 import at.logic.gapt.formats.xml.XMLParser.XMLProofDatabaseParser
-import at.logic.gapt.formats.prover9.Prover9TermParserLadrStyle.{ parseFormula, parseTerm }
 import at.logic.gapt.grammars.{ RecursionScheme, Rule }
-import at.logic.gapt.proofs.{ Suc, Ant, Sequent, HOLSequent }
+import at.logic.gapt.proofs.{ Ant, HOLSequent, Sequent, Suc }
 import at.logic.gapt.provers.prover9.Prover9
 import at.logic.gapt.provers.sat.Sat4j
 import at.logic.gapt.provers.veriT.VeriT
@@ -74,8 +71,8 @@ class ExtractRecSchemTest extends Specification with SatMatchers {
   }
 
   "tape proof" in {
-    val pdb = ( new XMLReader( new GZIPInputStream( getClass.getClassLoader.getResourceAsStream( "tape-in.xml.gz" ) ) ) with XMLProofDatabaseParser ).getProofDatabase()
-    val proof = DefinitionElimination( pdb.Definitions )( regularize( lkOld2New( pdb.proof( "the-proof" ) ) ) )
+    val pdb = XMLProofDatabaseParser( getClass.getClassLoader.getResourceAsStream( "tape-in.xml.gz" ), enable_compression = true )
+    val proof = DefinitionElimination( pdb.Definitions )( regularize( pdb proof "the-proof" ) )
 
     val recSchem = extractRecSchem( proof )
 

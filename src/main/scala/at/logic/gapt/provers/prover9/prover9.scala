@@ -9,7 +9,7 @@ import at.logic.gapt.formats.ivy.conversion.IvyToRobinson
 import at.logic.gapt.formats.prover9.{ Prover9TermParserLadrStyle, Prover9TermParser }
 import at.logic.gapt.proofs._
 import at.logic.gapt.proofs.expansionTrees.ExpansionSequent
-import at.logic.gapt.proofs.lkNew.LKProof
+import at.logic.gapt.proofs.lk.LKProof
 import at.logic.gapt.proofs.resolution._
 import at.logic.gapt.provers.ResolutionProver
 import at.logic.gapt.utils.traits.ExternalProgram
@@ -67,9 +67,10 @@ class Prover9( val extraCommands: ( Map[Const, Const] => Seq[String] ) = _ => Se
       } )( formula )
   private def toP9Input( clause: HOLClause ): String = toP9Input( renameVars( clause.toFormula ) )
   private def toP9Input( expr: LambdaExpression ): String = expr match {
+    case Top()                => "$T"
+    case Bottom()             => "$F"
     case Neg( a )             => s"-${toP9Input( a )}"
     case Or( a, b )           => s"${toP9Input( a )} | ${toP9Input( b )}"
-    case Bottom()             => "$F"
     case FOLAtom( f, as )     => toP9Input( f, as )
     case FOLFunction( f, as ) => toP9Input( f, as )
     case FOLVar( v )          => v

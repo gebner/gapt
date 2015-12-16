@@ -2,11 +2,9 @@ package at.logic.gapt.proofs.expansionTrees
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol.{ NaiveIncompleteMatchingAlgorithm, containsQuantifier, HOLPosition }
-import at.logic.gapt.proofs.lkNew.solve
+import at.logic.gapt.proofs.lk.solve
 import at.logic.gapt.proofs.{ Sequent, HOLSequent }
-import at.logic.gapt.utils.ResultChecker
 import at.logic.gapt.utils.ds.trees._
-import at.logic.gapt.proofs.lk.base._
 import scala.annotation.tailrec
 import scala.collection.mutable.ListBuffer
 import scala.collection.immutable.HashMap
@@ -433,7 +431,7 @@ object ExpansionProofToLK {
    * @param ep an expansion sequent whose deep sequent is a propositional tautology
    * @return an LKProof of the shallow sequent of ep
    */
-  def apply( ep: ExpansionSequent ): at.logic.gapt.proofs.lkNew.LKProof = solve.expansionProofToLKProof( ep ).get
+  def apply( ep: ExpansionSequent ): at.logic.gapt.proofs.lk.LKProof = solve.expansionProofToLKProof( ep ).get
 }
 
 /**
@@ -592,6 +590,9 @@ object merge extends at.logic.gapt.utils.logging.Logger {
     main( tree, polarity = true )._1
   }
 
+  def apply( expansionSequent: Sequent[ExpansionTreeWithMerges] ): ExpansionSequent =
+    apply( expansionSequent.toTuple )
+
   // Reduces all MergeNodes in the sequent
   def apply( etSeq: ( Seq[ExpansionTreeWithMerges], Seq[ExpansionTreeWithMerges] ) ): ExpansionSequent = {
     val ( antecedent, succedent ) = etSeq
@@ -722,7 +723,7 @@ object merge extends at.logic.gapt.utils.logging.Logger {
       case ETImp( t1, t2 )   => start_op2( t1, t2, ETImp( _, _ ), leftPolarity = !polarity ) // changes polarity
       case ETMerge( t1, t2 ) => doApplyMerge( t1, t2, polarity )
     }
-  } check { case ( _, res ) => require( toShallow( res ) == toShallow( tree ) ) }
+  } ensuring { res => toShallow( res._2 ) == toShallow( tree ) }
 
   /**
    * Returns either a substitution in case we have to do a substitution at the highest level or the merged tree

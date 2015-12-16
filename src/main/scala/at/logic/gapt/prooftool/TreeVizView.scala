@@ -1,6 +1,6 @@
 package at.logic.gapt.prooftool
 
-import at.logic.gapt.proofs.lkNew._
+import at.logic.gapt.proofs.lk._
 import at.logic.gapt.proofs.lkskNew.{ WeakeningRight, WeakeningLeft }
 import at.logic.gapt.proofs.{ SequentProof, DagProof, HOLSequent }
 
@@ -24,14 +24,14 @@ class ProofNodeInfo[T <: DagProof[T]] extends NodeInfo {
   val colorizer = new ProofColorizer
   private var actions = Map[DagProof[T], Array[Action]]()
 
-  def genShowAction( x: DagProof[T] ) = new Action( "Show node in LK Viewer" ) {
+  /*def genShowAction( x: DagProof[T] ) = new Action( "Show node in LK Viewer" ) {
     def apply() = {
       root match {
         case Some( node ) =>
-          Main.scrollToProof( x.asInstanceOf[SequentProof[_, _]] )
+          main.scrollToProof( x.asInstanceOf[SequentProof[_, _]] )
           try {
             // FIXME
-            ProofToolPublisher.publish(
+            main.publisher.publish(
               ChangeSequentColor( ???, new Color( 0, 255, 255 ), reset = true )
             )
           } catch { case _: Throwable => }
@@ -44,16 +44,16 @@ class ProofNodeInfo[T <: DagProof[T]] extends NodeInfo {
     def apply() = {
       root match {
         case Some( node ) =>
-          Main.body.cursor = new java.awt.Cursor( java.awt.Cursor.WAIT_CURSOR )
-          Main.body.getContent.getData match {
-            case Some( ( name, proof: DagProof[_] ) ) => Main.initSunburstDialog( name, x )
-            case _                                    => Main.errorMessage( "Proof not found!" )
+          main.scrollPane.cursor = new java.awt.Cursor( java.awt.Cursor.WAIT_CURSOR )
+          main.scrollPane.getContent.getData match {
+            case Some( ( name, proof: DagProof[_] ) ) => PTMain.initSunburstDialog( name, x )
+            case _                                    => PTMain.errorMessage( "Proof not found!" )
           }
-          Main.body.cursor = java.awt.Cursor.getDefaultCursor
+          main.scrollPane.cursor = java.awt.Cursor.getDefaultCursor
         case None =>
       }
     }
-  }
+  }*/
 
   def init( root: TreeNode ) = root match {
     case p: ProofNode[T] =>
@@ -88,7 +88,7 @@ class ProofNodeInfo[T <: DagProof[T]] extends NodeInfo {
   def getWeight( path: TreePath2[TreeNode] ) = 1
 
   def getCumulatedWeight( path: TreePath2[TreeNode] ) =
-    path.getLastPathComponent.asInstanceOf[ProofNode[T]].proof.treeSize.toLong
+    path.getLastPathComponent.asInstanceOf[ProofNode[T]].proof.treeLike.size.toLong
 
   def getWeightFormatted( path: TreePath2[TreeNode] ) = getWeight( path ).toString
 
@@ -101,8 +101,8 @@ class ProofNodeInfo[T <: DagProof[T]] extends NodeInfo {
 
   def getActions( path: TreePath2[TreeNode] ) = {
     val node = path.getLastPathComponent.asInstanceOf[ProofNode[T]].proof
-    if ( !( this.actions contains node ) )
-      this.actions = this.actions + ( ( node, Array[Action]( genShowAction( node ), genShowSubtreeAction( node ) ) ) )
+    //if ( !( this.actions contains node ) )
+    //  this.actions = this.actions + ( ( node, Array[Action]( genShowAction( node ), genShowSubtreeAction( node ) ) ) )
     this.actions( node ).map( _.peer )
   }
 

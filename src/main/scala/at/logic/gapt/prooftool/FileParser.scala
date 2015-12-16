@@ -23,16 +23,16 @@ import at.logic.gapt.formats.shlk_parsing.sFOParser
 import at.logic.gapt.formats.xml.ProofDatabase
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.schema.dbTRS
-import at.logic.gapt.proofs.{ lkNew, SequentProof, HOLSequent }
-import at.logic.gapt.proofs.ceres.clauseSchema._
-import at.logic.gapt.proofs.lk.base.{ LKProof }
+import at.logic.gapt.proofs.{ lk, SequentProof, HOLSequent }
+import at.logic.gapt.proofs.ceres_schema.clauseSchema._
+import at.logic.gapt.proofs.lkOld.base.{ LKProof }
 import at.logic.gapt.proofs.proofs.{ Proof, TreeProof }
 import at.logic.gapt.proofs.shlk.SchemaProofDB
 import at.logic.gapt.utils.ds.trees.{ BinaryTree, LeafTree, Tree }
 
 import scala.swing.Dialog
 
-class FileParser {
+class FileParser( main: ProofToolViewer[_] ) {
 
   def fileStreamReader( f: String ) = new InputStreamReader( new FileInputStream( f ), "UTF8" )
 
@@ -57,29 +57,29 @@ class FileParser {
     proofs = ( new XMLReader( input ) with SimpleXMLProofParser ).getNamedTrees()
   }
 
-  def lksFileReader( input: InputStreamReader ) {
-    resolutionProofSchemaDB.clear
-    proofs = Nil
-    termTrees = Nil
-    val ps = sFOParser.parseProofs( input ) // constructs dbTRS as a side effect.
-    val defs = dbTRS.map.map( p => p._2._1 :: p._2._2 :: Nil ).flatten.toMap[LambdaExpression, LambdaExpression]
-    //  val start = System.currentTimeMillis()
-    proofdb = new ProofDatabase( defs, ps, Nil, Nil )
-    //  val end = System.currentTimeMillis()
-    //  println("parsing took " + (end - start).toString)
-  }
-
-  def lksCNTFileReader( input: InputStreamReader ) {
-    resolutionProofSchemaDB.clear
-    proofs = Nil
-    termTrees = Nil
-    val ps = SCHOLParser.parseProofs( input ) // constructs dbTRS as a side effect.
-    val defs = dbTRS.map.map( p => p._2._1 :: p._2._2 :: Nil ).flatten.toMap[LambdaExpression, LambdaExpression]
-    //  val start = System.currentTimeMillis()
-    proofdb = new ProofDatabase( defs, ps, Nil, Nil )
-    //  val end = System.currentTimeMillis()
-    //  println("parsing took " + (end - start).toString)
-  }
+  //  def lksFileReader( input: InputStreamReader ) {
+  //    resolutionProofSchemaDB.clear
+  //    proofs = Nil
+  //    termTrees = Nil
+  //    val ps = sFOParser.parseProofs( input ) // constructs dbTRS as a side effect.
+  //    val defs = dbTRS.map.map( p => p._2._1 :: p._2._2 :: Nil ).flatten.toMap[LambdaExpression, LambdaExpression]
+  //    //  val start = System.currentTimeMillis()
+  //    proofdb = new ProofDatabase( defs, ps, Nil, Nil )
+  //    //  val end = System.currentTimeMillis()
+  //    //  println("parsing took " + (end - start).toString)
+  //  }
+  //
+  //  def lksCNTFileReader( input: InputStreamReader ) {
+  //    resolutionProofSchemaDB.clear
+  //    proofs = Nil
+  //    termTrees = Nil
+  //    val ps = SCHOLParser.parseProofs( input ) // constructs dbTRS as a side effect.
+  //    val defs = dbTRS.map.map( p => p._2._1 :: p._2._2 :: Nil ).flatten.toMap[LambdaExpression, LambdaExpression]
+  //    //  val start = System.currentTimeMillis()
+  //    proofdb = new ProofDatabase( defs, ps, Nil, Nil )
+  //    //  val end = System.currentTimeMillis()
+  //    //  println("parsing took " + (end - start).toString)
+  //  }
 
   def rsFileReader( input: InputStreamReader ) {
     ParseResSchema( input ) // constructs resolutionProofSchemaDB and dbTRS as a side effect.
@@ -125,16 +125,16 @@ class FileParser {
     val dnLine = sys.props( "line.separator" ) + sys.props( "line.separator" )
     try {
       if ( path.endsWith( ".llk" ) ) llkFileReader( path )
-      else if ( path.endsWith( ".lksc" ) ) lksCNTFileReader( fileStreamReader( path ) )
-      else if ( path.endsWith( ".lks" ) ) lksFileReader( fileStreamReader( path ) )
-      else if ( path.endsWith( ".lks.gz" ) ) lksFileReader( gzFileStreamReader( path ) )
+      //      else if ( path.endsWith( ".lksc" ) ) lksCNTFileReader( fileStreamReader( path ) )
+      //      else if ( path.endsWith( ".lks" ) ) lksFileReader( fileStreamReader( path ) )
+      //      else if ( path.endsWith( ".lks.gz" ) ) lksFileReader( gzFileStreamReader( path ) )
       else if ( path.endsWith( ".rs" ) ) rsFileReader( fileStreamReader( path ) )
       else if ( path.endsWith( ".rs.gz" ) ) rsFileReader( gzFileStreamReader( path ) )
       else if ( path.endsWith( ".xml" ) ) try {
         ceresFileReader( new FileInputStream( path ) )
       } catch {
         case pe: ParsingException =>
-          Main.questionMessage( "There was a parsing exception:" + dnLine + " \t " + pe.getMessage + dnLine + "Continue with another parser?" ) match {
+          main.questionMessage( "There was a parsing exception:" + dnLine + " \t " + pe.getMessage + dnLine + "Continue with another parser?" ) match {
             case Dialog.Result.Yes => stabFileReader( new FileInputStream( path ) )
             case _                 =>
           }
@@ -143,24 +143,22 @@ class FileParser {
         ceresFileReader( new GZIPInputStream( new FileInputStream( path ) ) )
       } catch {
         case pe: ParsingException =>
-          Main.questionMessage( "There was a parsing exception:" + dnLine + " \t " + pe.getMessage + dnLine + "Continue with another parser?" ) match {
+          main.questionMessage( "There was a parsing exception:" + dnLine + " \t " + pe.getMessage + dnLine + "Continue with another parser?" ) match {
             case Dialog.Result.Yes => stabFileReader( new GZIPInputStream( new FileInputStream( path ) ) )
             case _                 =>
           }
       }
       else if ( path.endsWith( ".ivy" ) ) ivyFileReader( path )
       //  else if (path.endsWith(".ivy.gz")) ivyFileReader(path) // This will be added later
-      else Main.warningMessage( "Can not recognize file extension: " + path.substring( path.lastIndexOf( "." ) ) )
-      ProofToolPublisher.publish( ProofDbChanged )
+      else main.warningMessage( "Can not recognize file extension: " + path.substring( path.lastIndexOf( "." ) ) )
+      main.publisher.publish( ProofDbChanged )
     } catch {
       case err: Throwable =>
-        Main.errorMessage( "Could not load file: " + path + "!" + dnLine + Main.getExceptionString( err ) )
+        main.errorMessage( "Could not load file: " + path + "!" + dnLine + main.getExceptionString( err ) )
     }
   }
 
-  def addProofs( proofs: List[( String, lkNew.LKProof )] )( implicit dummyImplicit: DummyImplicit ) = ???
-
-  def addProofs( proofs: List[( String, LKProof )] ) {
+  def addProofs( proofs: List[( String, lk.LKProof )] ) {
     proofdb = new ProofDatabase( proofdb.Definitions, proofdb.proofs ::: proofs, proofdb.axioms, proofdb.sequentLists )
   }
 
