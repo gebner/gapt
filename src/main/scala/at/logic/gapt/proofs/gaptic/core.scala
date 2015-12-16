@@ -29,10 +29,7 @@ case class ProofState( currentGoalIndex: Int, proofSegment: LKProof ) {
    * @param i
    * @return
    */
-  def getSubGoal( i: Int ): Option[OpenAssumption] =
-    for {
-      sg <- subGoals(i)
-    } yield Some(sg)
+  def getSubGoal( i: Int ): Option[OpenAssumption] = Option( subGoals( i ) )
 
   /**
    * Returns a string representation of a sub goal at a given index.
@@ -51,10 +48,8 @@ case class ProofState( currentGoalIndex: Int, proofSegment: LKProof ) {
    * @param i
    * @return
    */
-  def setCurrentSubGoal(i: Int): Option[ProofState] =
-    for {
-      _ <- subGoals(i)
-    } yield Some( ProofState(i, proofSegment) )
+  def setCurrentSubGoal( i: Int ): Option[ProofState] =
+    if ( subGoals isDefinedAt i ) Some( copy( currentGoalIndex = i ) ) else None
 
   /**
    * Replaces the i-th open assumption by an arbitrary proof segment and returns the result in a new proof state.
