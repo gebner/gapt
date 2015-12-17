@@ -9,6 +9,9 @@ import at.logic.gapt.expr.To
 class InterpolationException( msg: String ) extends Exception( msg )
 
 object ExtractInterpolant {
+  def apply( p: LKProof, isPositive: Sequent[Boolean] ) =
+    Interpolate( p, isPositive indicesWhere { _ == false }, isPositive indicesWhere { _ == true } )
+
   def apply( p: LKProof, npart: Seq[SequentIndex], ppart: Seq[SequentIndex] ) = Interpolate( p, npart, ppart )._3
 
   /**
@@ -320,14 +323,14 @@ object Interpolate {
         val up_nproof2 = EqualityRightRule( up_nproof1, eq, auxFormula, pos )
         val up_nproof3 = ImpRightRule( up_nproof2, p.endSequent( eqIndex ), up_I )
 
-        val up_pproof1 = ImpLeftRule( LogicalAxiom( p.endSequent( eqIndex ).asInstanceOf[FOLAtom] ), p.endSequent( eqIndex ), up_pproof, up_I )
+        val up_pproof1 = ImpLeftRule( LogicalAxiom( p.endSequent( eqIndex ) ), p.endSequent( eqIndex ), up_pproof, up_I )
         val up_pproof2 = ContractionLeftRule( up_pproof1, p.endSequent( eqIndex ) )
 
         ( up_nproof3, up_pproof2, ipl )
       } else if ( ppart.contains( p.mainIndices( 0 ) ) ) {
         ipl = And( p.endSequent( eqIndex ), up_I )
 
-        val up_nproof1 = AndRightRule( LogicalAxiom( p.endSequent( eqIndex ).asInstanceOf[FOLAtom] ), up_nproof, And( p.endSequent( eqIndex ), up_I ) )
+        val up_nproof1 = AndRightRule( LogicalAxiom( p.endSequent( eqIndex ) ), up_nproof, And( p.endSequent( eqIndex ), up_I ) )
         val up_nproof2 = ContractionLeftRule( up_nproof1, p.endSequent( eqIndex ) )
 
         val up_pproof1 = WeakeningLeftRule( up_pproof, p.endSequent( eqIndex ) )
@@ -354,14 +357,14 @@ object Interpolate {
         val up_nproof2 = EqualityLeftRule( up_nproof1, eq, auxFormula, pos )
         val up_nproof3 = ImpRightRule( up_nproof2, p.endSequent( eqIndex ), up_I )
 
-        val up_pproof1 = ImpLeftRule( LogicalAxiom( p.endSequent( eqIndex ).asInstanceOf[FOLAtom] ), p.endSequent( eqIndex ), up_pproof, up_I )
+        val up_pproof1 = ImpLeftRule( LogicalAxiom( p.endSequent( eqIndex ) ), p.endSequent( eqIndex ), up_pproof, up_I )
         val up_pproof2 = ContractionLeftRule( up_pproof1, p.endSequent( eqIndex ) )
 
         ( up_nproof3, up_pproof2, ipl )
       } else if ( ppart.contains( p.mainIndices( 0 ) ) ) {
         ipl = And( p.endSequent( eqIndex ), up_I )
 
-        val up_nproof1 = AndRightRule( LogicalAxiom( p.endSequent( eqIndex ).asInstanceOf[FOLAtom] ), up_nproof, And( p.endSequent( eqIndex ), up_I ) )
+        val up_nproof1 = AndRightRule( LogicalAxiom( p.endSequent( eqIndex ) ), up_nproof, And( p.endSequent( eqIndex ), up_I ) )
         val up_nproof2 = ContractionLeftRule( up_nproof1, p.endSequent( eqIndex ) )
 
         val up_pproof1 = WeakeningLeftRule( up_pproof, p.endSequent( eqIndex ) )
@@ -371,6 +374,25 @@ object Interpolate {
         ( up_nproof2, up_pproof3, ipl )
       } else throw new InterpolationException( "Negative and positive part must form a partition of the end-sequent." )
     }
+
+    case p @ ForallLeftRule( subProof, aux, main, term, quantVar ) =>
+      val ( nproof, pproof, interpolant ) = apply( subProof, npart map p.getOccConnector.parent, ppart map p.getOccConnector.parent )
+
+      if ( npart contains p.mainIndices( 0 ) ) {
+        ( ForallLeftRule( nproof, p.mainFormula, term ), pproof, interpolant )
+      } else {
+        ( nproof, ForallLeftRule( pproof, p.mainFormula, term ), interpolant )
+      }
+
+    case p @ ExistsRightRule( subProof, aux, main, term, quantVar ) =>
+      val ( nproof, pproof, interpolant ) = apply( subProof, npart map p.getOccConnector.parent, ppart map p.getOccConnector.parent )
+
+      if ( npart contains p.mainIndices( 0 ) ) {
+        ( ExistsRightRule( nproof, p.mainFormula, term ), pproof, interpolant )
+      } else {
+        ( nproof, ExistsRightRule( pproof, p.mainFormula, term ), interpolant )
+      }
+
     case _ => throw new InterpolationException( "Unknown inference rule of type: " + p.name.toString() + "." )
   }
 
