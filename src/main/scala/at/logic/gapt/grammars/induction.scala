@@ -1,9 +1,11 @@
 package at.logic.gapt.grammars
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.{ FOLSubTerms, FOLSubstitution }
+import at.logic.gapt.expr.fol.FOLSubTerms
 import at.logic.gapt.expr.fol.Utils.numeral
-import at.logic.gapt.provers.maxsat.{ MaxSATSolver, MaxSat4j }
+import at.logic.gapt.expr.hol.{ toNNF, lcomp, simplify }
+import at.logic.gapt.provers.maxsat.{ bestAvailableMaxSatSolver, MaxSATSolver }
+import at.logic.gapt.utils.logging.Logger
 
 object SipGrammar {
   type Production = ( FOLVar, FOLTerm )
@@ -18,9 +20,9 @@ object SipGrammar {
 
   def gamma_i( i: Int ) = FOLVar( s"γ_$i" )
 
-  def instantiate( prod: Production, n: Int ): Seq[Production] = prod match {
+  def instantiate( prod: Production, n: Int ): Set[Production] = prod match {
     case ( `tau`, r ) =>
-      var instanceProductions = Seq[Production]()
+      var instanceProductions = Set[Production]()
       if ( !freeVariables( r ).contains( gamma ) )
         instanceProductions ++= Seq( tau ->
           FOLSubstitution( alpha -> numeral( n ), nu -> numeral( 0 ), beta -> gamma_i( 0 ) )( r ) )
@@ -32,57 +34,57 @@ object SipGrammar {
       instanceProductions
     case ( `gamma`, r ) => ( 0 until n ) map { i =>
       gamma_i( i ) -> FOLSubstitution( alpha -> numeral( n ), nu -> numeral( i ), gamma -> gamma_i( i + 1 ) )( r )
-    }
-    case ( `gammaEnd`, r ) => Seq( gamma_i( n ) -> FOLSubstitution( alpha -> numeral( n ) )( r ) )
+    } toSet
+    case ( `gammaEnd`, r ) => Set( gamma_i( n ) -> FOLSubstitution( alpha -> numeral( n ) )( r ) )
   }
 }
 
-case class SipGrammar( productions: Seq[SipGrammar.Production] ) {
+case class SipGrammar( productions: Set[SipGrammar.Production] ) {
   import SipGrammar._
 
-  override def toString: String = productions.map { case ( a, t ) => s"$a -> $t" }.sorted.mkString( sys.props( "line.separator" ) )
+  override def toString: String = productions.map { case ( a, t ) => s"$a -> $t" }.toSeq.sorted.mkString( sys.props( "line.separator" ) )
 
   def instanceGrammar( n: Int ) =
     TratGrammar( tau, tau +: ( 0 until n ).inclusive.map( gamma_i ),
-      productions flatMap { p => instantiate( p, n ) } distinct )
+      productions flatMap { p => instantiate( p, n ) } )
 }
 
-object normalFormsSipGrammar {
-  type InstanceLanguage = ( Int, Seq[FOLTerm] )
+object stableSipGrammar {
+  type InstanceLanguage = ( Int, Set[FOLTerm] )
 
   def apply( instanceLanguages: Seq[InstanceLanguage] ) = {
     import SipGrammar._
 
     val allTerms = instanceLanguages.flatMap( _._2 )
-    val topLevelNFs = normalForms( allTerms, Seq( gamma, alpha, nu ) ).filter( !_.isInstanceOf[FOLVar] )
-    val argumentNFs = normalForms(
+    val topLevelStableTerms = stableTerms( allTerms, Seq( gamma, alpha, nu ) ).filter( !_.isInstanceOf[FOLVar] )
+    val argumentStableTerms = stableTerms(
       FOLSubTerms( allTerms flatMap { case FOLFunction( _, as ) => as } ),
       Seq( gamma, alpha, nu )
     )
 
     val prods = Set.newBuilder[Production]
 
-    for ( nf <- topLevelNFs ) {
-      val fv = freeVariables( nf )
+    for ( st <- topLevelStableTerms ) {
+      val fv = freeVariables( st )
 
-      if ( !fv.contains( nu ) ) prods += tau -> FOLSubstitution( gamma -> beta )( nf )
-      prods += tau -> nf
+      if ( !fv.contains( nu ) ) prods += tau -> FOLSubstitution( gamma -> beta )( st )
+      prods += tau -> st
     }
 
-    for ( nf <- argumentNFs ) {
-      val fv = freeVariables( nf )
+    for ( st <- argumentStableTerms ) {
+      val fv = freeVariables( st )
 
-      prods += gamma -> nf
-      if ( !fv.contains( nu ) && !fv.contains( gamma ) ) prods += gammaEnd -> nf
+      prods += gamma -> st
+      if ( !fv.contains( nu ) && !fv.contains( gamma ) ) prods += gammaEnd -> st
     }
 
-    SipGrammar( prods.result.toSeq )
+    SipGrammar( prods.result )
   }
 }
 
 object atoms {
   def apply( f: FOLFormula ): Set[FOLFormula] = f match {
-    case FOLAtom( _ )     => Set( f )
+    case FOLAtom( _, _ )  => Set( f )
     case And( x, y )      => apply( x ) union apply( y )
     case Or( x, y )       => apply( x ) union apply( y )
     case Imp( x, y )      => apply( x ) union apply( y )
@@ -97,7 +99,7 @@ object atoms {
 case class SipGrammarMinimizationFormula( g: SipGrammar ) {
   def productionIsIncluded( p: SipGrammar.Production ) = FOLAtom( s"sp,$p" )
 
-  def coversLanguageFamily( langs: Seq[normalFormsSipGrammar.InstanceLanguage] ) = {
+  def coversLanguageFamily( langs: Seq[stableSipGrammar.InstanceLanguage] ) = {
     val cs = Seq.newBuilder[FOLFormula]
     langs foreach {
       case ( n, lang ) =>
@@ -121,13 +123,14 @@ case class SipGrammarMinimizationFormula( g: SipGrammar ) {
   }
 }
 
-object minimizeSipGrammar {
-  def apply( g: SipGrammar, langs: Seq[normalFormsSipGrammar.InstanceLanguage], maxSATSolver: MaxSATSolver = new MaxSat4j ): SipGrammar = {
+object minimizeSipGrammar extends Logger {
+  def apply( g: SipGrammar, langs: Seq[stableSipGrammar.InstanceLanguage], maxSATSolver: MaxSATSolver = bestAvailableMaxSatSolver ): SipGrammar = {
     val formula = SipGrammarMinimizationFormula( g )
     val hard = formula.coversLanguageFamily( langs )
+    debug( s"Logical complexity of the minimization formula: ${lcomp( simplify( toNNF( hard ) ) )}" )
     val atomsInHard = atoms( hard )
     val soft = g.productions map formula.productionIsIncluded filter atomsInHard.contains map ( Neg( _ ) -> 1 )
-    maxSATSolver.solveWPM( List( hard ), soft toList ) match {
+    maxSATSolver.solve( hard, soft ) match {
       case Some( interp ) => SipGrammar(
         g.productions filter { p => interp.interpret( formula.productionIsIncluded( p ) ) }
       )
@@ -137,8 +140,8 @@ object minimizeSipGrammar {
 }
 
 object findMinimalSipGrammar {
-  def apply( langs: Seq[normalFormsSipGrammar.InstanceLanguage], maxSATSolver: MaxSATSolver = new MaxSat4j ) = {
-    val polynomialSizedCoveringGrammar = normalFormsSipGrammar( langs )
+  def apply( langs: Seq[stableSipGrammar.InstanceLanguage], maxSATSolver: MaxSATSolver = bestAvailableMaxSatSolver ) = {
+    val polynomialSizedCoveringGrammar = stableSipGrammar( langs )
     minimizeSipGrammar( polynomialSizedCoveringGrammar, langs, maxSATSolver )
   }
 }

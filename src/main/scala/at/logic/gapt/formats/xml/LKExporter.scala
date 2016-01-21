@@ -7,8 +7,9 @@
 
 package at.logic.gapt.formats.xml
 
-import at.logic.gapt.proofs.lk._
-import at.logic.gapt.proofs.lk.base.{ HOLSequent, LKProof, OccSequent }
+import at.logic.gapt.proofs.HOLSequent
+import at.logic.gapt.proofs.lkOld._
+import at.logic.gapt.proofs.lkOld.base._
 import at.logic.gapt.proofs.lksk.{ ExistsSkLeftRule, ExistsSkRightRule, ForallSkLeftRule, ForallSkRightRule, Axiom => LKskAxiom, WeakeningLeftRule => LKskWeakeningLeftRule, WeakeningRightRule => LKskWeakeningRightRule }
 
 import scala.xml.dtd._
@@ -89,7 +90,20 @@ trait LKExporter extends HOLTermXMLExporter {
 }
 
 object saveXML {
-  def apply( proofs: List[Tuple2[String, LKProof]], sequentlists: List[Tuple2[String, List[HOLSequent]]], filename: String ) =
+  def apply( ls: List[LKProof], names: List[String], outputFile: String )( implicit dummyImplicit: DummyImplicit ): Unit = {
+    val exporter = new LKExporter {}
+    val pairs = ls.zip( names )
+    scala.xml.XML.save(
+      outputFile,
+      <proofdatabase>
+        <definitionlist/>
+        <axiomset/>{ pairs.map( p => exporter.exportProof( p._2, p._1 ) ) }<variabledefinitions/>
+      </proofdatabase>, "UTF-8", true,
+      scala.xml.dtd.DocType( "proofdatabase", scala.xml.dtd.SystemID( "http://www.logic.at/ceres/xml/5.0/proofdatabase.dtd" ), Nil )
+    )
+  }
+
+  def apply( proofs: List[Tuple2[String, LKProof]], sequentlists: List[Tuple2[String, List[HOLSequent]]], filename: String ): Unit =
     {
       val exporter = new LKExporter {}
       val p_xmls = proofs.map( p => exporter.exportProof( p._1, p._2 ) )

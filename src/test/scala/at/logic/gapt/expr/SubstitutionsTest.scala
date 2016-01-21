@@ -161,22 +161,31 @@ class SubstitutionsTest extends Specification {
       val f = Var( "f", Ti -> Ti )
       val e = App( f, x )
       val g = Var( "g", Ti )
-      val result = try { Substitution( f, g ); false } catch {
-        case ex: IllegalArgumentException => true
-        case _: Throwable                 => false
-      }
-
-      result must beTrue
+      Substitution( f -> g ) must throwAn[IllegalArgumentException]
     }
     "not substitute variables with different types" in {
       val x = Var( "x", Ti -> Ti )
       val c = Var( "c", Ti )
-      val result = try { Substitution( x, c ); false } catch {
-        case ex: IllegalArgumentException => true
-        case _: Throwable                 => false
-      }
+      Substitution( x -> c ) must throwAn[IllegalArgumentException]
+    }
 
-      result must beTrue
+    "issue 383" in {
+      val p = Const( "p", Ti -> To )
+      val x0 = Var( VariantSymbol( "x", 0 ), Ti )
+      val x = Var( StringSymbol( "x" ), Ti )
+
+      val formula = All( x, p( x ) )
+      Substitution( x0 -> x )( formula ) must_== formula
+    }
+
+    "yet another renaming bug" in {
+      val p = FOLFunctionConst( "p", 2 )
+      val x = Var( StringSymbol( "x" ), Ti )
+      val x0 = Var( VariantSymbol( "x", 0 ), Ti ) // the fresh variable that we rename x to
+      val y = Var( StringSymbol( "y" ), Ti )
+
+      val formula = Abs( x, p( x, x0 ) )
+      Substitution( y -> x )( formula ) must_== formula
     }
   }
 }

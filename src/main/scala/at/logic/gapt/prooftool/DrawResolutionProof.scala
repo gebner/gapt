@@ -12,12 +12,18 @@ import BorderPanel._
 import event._
 import java.awt.Font._
 import java.awt.event.{ MouseMotionListener, MouseEvent }
-import at.logic.gapt.proofs.lk.base.OccSequent
+import at.logic.gapt.proofs.lkOld.base.OccSequent
 import at.logic.gapt.proofs.occurrences.FormulaOccurrence
 import java.awt.RenderingHints
 import at.logic.gapt.proofs.proofs.{ NullaryProof, BinaryProof, UnaryProof, Proof }
 
-class DrawResolutionProof( val proof: Proof[_], private val fSize: Int, private var visible_occurrences: Option[Set[FormulaOccurrence]], private var str: String )
+class DrawResolutionProof[T](
+  val main:                        ResolutionProofViewer[T],
+  val proof:                       Proof[T],
+  private val fSize:               Int,
+  private var visible_occurrences: Option[Set[FormulaOccurrence]],
+  private var str:                 String
+)
     extends BorderPanel with MouseMotionListener {
   private val blue = new Color( 0, 0, 255 )
   private val black = new Color( 0, 0, 0 )
@@ -36,8 +42,8 @@ class DrawResolutionProof( val proof: Proof[_], private val fSize: Int, private 
   private var tx = tx1
   private def tx1 = proof.root match {
     case so: OccSequent =>
-      val ds = DrawSequent( so, ft, visible_occurrences )
-      ds.listenTo( mouse.moves, mouse.clicks, mouse.wheel, ProofToolPublisher )
+      val ds = DrawSequent( main, so, ft, visible_occurrences )
+      ds.listenTo( mouse.moves, mouse.clicks, mouse.wheel, main.publisher )
       ds.reactions += {
         case e: MouseEntered => ds.contents.foreach( x => x.foreground = blue )
         case e: MouseExited  => ds.contents.foreach( x => x.foreground = black )
@@ -51,18 +57,18 @@ class DrawResolutionProof( val proof: Proof[_], private val fSize: Int, private 
     }
   }
 
-  listenTo( mouse.moves, mouse.clicks, mouse.wheel, ProofToolPublisher )
+  listenTo( mouse.moves, mouse.clicks, mouse.wheel, main.publisher )
   reactions += {
     case e: MouseDragged =>
-      Main.body.cursor = new java.awt.Cursor( java.awt.Cursor.MOVE_CURSOR )
+      main.scrollPane.cursor = new java.awt.Cursor( java.awt.Cursor.MOVE_CURSOR )
     case e: MouseReleased =>
-      Main.body.cursor = java.awt.Cursor.getDefaultCursor
+      main.scrollPane.cursor = java.awt.Cursor.getDefaultCursor
     case e: MouseWheelMoved =>
-      Main.body.peer.dispatchEvent( e.peer )
-    case e: ShowProof if e.proof == proof =>
+      main.scrollPane.peer.dispatchEvent( e.peer )
+    case e: ShowProof[_] if e.proof == proof =>
       drawLines = true
       layout.foreach( pair => pair._1.visible = true )
-    case e: HideProof if e.proof == proof =>
+    case e: HideProof[_] if e.proof == proof =>
       drawLines = false
       layout.foreach( pair => if ( pair._2 != Position.South ) pair._1.visible = false )
   }
@@ -81,12 +87,12 @@ class DrawResolutionProof( val proof: Proof[_], private val fSize: Int, private 
     proof match {
       case p: UnaryProof[_] =>
         border = bd
-        layout( new DrawResolutionProof( p.uProof, fSize, visible_occurrences, str ) ) = Position.Center
+        layout( new DrawResolutionProof( main, p.uProof, fSize, visible_occurrences, str ) ) = Position.Center
         layout( tx ) = Position.South
       case p: BinaryProof[_] =>
         border = bd
-        layout( new DrawResolutionProof( p.uProof1, fSize, visible_occurrences, str ) ) = Position.West
-        layout( new DrawResolutionProof( p.uProof2, fSize, visible_occurrences, str ) ) = Position.East
+        layout( new DrawResolutionProof( main, p.uProof1, fSize, visible_occurrences, str ) ) = Position.West
+        layout( new DrawResolutionProof( main, p.uProof2, fSize, visible_occurrences, str ) ) = Position.East
         layout( tx ) = Position.South
       case p: NullaryProof[_] =>
         tx.border = Swing.EmptyBorder( 0, fSize, 0, fSize )
@@ -124,7 +130,7 @@ class DrawResolutionProof( val proof: Proof[_], private val fSize: Int, private 
 
     if ( drawLines ) proof match {
       case p: UnaryProof[_] =>
-        val center = this.layout.find( x => x._2 == Position.Center ).get._1.asInstanceOf[DrawResolutionProof]
+        val center = this.layout.find( x => x._2 == Position.Center ).get._1.asInstanceOf[DrawResolutionProof[T]]
         val width = center.size.width + fSize * 4
         val height = center.size.height
         val seqLength = max( center.getSequentWidth( g ), getSequentWidth( g ) )
@@ -132,9 +138,9 @@ class DrawResolutionProof( val proof: Proof[_], private val fSize: Int, private 
         g.drawLine( ( width - seqLength ) / 2, height, ( width + seqLength ) / 2, height )
         g.drawString( p.name, ( fSize / 4 + width + seqLength ) / 2, height + metrics.getMaxDescent )
       case p: BinaryProof[_] =>
-        val left = this.layout.find( x => x._2 == Position.West ).get._1.asInstanceOf[DrawResolutionProof]
+        val left = this.layout.find( x => x._2 == Position.West ).get._1.asInstanceOf[DrawResolutionProof[T]]
         val leftWidth = left.size.width + fSize * 4
-        val right = this.layout.find( x => x._2 == Position.East ).get._1.asInstanceOf[DrawResolutionProof]
+        val right = this.layout.find( x => x._2 == Position.East ).get._1.asInstanceOf[DrawResolutionProof[T]]
         val rightWidth = right.size.width
         val height = max( left.size.height, right.size.height )
         val leftSeqLength = left.getSequentWidth( g )

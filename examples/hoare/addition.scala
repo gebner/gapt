@@ -1,40 +1,45 @@
-import at.logic.calculi.expansionTrees.MWeakQuantifier
-import at.logic.gapt.cli.GAPScalaInteractiveShellLibrary._
-import at.logic.gapt.language.hol.Neg
-import at.logic.gapt.language.hoare.{ForLoop, SimpleLoopProblem}
+package at.logic.gapt.examples.hoare
 
-val p = parse.program("for y < z do x := s(x) od")
-val A = parse.p9("x = k")
-val B = parse.p9("x = k + z")
-val g_p0 = parse.p9("(all x (x + 0 = x))")
-val g_ps = parse.p9("(all x (all y (s(x+y) = x + s(y))))")
-val g = List(g_p0, g_ps)
+import at.logic.gapt.examples.Script
+import at.logic.gapt.expr.Neg
+import at.logic.gapt.formats.hoare.ProgramParser
+import at.logic.gapt.proofs.expansion.extractInstances
+import at.logic.gapt.proofs.hoare.{ ForLoop, SimpleLoopProblem }
+import at.logic.gapt.formats.prover9.Prover9TermParserLadrStyle._
+import at.logic.gapt.proofs.lk.LKToExpansionProof
+import at.logic.gapt.provers.prover9.Prover9
 
-val f = parse.p9("k + y = x")
+object addition extends Script {
+  val p = ProgramParser.parseProgram( "for y < z do x := s(x) od" )
+  val A = parseFormula( "x = k" )
+  val B = parseFormula( "x = k + z" )
+  val g_p0 = parseFormula( "(all x (x + 0 = x))" )
+  val g_ps = parseFormula( "(all x (all y (s(x+y) = x + s(y))))" )
+  val g = List( g_p0, g_ps )
 
-val slp = SimpleLoopProblem(p.asInstanceOf[ForLoop], g, A, B)
+  val f = parseFormula( "k + y = x" )
 
-val nLine = sys.props("line.separator")
+  val slp = SimpleLoopProblem( p.asInstanceOf[ForLoop], g, A, B )
 
-println(slp.loop.body)
-println(slp.programVariables)
-println(slp.pi)
+  val nLine = sys.props( "line.separator" )
 
-val instanceSeq = slp.instanceSequent(2)
-println(instanceSeq)
-val proof = prover9.getProof(instanceSeq).get
+  println( slp.loop.body )
+  println( slp.programVariables )
+  println( slp.pi )
 
-println( nLine + "Expansion sequent:")
-val expansionSequent = compressExpansionSequent(LKToExpansionProof(proof))
-expansionSequent.antecedent.foreach {
-  case MWeakQuantifier(formula, instances) =>
-    println(s"$formula:")
-    instances.foreach { case (inst, terms) => println(s"  $terms ($inst)") }
-  case _ => Nil
+  val instanceSeq = slp.instanceSequent( 2 )
+  println( instanceSeq )
+  val proof = Prover9.getLKProof( instanceSeq ).get
+
+  println( nLine + "Expansion sequent:" )
+  val expansionSequent = LKToExpansionProof( proof ).expansionSequent
+  extractInstances( expansionSequent ) foreach println
+
+  println( nLine + "Deep sequent:" )
+  val deepSequent = expansionSequent map {
+    _.deep
+  }
+  deepSequent.antecedent.foreach( println( _ ) )
+  deepSequent.succedent.foreach( f => println( Neg( f ) ) )
+
 }
-
-println( nLine + "Deep sequent:")
-val deepSequent = expansionSequent.toDeep
-deepSequent.antecedent.foreach(println(_))
-deepSequent.succedent.foreach(f => println(Neg(f)))
-

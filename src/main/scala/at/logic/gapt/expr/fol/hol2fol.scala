@@ -3,7 +3,7 @@ package at.logic.gapt.expr.fol
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol._
 import at.logic.gapt.expr.schema._
-import at.logic.gapt.proofs.lk.base.HOLSequent
+import at.logic.gapt.proofs.HOLSequent
 
 object reduceHolToFol extends reduceHolToFol
 /**
@@ -249,7 +249,7 @@ object replaceAbstractions extends replaceAbstractions
 /**
  * Replace lambda-abstractions by constants.
  *
- * Each abstraction in an [[at.logic.gapt.proofs.lk.base.HOLSequent]] is replaced by a separate constant symbol; the used
+ * Each abstraction in an [[at.logic.gapt.proofs.HOLSequent]] is replaced by a separate constant symbol; the used
  * constants are returned in a Map.
  */
 class replaceAbstractions {
@@ -368,7 +368,7 @@ class undoReplaceAbstractions {
  * you can change them back.
  */
 object changeTypeIn {
-  type TypeMap = Map[String, TA]
+  type TypeMap = Map[String, Ty]
 
   /* TODO: this broken, since e.g. for (a b) q with type(q)=alpha, type(b)=beta then type(a)=beta > (alpha > gamma)
      we need to actually change the type of a when changing the type of q

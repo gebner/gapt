@@ -1,11 +1,9 @@
 package at.logic.gapt.proofs.resolution
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.FOLSubstitution
-import at.logic.gapt.proofs.lk.base.HOLSequent
-import at.logic.gapt.proofs.resolution.robinson._
 import at.logic.gapt.formats.prover9.Prover9TermParserLadrStyle.parseFormula
-import at.logic.gapt.provers.prover9.Prover9Prover
+import at.logic.gapt.proofs._
+import at.logic.gapt.provers.escargot.Escargot
 import org.specs2.mutable._
 
 class FixDerivationTest extends Specification {
@@ -14,7 +12,7 @@ class FixDerivationTest extends Specification {
       val p = FOLAtom( "p", Nil )
       val r = FOLAtom( "r", Nil )
       val to = HOLClause( p :: Nil, Nil )
-      val from = HOLSequent( p :: Nil, p :: r :: Nil )
+      val from = HOLClause( p :: Nil, p :: r :: Nil )
 
       fixDerivation.tryDeriveBySymmetry( to, from ) must beNone
     }
@@ -29,7 +27,7 @@ class FixDerivationTest extends Specification {
       val cd = Eq( c, d )
       val cb = Eq( c, b )
       val dc = Eq( d, c )
-      val from = HOLSequent( ab :: bc :: Nil, cd :: Nil )
+      val from = HOLClause( ab :: bc :: Nil, cd :: Nil )
       val to = HOLClause( cb :: ab :: Nil, dc :: Nil )
 
       fixDerivation.tryDeriveBySymmetry( to, from ) must beSome
@@ -49,7 +47,7 @@ class FixDerivationTest extends Specification {
       val qv = FOLAtom( "q", v :: Nil )
 
       val to = HOLClause( pa :: Nil, qx :: Nil )
-      val from = HOLSequent( px :: py :: Nil, qu :: qv :: Nil )
+      val from = HOLClause( px :: py :: Nil, qu :: qv :: Nil )
 
       fixDerivation.tryDeriveByFactor( to, from ) must beSome
     }
@@ -59,13 +57,13 @@ class FixDerivationTest extends Specification {
       val q = FOLAtom( "q" )
       val r = FOLAtom( "r" )
 
-      val der = Resolution( InitialClause( Nil, q :: r :: Nil ), InitialClause( q :: Nil, p :: Nil ), q, q, FOLSubstitution() )
-      val cq = HOLSequent( Nil, q :: Nil )
-      val cqp = HOLSequent( q :: Nil, p :: Nil )
+      val der = Resolution( InputClause( Clause() :+ q :+ r ), Suc( 0 ), InputClause( q +: Clause() :+ p ), Ant( 0 ) )
+      val cq = HOLClause( Nil, q :: Nil )
+      val cqp = HOLClause( q :: Nil, p :: Nil )
 
-      val cp = HOLSequent( Nil, p :: Nil )
+      val cp = HOLClause( Nil, p :: Nil )
 
-      fixDerivation( der, cq :: cqp :: Nil ).root.toHOLSequent must beEqualTo( cp )
+      fixDerivation( der, cq :: cqp :: Nil ).conclusion must beEqualTo( cp )
     }
 
     "obtain a derivation of :- p from { :- q; q :- p } from a derivation of :- p, r from { :- q, r; q :- p, p }" in {
@@ -74,36 +72,49 @@ class FixDerivationTest extends Specification {
       val r = FOLAtom( "r" )
 
       val der = Resolution(
-        InitialClause( Nil, q :: r :: Nil ),
+        InputClause( Clause() :+ q :+ r ),
+        Suc( 0 ),
         Factor(
-          InitialClause( q :: Nil, p :: p :: Nil ),
-          p, 2, true, FOLSubstitution()
+          InputClause( q +: Clause() :+ p :+ p ),
+          Suc( 0 ), Suc( 1 )
         ),
-        q, q, FOLSubstitution()
+        Ant( 0 )
       )
-      val cq = HOLSequent( Nil, q :: Nil )
-      val cqp = HOLSequent( q :: Nil, p :: Nil )
+      val cq = HOLClause( Nil, q :: Nil )
+      val cqp = HOLClause( q :: Nil, p :: Nil )
 
-      val cp = HOLSequent( Nil, p :: Nil )
+      val cp = HOLClause( Nil, p :: Nil )
 
-      fixDerivation( der, cq :: cqp :: Nil ).root.toHOLSequent must beEqualTo( cp )
+      fixDerivation( der, cq :: cqp :: Nil ).conclusion must beEqualTo( cp )
     }
 
   }
 
-  "findDerivationViaResolution" should {
-    def isTautological( f: HOLClause ): Boolean =
-      ( f.negative intersect f.positive ).nonEmpty ||
-        f.positive.collect { case Eq( FOLVar( x ), FOLVar( x_ ) ) if x == x_ => () }.nonEmpty
+  "mapInputClauses" should {
+    "factor reordered clauses" in {
+      val Seq( x, y ) = Seq( "x", "y" ) map { FOLVar( _ ) }
+      val c = FOLConst( "c" )
+      val p = FOLAtomConst( "p", 1 )
 
-    def check( a: HOLClause, bs: Set[HOLClause] ) = {
-      if ( !new Prover9Prover().isInstalled ) skipped
-      findDerivationViaResolution( a, bs ) must beLike {
-        case Some( p: RobinsonResolutionProof ) =>
-          p.root.toHOLSequent.isSubMultisetOf( a ) aka s"${p.root} subclause of $a" must_== true
-          foreach( initialSequents( p ).map( _.toHOLClause ) ) { initial =>
-            val inBsModRenaming = bs.exists( b => PCNF.getVariableRenaming( initial, b ).isDefined )
-            ( isTautological( initial ) || inBsModRenaming ) aka s"$initial in $bs or tautology" must_== true
+      val p1 = InputClause( Clause() :+ p( x ) :+ p( y ) )
+      val p2 = InputClause( p( c ) +: Clause() )
+      val p3 = Instance( p1, Substitution( x -> c, y -> c ) )
+      val p4 = Factor( p3, Suc( 0 ), Suc( 1 ) )
+      val p5 = Resolution( p4, Suc( 0 ), p2, Ant( 0 ) )
+
+      mapInputClauses( p5 ) {
+        case Clause( ant, suc ) => InputClause( Clause( ant.reverse, suc.reverse ) )
+      }.conclusion must_== Clause()
+    }
+  }
+
+  "findDerivationViaResolution" should {
+    def check( a: HOLClause, bs: Set[_ <: HOLClause] ) = {
+      findDerivationViaResolution( a, bs, prover = Escargot ) must beLike {
+        case Some( p ) =>
+          p.conclusion.isSubMultisetOf( a ) aka s"${p.conclusion} subclause of $a" must_== true
+          foreach( inputClauses( p ) ) { inputClause =>
+            bs.toSet[HOLClause] must contain( inputClause )
           }
       }
     }
@@ -115,10 +126,11 @@ class FixDerivationTest extends Specification {
     }
 
     "-p(x)|f(x,y)=y, p(a) := f(a,z)=z" in {
-      val a = HOLClause( Seq(), Seq( parseFormula( "f(a,z)=z" ) ) )
+      def parseAtom( s: String ) = parseFormula( s ).asInstanceOf[HOLAtom]
+      val a = Clause() :+ parseAtom( "f(a,z)=z" )
       val bs = Set(
-        HOLClause( Seq( parseFormula( "p(x)" ) ), Seq( parseFormula( "f(x,y)=y" ) ) ),
-        HOLClause( Seq(), Seq( parseFormula( "p(a)" ) ) )
+        parseAtom( "p(x)" ) +: Clause() :+ parseAtom( "f(x,y)=y" ),
+        Clause() :+ parseAtom( "p(a)" )
       )
       check( a, bs )
     }

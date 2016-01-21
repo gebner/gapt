@@ -1,5 +1,6 @@
 package at.logic.gapt.utils.executionModels
 import at.logic.gapt.utils.logging.Logger
+import scala.concurrent._
 import scala.concurrent.duration._
 
 package timeout {
@@ -23,7 +24,7 @@ package timeout {
    * }
    */
   object withTimeout extends Logger {
-    @deprecated
+    @deprecated( "Use Durations as argument", "2015-05-15" )
     def apply[T]( to: Long )( f: => T ): T = apply( to millis )( f )
 
     def apply[T]( duration: Duration )( f: => T ): T = {
@@ -40,7 +41,7 @@ package timeout {
 
       t.setDaemon( true )
       t.start()
-      t.join( duration toMillis )
+      blocking { t.join( duration toMillis ) }
       t.stop()
 
       val nLine = sys.props( "line.separator" )

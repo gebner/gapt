@@ -1,8 +1,9 @@
 package at.logic.gapt.formats.shlk
 
-import at.logic.gapt.proofs.lk._
-import at.logic.gapt.proofs.lk.solve
-import at.logic.gapt.proofs.lk.base.{ LKProof, OccSequent }
+import at.logic.gapt.formats.simple.TypeParsers
+import at.logic.gapt.proofs.lkOld._
+import at.logic.gapt.proofs.lkOld.solve
+import at.logic.gapt.proofs.lkOld.base._
 import at.logic.gapt.proofs.shlk._
 import at.logic.gapt.proofs.shlk.getName
 
@@ -51,7 +52,7 @@ object SCHOLParser {
       case x: AnyRef                   => throw new Exception( x.toString )
     }
 
-    class SimpleSCHOLParser extends JavaTokenParsers with at.logic.gapt.expr.Parsers {
+    class SimpleSCHOLParser extends JavaTokenParsers with TypeParsers {
       def line: Parser[List[Unit]] = rep( cmappingBase )
       def cmappingBase: Parser[Unit] = ( "comment" ~ "\"[\"]*\"" ) ^^ { case x => () } | mappingBase
       def mappingBase: Parser[Unit] = label.r ~ ":" ~ proof ^^ {

@@ -1,23 +1,13 @@
 
 package at.logic.gapt.provers.basicProver
 
-import at.logic.gapt.expr._
-import at.logic.gapt.proofs.lk.LKProver
-import at.logic.gapt.provers.{ FailSafeProver, Prover }
-import at.logic.gapt.proofs.lk.base.{ HOLSequent, LKProof }
+import at.logic.gapt.proofs.HOLSequent
+import at.logic.gapt.proofs.lk._
+import at.logic.gapt.provers.sat.Sat4j
+import at.logic.gapt.provers.{ OneShotProver, Prover }
 
-class BasicProver extends Prover {
-
-  // Uses our propositional prover to get LK proof and 
-  // minisat for validity check
-
-  def getLKProof( seq: HOLSequent ): Option[LKProof] =
-    new LKProver().getLKProof( seq )
-
-  override def isValid( seq: HOLSequent ): Boolean =
-    FailSafeProver.getProver().isValid( seq )
-
-  override def isValid( f: HOLFormula ): Boolean = {
-    FailSafeProver.getProver().isValid( f )
-  }
+/** Uses our propositional prover to get LK proof andsat4j for validity check */
+object BasicProver extends OneShotProver {
+  def getLKProof( seq: HOLSequent ): Option[LKProof] = LKProver getLKProof seq
+  override def isValid( seq: HOLSequent ): Boolean = Sat4j isValid seq
 }

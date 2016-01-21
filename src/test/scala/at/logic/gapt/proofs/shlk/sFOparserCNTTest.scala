@@ -10,7 +10,7 @@ import java.io.InputStreamReader
 import at.logic.gapt.formats.shlk_parsing.sFOParserCNT
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.schema._
-import at.logic.gapt.proofs.lk._
+import at.logic.gapt.proofs.lkOld._
 import at.logic.gapt.proofs.occurrences.FormulaOccurrence
 import org.specs2.execute.Success
 import org.specs2.mutable._
@@ -18,7 +18,6 @@ import org.specs2.mutable._
 class sFOparserCNTTest extends Specification {
   "sFOparserCNT" should {
 
-    sequential
     "parse correctly David's proof " in {
       skipped( "has eigenvariable condition errors" )
 

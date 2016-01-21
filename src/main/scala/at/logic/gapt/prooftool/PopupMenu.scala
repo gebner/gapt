@@ -7,11 +7,12 @@ package at.logic.gapt.prooftool
  * Time: 1:24 PM
  */
 
+import at.logic.gapt.proofs.DagProof
+import at.logic.gapt.proofs.lk.LKProof
+
 import swing.SequentialContainer.Wrapper
 import javax.swing.JPopupMenu
 import swing._
-import at.logic.gapt.proofs.proofs.TreeProof
-import at.logic.gapt.proofs.lk.base.LKProof
 import at.logic.gapt.expr._
 
 class PopupMenu extends Component with Wrapper {
@@ -23,26 +24,21 @@ class PopupMenu extends Component with Wrapper {
 object PopupMenu {
 
   // PopupMenu for LKProofs.
-  def apply( tproof: TreeProof[_], component: Component, x: Int, y: Int ) {
+  def apply[T <: DagProof[T]]( main: DagProofViewer[T], tproof: DagProof[T], component: Component, x: Int, y: Int ) {
     lazy val proof = tproof.asInstanceOf[LKProof]
     val popupMenu = new PopupMenu {
       contents += new MenuItem( Action( "View Subproof as Sunburst Tree" ) {
-        Main.initSunburstDialog( "subproof " + proof.name, tproof )
+        main.initSunburstDialog( "subproof " + proof.name, tproof )
       } )
       contents += new Separator
-      contents += new MenuItem( Action( "Apply Gentzen's Method (new)" ) { Main.newgentzen( proof ) } )
-      contents += new MenuItem( Action( "Apply Gentzen's Method" ) { Main.gentzen( proof ) } )
+      //      contents += new MenuItem( Action( "Apply Gentzen's Method (new)" ) { Main.newgentzen( proof ) } )
+      //      contents += new MenuItem( Action( "Apply Gentzen's Method" ) { Main.gentzen( proof ) } )
       contents += new Separator
-      contents += new MenuItem( Action( "Save Subproof as..." ) { Main.fSave( ( proof.name, proof ) ) } )
+      contents += new MenuItem( Action( "Save Subproof as..." ) { /*main.fSave( ( proof.name, proof ) )*/ } )
       contents += new Separator
-      contents += new MenuItem( Action( "Show Proof Above" ) { ProofToolPublisher.publish( new ShowProof( tproof ) ) } )
-      contents += new MenuItem( Action( "Hide Proof Above" ) { ProofToolPublisher.publish( new HideProof( tproof ) ) } )
+      contents += new MenuItem( Action( "Show Proof Above" ) { main.publisher.publish( ShowProof( tproof ) ) } )
+      contents += new MenuItem( Action( "Hide Proof Above" ) { main.publisher.publish( HideProof( tproof ) ) } )
       contents += new Separator
-      contents += new MenuItem( Action( "Split Proof" ) {
-        Main.db.addProofs( ( proof.name, proof ) :: Nil )
-        Main.loadProof( proof )
-        ProofToolPublisher.publish( ProofDbChanged )
-      } )
     }
     popupMenu.show( component, x, y )
   }
@@ -58,20 +54,20 @@ object PopupMenu {
   }
 
   // PopupMenu for the title label of either cedent
-  def apply( ced: CedentPanel, x: Int, y: Int ) {
+  def apply( main: ExpansionSequentViewer, ced: CedentPanel, x: Int, y: Int ) {
     val popupMenu = new PopupMenu {
       val trees = ced.treeList.drawnTrees
-      contents += new MenuItem( Action( "Close all" ) { trees.foreach( det => det.close( det.expansionTree.toShallow ) ) } )
+      contents += new MenuItem( Action( "Close all" ) { trees.foreach( det => det.close( det.expansionTree.shallow ) ) } )
       contents += new MenuItem( Action( "Open all" ) {
         for ( det <- trees ) {
-          val subFs = firstQuantifiers( det.expansionTree.toShallow )
+          val subFs = firstQuantifiers( det.expansionTree.shallow )
           subFs.foreach( det.open )
         }
       } )
 
-      contents += new MenuItem( Action( "Expand all" ) { trees.foreach( det => expandRecursive( det, det.expansionTree.toShallow ) ) } )
+      contents += new MenuItem( Action( "Expand all" ) { trees.foreach( det => expandRecursive( det, det.expansionTree.shallow ) ) } )
       contents += new MenuItem( Action( "Reset" ) {
-        ced.treeList = new TreeListPanel( ced.cedent, ced.ft )
+        ced.treeList = new TreeListPanel( main, ced.cedent, ced.ft )
         ced.scrollPane.contents = ced.treeList
         ced.revalidate()
       } )

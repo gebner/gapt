@@ -1,10 +1,11 @@
 package at.logic.gapt.provers.inductionProver
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.{ Utils, FOLSubstitution }
+import at.logic.gapt.expr.fol.Utils
 import at.logic.gapt.expr.hol.CNFp
-import at.logic.gapt.proofs.expansionTrees.{ toShallow, extractInstances }
-import at.logic.gapt.proofs.resolution.{ HOLClause, Paramodulants, FOLClause }
+import at.logic.gapt.proofs.FOLClause
+import at.logic.gapt.proofs.expansion.extractInstances
+import at.logic.gapt.proofs.resolution.forgetfulPropParam
 import at.logic.gapt.provers.Prover
 
 case class BetterSolutionFinder(
@@ -18,7 +19,7 @@ case class BetterSolutionFinder(
   def consequences( clauses: Set[FOLClause] ) =
     for (
       a <- clauses; b <- clauses;
-      c <- Paramodulants( a, b ) ++ resolvents( a, b )
+      c <- forgetfulPropParam( Set( a, b ) ).flatten.map { _.asInstanceOf[FOLClause] } ++ resolvents( a, b )
     ) yield c
 
   def resolvents( a: FOLClause, b: FOLClause ): Set[FOLClause] =
@@ -45,7 +46,7 @@ case class BetterSolutionFinder(
       val c = clause.toFormula
       val pos = c.find( num ).toSet
       pos.subsets() map { subset =>
-        CNFp.toClauseList( subset.foldLeft( c ) { _.replace( _, nu ) }.asInstanceOf[FOLFormula] ).head
+        CNFp.toClauseList( subset.foldLeft( c ) { _.replace( _, nu ).asInstanceOf[FOLFormula] } ).head
       }
     }
 
@@ -85,7 +86,7 @@ case class BetterSolutionFinder(
         validityChecker.isValid( schematicSIP.Gamma1 :+ clause.toFormula )
       }
 
-      clauses ++= ( for ( a <- clauses; b <- clauses ) yield ( a ++ b.swap ).distinct )
+      clauses ++= ( for ( a <- clauses; b <- clauses ) yield ( a ++ b.swapped ).distinct )
 
       // filter out non-consequences from Gamma0
       clauses = clauses.filter { clause =>

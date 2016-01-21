@@ -11,12 +11,18 @@
 
 package at.logic.gapt.formats.xml
 
+import java.io.{ InputStream, FileInputStream, InputStreamReader }
+import java.util.zip.GZIPInputStream
+
 import at.logic.gapt.formats.ParsingException
-import at.logic.gapt.formats.readers.XMLReaders.NodeReader
+import at.logic.gapt.formats.readers.XMLReaders.{ XMLReader, NodeReader }
 import at.logic.gapt.expr._
 import at.logic.gapt.expr._
-import at.logic.gapt.proofs.lk._
-import at.logic.gapt.proofs.lk.base.{ HOLSequent, _ }
+import at.logic.gapt.proofs.HOLSequent
+import at.logic.gapt.proofs.lkOld._
+import at.logic.gapt.proofs.lk
+import at.logic.gapt.proofs.lkOld.base.LKProof
+import at.logic.gapt.proofs.lk.lkOld2New
 import at.logic.gapt.proofs.occurrences._
 
 import scala.Predef._
@@ -25,12 +31,12 @@ import scala.xml._
 
 class ProofDatabase(
     val Definitions:  Map[LambdaExpression, LambdaExpression],
-    val proofs:       List[Tuple2[String, LKProof]],
+    val proofs:       List[( String, lk.LKProof )],
     val axioms:       List[HOLSequent],
     val sequentLists: List[Tuple2[String, List[HOLSequent]]]
 ) {
   //Does a proof lookup by name
-  def proof( name: String ): LKProof = {
+  def proof( name: String ): lk.LKProof = {
     val ps = proofs.filter( _._1 == name )
     require( ps.nonEmpty, "Could not find proof " + name + " in proof database!" )
     if ( ps.size > 1 ) println( "Warning: Proof " + name + " occurs more than once in proof database!" )
@@ -344,10 +350,27 @@ object XMLParser {
         ).toMap ++ ( pdb \ "definitionlist" \ "formuladef" ).map( n => ( new NodeReader( n ) with XMLDefinitionParser ).getNameFormulaDefinition() ).toList.map(
             c => ( HOLAtom( Const( c._1, FunctionType( To, ( c._2 )._1.map( _.exptype ) ) ), ( c._2 )._1 ), ( c._2 )._2 )
           ).toMap ++ ( pdb \ "definitionlist" \ "indirecttermdef" ).map( n => ( new NodeReader( n ) with XMLDefinitionParser ).getIndirectDefinition() ).toMap.asInstanceOf[Map[LambdaExpression, LambdaExpression]],
-        ( pdb \ "proof" ).map( n => ( new NodeReader( n ) with XMLProofParser ).getNamedProof() ).toList,
+        ( pdb \ "proof" ).map { n =>
+          val ( name, p ) = ( new NodeReader( n ) with XMLProofParser ).getNamedProof()
+          name -> lkOld2New( p )
+        }.toList,
         ( new NodeReader( ( pdb \ "axiomset" ).head ) with XMLSequentParser ).getAxiomSet(),
         ( pdb \ "sequentlist" ).map( n => ( new NodeReader( n ) with XMLSequentParser ).getNamedSequentList() ).toList
       )
+  }
+  object XMLProofDatabaseParser {
+    def apply( in: InputStream, enable_compression: Boolean = false ): ProofDatabase =
+      if ( enable_compression )
+        ( new XMLReader( new GZIPInputStream( in ) ) with XMLProofDatabaseParser ).getProofDatabase()
+      else
+        ( new XMLReader( in ) with XMLProofDatabaseParser ).getProofDatabase()
+
+    def apply( file: String ): ProofDatabase =
+      try { apply( new FileInputStream( file ), true ) }
+      catch {
+        case _: Exception =>
+          apply( new FileInputStream( file ), false )
+      }
   }
   trait XMLDefinitionParser extends XMLNodeParser {
 

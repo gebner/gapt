@@ -1,6 +1,7 @@
 package at.logic.gapt.expr.hol
 
 import at.logic.gapt.expr._
+import at.logic.gapt.utils.dssupport.ListSupport.pairs
 
 object HOLPosition {
   def apply( list: List[Int] ) = new HOLPosition( list )
@@ -44,6 +45,11 @@ object HOLPosition {
    */
   def replace( exp: LambdaExpression, pos: HOLPosition, repTerm: LambdaExpression ): LambdaExpression = LambdaPosition.replace( exp, toLambdaPosition( exp )( pos ), repTerm )
 
+  def replace( exp: LambdaExpression, positions: Seq[HOLPosition], repTerm: LambdaExpression ): LambdaExpression = {
+    for ( ( p1, p2 ) <- pairs( positions ) )
+      require( !p1.isPrefixOf( p2 ), "Positions must not be prefixes of one another." )
+    positions.foldLeft( exp ) { ( acc, p ) => replace( acc, p, repTerm ) }
+  }
   /**
    * Compares to LambdaExpressions and returns the list of outermost positions where they differ.
    *
@@ -155,19 +161,19 @@ object HOLPosition {
             throw new Exception( "Can't convert position " + pos + " for expression " + exp + " to HOLPosition." )
 
         case BinaryConnective( left, right ) =>
-          if ( pos.head == 1 && rest.headOption == Some( 2 ) )
+          if ( pos.head == 1 && rest.headOption.contains( 2 ) )
             1 :: toHOLPosition( left )( rest.tail )
           else if ( pos.head == 2 )
             2 :: toHOLPosition( right )( rest )
           else throw new Exception( "Can't convert position " + pos + " for expression " + exp + " to HOLPosition." )
 
         case Ex( _, subExp ) =>
-          if ( pos.head == 2 && rest.headOption == Some( 1 ) )
+          if ( pos.head == 2 && rest.headOption.contains( 1 ) )
             1 :: toHOLPosition( subExp )( rest.tail )
           else throw new Exception( "Can't convert position " + pos + " for expression " + exp + " to HOLPosition." )
 
         case All( _, subExp ) =>
-          if ( pos.head == 2 && rest.headOption == Some( 1 ) )
+          if ( pos.head == 2 && rest.headOption.contains( 1 ) )
             1 :: toHOLPosition( subExp )( rest.tail )
           else throw new Exception( "Can't convert position " + pos + " for expression " + exp + " to HOLPosition." )
 
@@ -207,19 +213,19 @@ object HOLPosition {
             false
 
         case BinaryConnective( left, right ) =>
-          if ( pos.head == 1 && rest.headOption == Some( 2 ) )
+          if ( pos.head == 1 && rest.headOption.contains( 2 ) )
             definesHOLPosition( left )( rest.tail )
           else if ( pos.head == 2 )
             definesHOLPosition( right )( rest )
           else false
 
         case Ex( _, subExp ) =>
-          if ( pos.head == 2 && rest.headOption == Some( 1 ) )
+          if ( pos.head == 2 && rest.headOption.contains( 1 ) )
             definesHOLPosition( subExp )( rest.tail )
           else false
 
         case All( _, subExp ) =>
-          if ( pos.head == 2 && rest.headOption == Some( 1 ) )
+          if ( pos.head == 2 && rest.headOption.contains( 1 ) )
             definesHOLPosition( subExp )( rest.tail )
           else false
 
@@ -240,12 +246,21 @@ object HOLPosition {
     }
   }
 }
+
 /**
+ * Represents a position in a [[at.logic.gapt.expr.LambdaExpression]].
  *
+ * Positions are represented by lists of Integers. The empty list denotes the expression itself.
+ * A nonempty list denotes a position in the left or right subexpression according to whether it starts with 1 or 2.
  *
- * Positions are given as lists of Integers. The empty list denotes the current expression itself.
- * A list starting with k denotes a subexpression in the k^th^ argument of the current expression.
- * @param list The list describing the position.
+ * The difference between this and [[at.logic.gapt.expr.LambdaPosition]] lies in the handling of quantifiers and binary logical
+ * connectives. LambdaPositions treat e.g. conjunctions like any other function, while HOLPositions treat them naturally,
+ * i.e. 1 denotes the left conjunct and 2 the right conjunct.
+ *
+ * Note that this can cause unexpeted behavior: Say a variable of type o -> o -> o is substituted by ∧ in some expression.
+ * The LambdaPositions will stay the same, but the HOLPositions won't.
+ *
+ * @param list The list of integers describing the position.
  */
 class HOLPosition( val list: List[Int] ) {
   require( list.forall( i => i == 1 || i == 2 ) )
@@ -265,6 +280,14 @@ class HOLPosition( val list: List[Int] ) {
   }
 
   override def hashCode() = list.hashCode()
+
+  def isPrefixOf( that: HOLPosition ): Boolean = list match {
+    case Nil => true
+    case x :: xs => that.list match {
+      case Nil     => false
+      case y :: ys => ( x == y ) && ( HOLPosition( xs ) isPrefixOf HOLPosition( ys ) )
+    }
+  }
 }
 
 object BinaryConnective {
@@ -272,7 +295,6 @@ object BinaryConnective {
     case And( l, r ) => Some( l, r )
     case Or( l, r )  => Some( l, r )
     case Imp( l, r ) => Some( l, r )
-    case Eq( l, r )  => Some( l, r )
     case _           => None
   }
 }

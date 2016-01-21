@@ -1,126 +1,137 @@
 package at.logic.gapt.proofs.lk
 
-import at.logic.gapt.expr._
-import at.logic.gapt.expr.hol._
-import at.logic.gapt.proofs.expansionTrees.{ merge => mergeTree, _ }
-import at.logic.gapt.proofs.lk.base._
-import at.logic.gapt.proofs.occurrences._
-import at.logic.gapt.utils.logging.Logger
+import at.logic.gapt.expr.hol.containsQuantifier
+import at.logic.gapt.expr.{ HOLAtom, Eq }
+import at.logic.gapt.proofs.Sequent
+import at.logic.gapt.proofs.expansion._
 
-object LKToExpansionProof extends LKToExpansionProof
-class LKToExpansionProof extends Logger {
+object LKToExpansionProof {
 
-  def apply( proof: LKProof ): ExpansionSequent = {
-    val map = extract( proof )
-    mergeTree( ( proof.root.antecedent.map( fo => map( fo ) ), proof.root.succedent.map( fo => map( fo ) ) ) )
+  /**
+   * Extracts an expansion sequent Ex(π) from an LKProof π.
+   *
+   * The induction rule is not supported!
+   *
+   * @param proof The proof π.
+   * @return The expansion proof Ex(π).
+   */
+  def apply( proof: LKProof ): ExpansionProofWithCut = {
+    val ( cuts, expansionSequent ) = extract( regularize( AtomicExpansion( proof ) ) )
+    eliminateMerges( ExpansionProofWithCut( cuts, expansionSequent ) )
   }
 
-  private def extract( proof: LKProof ): Map[FormulaOccurrence, ExpansionTreeWithMerges] = proof match {
-    case Axiom( r ) =>
-      handleAxiom( r )
-    case UnaryLKProof( _, up, r, _, p ) =>
-      val map = extract( up )
-      handleUnary( r, p, map, proof )
+  private def extract( proof: LKProof ): ( Seq[ETImp], Sequent[ExpansionTree] ) = proof match {
 
-    case CutRule( up1, up2, r, _, _ ) => getMapOfContext( ( r.antecedent ++ r.succedent ).toSet, extract( up1 ) ++ extract( up2 ) )
-    case BinaryLKProof( _, up1, up2, r, a1, a2, Some( p ) ) =>
-      val map = extract( up1 ) ++ extract( up2 )
-      handleBinary( r, map, proof, a1, a2, p )
+    // Axioms
+    case LogicalAxiom( atom: HOLAtom ) => Seq() -> Sequent( Seq( ETAtom( atom, false ) ), Seq( ETAtom( atom, true ) ) )
 
-    case _ => throw new IllegalArgumentException( "unsupported proof rule: " + proof )
+    case ReflexivityAxiom( s )         => Seq() -> Sequent( Seq(), Seq( ETAtom( Eq( s, s ), true ) ) )
+
+    case TopAxiom                      => Seq() -> Sequent( Seq(), Seq( ETTop( true ) ) )
+
+    case BottomAxiom                   => Seq() -> Sequent( Seq( ETBottom( false ) ), Seq() )
+
+    case TheoryAxiom( sequent )        => Seq() -> ( for ( ( a, i ) <- sequent.zipWithIndex ) yield ETAtom( a, i.isSuc ) )
+
+    // Structural rules
+    case WeakeningLeftRule( subProof, formula ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( ETWeakening( formula, false ) +: subSequent )
+
+    case WeakeningRightRule( subProof, formula ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( subSequent :+ ETWeakening( formula, true ) )
+
+    case ContractionLeftRule( subProof, aux1, aux2 ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( ETMerge( subSequent( aux1 ), subSequent( aux2 ) ) +: subSequent.delete( aux1, aux2 ) )
+
+    case ContractionRightRule( subProof, aux1, aux2 ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( subSequent.delete( aux1, aux2 ) :+ ETMerge( subSequent( aux1 ), subSequent( aux2 ) ) )
+
+    case c @ CutRule( leftSubProof, aux1, rightSubProof, aux2 ) =>
+      val ( leftCuts, leftSequent ) = extract( leftSubProof )
+      val ( rightCuts, rightSequent ) = extract( rightSubProof )
+      val newCut = ETImp( leftSequent( aux1 ), rightSequent( aux2 ) )
+      val cuts = if ( containsQuantifier( c.cutFormula ) )
+        newCut +: ( leftCuts ++ rightCuts )
+      else leftCuts ++ rightCuts
+      ( cuts, leftSequent.delete( aux1 ) ++ rightSequent.delete( aux2 ) )
+
+    // Propositional rules
+    case NegLeftRule( subProof, aux ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( ETNeg( subSequent( aux ) ) +: subSequent.delete( aux ) )
+
+    case NegRightRule( subProof, aux ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( subSequent.delete( aux ) :+ ETNeg( subSequent( aux ) ) )
+
+    case AndLeftRule( subProof, aux1, aux2 ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( ETAnd( subSequent( aux1 ), subSequent( aux2 ) ) +: subSequent.delete( aux1, aux2 ) )
+
+    case AndRightRule( leftSubProof, aux1, rightSubProof, aux2 ) =>
+      val ( leftCuts, leftSequent ) = extract( leftSubProof )
+      val ( rightCuts, rightSequent ) = extract( rightSubProof )
+      val ( leftSubTree, leftSubSequent ) = leftSequent.focus( aux1 )
+      val ( rightSubTree, rightSubSequent ) = rightSequent.focus( aux2 )
+      ( leftCuts ++ rightCuts, ( leftSubSequent ++ rightSubSequent ) :+ ETAnd( leftSubTree, rightSubTree ) )
+
+    case OrLeftRule( leftSubProof, aux1, rightSubProof, aux2 ) =>
+      val ( leftCuts, leftSequent ) = extract( leftSubProof )
+      val ( rightCuts, rightSequent ) = extract( rightSubProof )
+      val ( leftSubTree, leftSubSequent ) = leftSequent.focus( aux1 )
+      val ( rightSubTree, rightSubSequent ) = rightSequent.focus( aux2 )
+      ( leftCuts ++ rightCuts, ETOr( leftSubTree, rightSubTree ) +: ( leftSubSequent ++ rightSubSequent ) )
+
+    case OrRightRule( subProof, aux1, aux2 ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      subCuts -> ( subSequent.delete( aux1, aux2 ) :+ ETOr( subSequent( aux1 ), subSequent( aux2 ) ) )
+
+    case ImpLeftRule( leftSubProof, aux1, rightSubProof, aux2 ) =>
+      val ( leftCuts, leftSequent ) = extract( leftSubProof )
+      val ( rightCuts, rightSequent ) = extract( rightSubProof )
+      val ( leftSubTree, leftSubSequent ) = leftSequent.focus( aux1 )
+      val ( rightSubTree, rightSubSequent ) = rightSequent.focus( aux2 )
+      ( leftCuts ++ rightCuts, ETImp( leftSubTree, rightSubTree ) +: ( leftSubSequent ++ rightSubSequent ) )
+
+    case ImpRightRule( subProof, aux1, aux2 ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      ( subCuts, subSequent.delete( aux1, aux2 ) :+ ETImp( subSequent( aux1 ), subSequent( aux2 ) ) )
+
+    // Quantifier rules
+    case ForallLeftRule( subProof, aux, _, t, _ ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      ( subCuts, ETWeakQuantifier( proof.mainFormulas.head, Map( t -> subSequent( aux ) ) ) +: subSequent.delete( aux ) )
+
+    case ForallRightRule( subProof, aux, eigen, _ ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      ( subCuts, subSequent.delete( aux ) :+ ETStrongQuantifier( proof.mainFormulas.head, eigen, subSequent( aux ) ) )
+
+    case ExistsLeftRule( subProof, aux, eigen, _ ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      ( subCuts, ETStrongQuantifier( proof.mainFormulas.head, eigen, subSequent( aux ) ) +: subSequent.delete( aux ) )
+
+    case ExistsRightRule( subProof, aux, _, t, _ ) =>
+      val ( subCuts, subSequent ) = extract( subProof )
+      ( subCuts, subSequent.delete( aux ) :+ ETWeakQuantifier( proof.mainFormulas.head, Map( t -> subSequent( aux ) ) ) )
+
+    // Equality rules
+    case EqualityLeftRule( subProof, eq, aux, pos ) =>
+      val ( subCuts, sequent ) = extract( subProof )
+      val ( subTree, subSequent ) = sequent.focus( aux )
+
+      val repTerm = proof.mainFormulas.head( pos.head )
+      val newTree = pos.foldLeft( subTree ) { ( acc, p ) => replaceAtHOLPosition( acc, p, repTerm ) }
+      ( subCuts, newTree +: subSequent )
+
+    case EqualityRightRule( subProof, eq, aux, pos ) =>
+      val ( subCuts, sequent ) = extract( subProof )
+      val ( subTree, subSequent ) = sequent.focus( aux )
+      val repTerm = proof.mainFormulas.head( pos.head )
+      val newTree = pos.foldLeft( subTree ) { ( acc, p ) => replaceAtHOLPosition( acc, p, repTerm ) }
+      ( subCuts, subSequent :+ newTree )
   }
-
-  protected def handleAxiom( r: OccSequent ): Map[FormulaOccurrence, ExpansionTreeWithMerges] = {
-    // guess the axiom: must be an atom and appear left as well as right
-    // can't use set intersection, but lists are small enough to do it manually
-    val axiomCandidates = r.antecedent.filter( elem => r.succedent.exists( elem2 => elem syntaxEquals elem2 ) ).filter( o => isExtendedAtom( o.formula ) )
-
-    if ( axiomCandidates.size > 1 ) {
-      debug( "Warning: Multiple candidates for axiom formula in expansion tree extraction, choosing first one of: " + axiomCandidates )
-    }
-
-    if ( axiomCandidates.isEmpty ) {
-      if ( allExtendedAtoms( r.antecedent ) && allExtendedAtoms( r.succedent ) ) {
-        if ( !( ( r.antecedent.isEmpty ) && ( r.succedent.size == 1 ) && ( isReflexivity( r.succedent( 0 ).formula ) ) ) ) {
-          //only print the warning for non reflexivity atoms
-          debug( "Warning: No candidates for axiom formula in expansion tree extraction, treating as atom trees since axiom only contains atoms: " + r )
-        }
-        Map( r.antecedent.map( fo => ( fo, ETInitialNode( fo.formula ) ) ) ++
-          r.succedent.map( fo => ( fo, ETInitialNode( fo.formula ) ) ): _* )
-      } else {
-        throw new IllegalArgumentException( "Error: Axiom sequent in expansion tree extraction contains no atom A on left and right side and contains non-atomic formulas: " + r )
-      }
-
-      // this behaviour is convenient for development, as it allows to work reasonably with invalid axioms
-      Map( r.antecedent.map( fo => ( fo, ETInitialNode( fo.formula ) ) ) ++
-        r.succedent.map( fo => ( fo, ETInitialNode( fo.formula ) ) ): _* )
-    } else {
-      val axiomFormula = axiomCandidates( 0 )
-
-      Map( r.antecedent.map( fo => ( fo, if ( fo syntaxEquals axiomFormula ) ETInitialNode( fo.formula ) else ETWeakening( fo.formula ) ) ) ++
-        r.succedent.map( fo => ( fo, if ( fo syntaxEquals axiomFormula ) ETInitialNode( fo.formula ) else ETWeakening( fo.formula ) ) ): _* )
-    }
-  }
-
-  //occurs in handleAxiom
-  private def allExtendedAtoms( l: Seq[FormulaOccurrence] ) = l.forall( o => isExtendedAtom( o.formula ) )
-
-  protected def handleUnary( r: OccSequent, p: FormulaOccurrence, map: Map[FormulaOccurrence, ExpansionTreeWithMerges], proof: LKProof ): Map[FormulaOccurrence, ExpansionTreeWithMerges] = {
-    getMapOfContext( ( r.antecedent ++ r.succedent ).toSet - p, map ) + Tuple2( p, proof match {
-      case WeakeningRightRule( _, _, _ )           => ETWeakening( p.formula )
-      case WeakeningLeftRule( _, _, _ )            => ETWeakening( p.formula )
-      case ForallLeftRule( _, _, a, _, t )         => ETWeakQuantifier( p.formula, List( Tuple2( map( a ), t ) ) )
-      case ExistsRightRule( _, _, a, _, t )        => ETWeakQuantifier( p.formula, List( Tuple2( map( a ), t ) ) )
-      case ForallRightRule( _, _, a, _, v )        => ETStrongQuantifier( p.formula, v, map( a ) )
-      case ExistsLeftRule( _, _, a, _, v )         => ETStrongQuantifier( p.formula, v, map( a ) )
-      case ContractionLeftRule( _, _, a1, a2, _ )  => ETMerge( map( a1 ), map( a2 ) )
-      case ContractionRightRule( _, _, a1, a2, _ ) => ETMerge( map( a1 ), map( a2 ) )
-      case AndLeft1Rule( _, _, a, _ ) =>
-        val And( _, f2 ) = p.formula
-        ETAnd( map( a ), ETWeakening( f2 ) )
-      case AndLeft2Rule( _, _, a, _ ) =>
-        val And( f1, _ ) = p.formula
-        ETAnd( ETWeakening( f1 ), map( a ) )
-      case OrRight1Rule( _, _, a, _ ) =>
-        val Or( _, f2 ) = p.formula
-        ETOr( map( a ), ETWeakening( f2 ) )
-      case OrRight2Rule( _, _, a, _ ) =>
-        val Or( f1, _ ) = p.formula
-        ETOr( ETWeakening( f1 ), map( a ) )
-      case ImpRightRule( _, _, a1, a2, _ ) =>
-        ETImp( map( a1 ), map( a2 ) )
-      case NegLeftRule( _, _, a, _ )         => ETNeg( map( a ) )
-      case NegRightRule( _, _, a, _ )        => ETNeg( map( a ) )
-      case DefinitionLeftRule( _, _, a, _ )  => map( a )
-      case DefinitionRightRule( _, _, a, _ ) => map( a )
-    } )
-  }
-
-  protected def handleBinary( r: OccSequent, map: Map[FormulaOccurrence, ExpansionTreeWithMerges], proof: LKProof, a1: FormulaOccurrence, a2: FormulaOccurrence, p: FormulaOccurrence ): Map[FormulaOccurrence, ExpansionTreeWithMerges] = {
-    getMapOfContext( r.elements.toSet - p, map ) + Tuple2( p, proof match {
-      case ImpLeftRule( _, _, _, _, _, _ )  => ETImp( map( a1 ), map( a2 ) )
-      case OrLeftRule( _, _, _, _, _, _ )   => ETOr( map( a1 ), map( a2 ) )
-      case AndRightRule( _, _, _, _, _, _ ) => ETAnd( map( a1 ), map( a2 ) )
-      case EquationLeft1Rule( _, _, _, _, _, pos, _ ) =>
-        val repTerm = p( pos.head )
-        replaceAtHOLPosition( map( a2 ), pos.head, repTerm )
-      case EquationLeft2Rule( _, _, _, _, _, pos, _ ) =>
-        val repTerm = p( pos.head )
-        replaceAtHOLPosition( map( a2 ), pos.head, repTerm )
-      case EquationRight1Rule( _, _, _, _, _, pos, _ ) =>
-        val repTerm = p( pos.head )
-        replaceAtHOLPosition( map( a2 ), pos.head, repTerm )
-      case EquationRight2Rule( _, _, _, _, _, pos, _ ) =>
-        val repTerm = p( pos.head )
-        replaceAtHOLPosition( map( a2 ), pos.head, repTerm )
-    } )
-  }
-
-  // the set of formula occurrences given to method must not contain any principal formula
-  protected def getMapOfContext( s: Set[FormulaOccurrence], map: Map[FormulaOccurrence, ExpansionTreeWithMerges] ): Map[FormulaOccurrence, ExpansionTreeWithMerges] =
-    Map( s.toList.map( fo => ( fo, {
-      require( fo.parents.size == 1 )
-      map( fo.parents.head )
-    } ) ): _* )
-
 }

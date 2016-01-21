@@ -1,211 +1,104 @@
 
 package at.logic.gapt.proofs.resolution
 
-import at.logic.gapt.expr._
-import at.logic.gapt.proofs.lk.{ applySubstitution => applySub, _ }
-import at.logic.gapt.proofs.lk.base._
-import at.logic.gapt.proofs.resolution.robinson._
+import at.logic.gapt.expr.hol.structuralCNF
+import at.logic.gapt.expr.{ HOLAtomConst, LambdaExpression }
+import at.logic.gapt.proofs.expansion._
+import at.logic.gapt.proofs.lk._
+import at.logic.gapt.proofs._
 
-object RobinsonToLK extends at.logic.gapt.utils.logging.Logger {
-  type mapT = scala.collection.mutable.Map[HOLClause, LKProof]
+import scala.collection.mutable
 
-  //encapsulates a memo table s.t. subsequent runs of PCNF are not computed multiple times for the same c
-  private class PCNFMemoTable( val endsequent: HOLSequent ) {
-    val table: mapT = scala.collection.mutable.Map[HOLClause, LKProof]()
-    var hits: Int = 0
-
-    def getHits() = this.hits
-
-    def getPCNF( c: HOLClause ) = {
-      if ( !( table contains c ) ) {
-        table.put( c, PCNF( endsequent, c ) )
-      } else {
-        hits = hits + 1
-      }
-      table( c )
-    }
-  }
-
-  // if the proof can be obtained from the CNF(-s) then we compute an LKProof of |- s
-  def apply( resproof: RobinsonResolutionProof, s: HOLSequent ): LKProof = {
-    assert( resproof.root.toHOLSequent == HOLSequent( Nil, Nil ) )
-    val memotable = new PCNFMemoTable( s )
-    WeakeningContractionMacroRule( recConvert( resproof, s, scala.collection.mutable.Map[HOLClause, LKProof](), memotable.getPCNF ), s, strict = true )
-  }
-
-  // if the proof can be obtained from the CNF(-s) then we compute an LKProof of |- s
-  def apply( resproof: RobinsonResolutionProof, s: HOLSequent, map: mapT ): LKProof = {
-    val memotable = new PCNFMemoTable( s )
-    WeakeningContractionMacroRule( recConvert( resproof, s, map, memotable.getPCNF ), s, strict = false )
-  }
-
-  def apply( resproof: RobinsonResolutionProof ): LKProof =
-    recConvert( resproof, HOLSequent( List(), List() ), scala.collection.mutable.Map[HOLClause, LKProof](), x => Axiom( x.negative, x.positive ) )
-
+object RobinsonToLK {
   /**
-   * This method converts a RobinsonResolutionProof resproof, which is assumed to have the empty clause
-   * as end-clause, into an LKProof of a sequent s. To do this, the provided createAxiom method is assumed
-   * to return, on input c, an LKProof with end-sequent "s' merge c", where s' is a sub-sequent of s.
-   */
-  def apply( resproof: RobinsonResolutionProof, s: HOLSequent, createAxiom: HOLClause => LKProof ): LKProof =
-    WeakeningContractionMacroRule( recConvert( resproof, s, scala.collection.mutable.Map[HOLClause, LKProof](), createAxiom ), s, strict = true )
-
-  // Enforce the inductive invariant by contracting superfluous material.
-  private def contractDownTo( proof: LKProof, s: HOLSequent, c: HOLClause ) =
-    {
-      val es_l = proof.root.antecedent.map( _.formula ).toSet
-
-      val p_l = es_l.foldLeft( proof )( ( p, f ) => {
-        val max = s.antecedent.count( _ == f ) + c.negative.count( _ == f )
-        ContractionLeftMacroRule( p, f, max )
-      } )
-
-      val es_r = proof.root.succedent.map( _.formula ).toSet
-      es_r.foldLeft( p_l )( ( p, f ) => {
-        val max = s.succedent.count( _ == f ) + c.positive.count( _ == f )
-        ContractionRightMacroRule( p, f, max )
-      } )
-    }
-
-  // Inductive invariant of this method:
-  // returns an LKProof of "s' merge c", where s' is a sub-sequent of seq, and
-  // c is the end-clause of proof.
-  private def recConvert( proof: RobinsonResolutionProof, seq: HOLSequent, map: mapT, createAxiom: HOLClause => LKProof ): LKProof = {
-    if ( map.contains( proof.root.toHOLClause ) ) {
-      CloneLKProof( map( proof.root.toHOLClause ) )
-    } else {
-      val ret: LKProof = proof match {
-        case InitialClause( cls ) => //
-          createAxiom( cls.toHOLClause )
-        case Factor( r, p, a, s ) => {
-          // obtain the set of removed occurrences for each side
-          val ( leftContracted, rightContracted ) =
-            if ( a.size == 1 )
-              if ( p.root.antecedent.contains( a( 0 ).head ) ) ( a( 0 ).tail, Nil )
-              else ( Nil, a( 0 ).tail )
-            else if ( a.size == 2 )
-              if ( p.root.antecedent.contains( a( 0 ).head ) ) ( a( 0 ).tail, a( 1 ).tail )
-              else ( a( 1 ).tail, a( 0 ).tail )
-            else throw new Exception( "Unexpected number of auxiliary formulas!" )
-
-          // obtain upper proof recursively and apply the current substitution to the resulted LK proof
-          var res = applySub( recConvert( p, seq, map, createAxiom ), s )._1
-
-          //trace("leftContracted: " + leftContracted)
-          //trace("p.root: " + p.root)
-          //trace("proof.root: " + proof.root)
-
-          // create a contraction for each side, for each contracted formula with a._1 and a._2 (if exists)
-          // note that sub must be applied to all formulas in the lk proof
-          if ( !leftContracted.isEmpty ) {
-            res = leftContracted.foldLeft( res )( ( p, fo ) => ContractionLeftRule(
-              p, s( fo.formula )
-            ) )
-          }
-          if ( !rightContracted.isEmpty ) {
-            res = rightContracted.foldLeft( res )( ( p, fo ) => ContractionRightRule(
-              p, s( fo.formula )
-            ) )
-          }
-          res
-        }
-        // the construction of an LK proof makes sure we create a tree out of the agraph
-        case Variant( r, p, s ) => applySub( recConvert( p, seq, map, createAxiom ), s )._1
-        case Resolution( r, p1, p2, a1, a2, s ) => {
-          val u1 = applySub( recConvert( p1, seq, map, createAxiom ), s )._1
-          val u2 = applySub( recConvert( p2, seq, map, createAxiom ), s )._1
-          //trace("resolution rule with conc: " + proof.root)
-          //trace("p1: " + p1.root)
-          //trace("p2: " + p2.root)
-          //trace("u1: " + u1.root)
-          //trace("u2: " + u2.root)
-
-          val cut = CutRule( u1, u2, s( a1.formula.asInstanceOf[FOLFormula] ).asInstanceOf[FOLFormula] )
-          contractDownTo( cut, seq, proof.root.toHOLClause )
-        }
-        case Paramodulation( r, p1, p2, a1, a2, _, s ) => {
-
-          val u1 = applySub( recConvert( p1, seq, map, createAxiom ), s )._1
-          val u2 = applySub( recConvert( p2, seq, map, createAxiom ), s )._1
-
-          val FOLAtom( _, s0 :: _ ) = a1.formula
-          val s1 = s( s0.asInstanceOf[FOLExpression] ).asInstanceOf[FOLTerm]
-
-          // locate principal formula
-          val lo = r.antecedent.find( _.parents.contains( a2 ) )
-          val ro = r.succedent.find( _.parents.contains( a2 ) )
-          // left rule
-          val retProof = if ( ro == None ) {
-            val lof = lo.get.formula.asInstanceOf[FOLFormula]
-            // locate aux formulae
-            val aux1 = u1.root.succedent.find( _.formula == s( a1.formula.asInstanceOf[FOLExpression] ).asInstanceOf[FOLFormula] ).get
-            val aux2 = u2.root.antecedent.find( _.formula == s( a2.formula.asInstanceOf[FOLExpression] ).asInstanceOf[FOLFormula] ).get
-
-            if ( isTrivial( aux1.formula, aux2.formula, lof ) ) {
-              val newEndSequent = HOLSequent(
-                u1.root.antecedent.map( _.formula ) ++ u2.root.antecedent.map( _.formula ),
-                u1.root.succedent.filterNot( _ == aux1 ).map( _.formula ) ++ u2.root.succedent.map( _.formula )
-              )
-              WeakeningMacroRule( u2, newEndSequent )
-            } else
-              EquationLeftRule( u1, u2, aux1, aux2, lof )
-          } // right rule
-          else {
-            val rof = ro.get.formula.asInstanceOf[FOLFormula]
-            // locate aux formulae
-
-            val aux1 = u1.root.succedent.find( _.formula == s( a1.formula.asInstanceOf[FOLExpression] ).asInstanceOf[FOLFormula] ).get
-            val aux2 = u2.root.succedent.find( _.formula == s( a2.formula.asInstanceOf[FOLExpression] ).asInstanceOf[FOLFormula] ).get
-
-            if ( isTrivial( aux1.formula, aux2.formula, rof ) ) {
-              val newEndSequent = HOLSequent(
-                u1.root.antecedent.map( _.formula ) ++ u2.root.antecedent.map( _.formula ),
-                u1.root.succedent.filterNot( _ == aux1 ).map( _.formula ) ++ u2.root.succedent.map( _.formula )
-              )
-              WeakeningMacroRule( u2, newEndSequent )
-            } else
-              EquationRightRule( u1, u2, aux1, aux2, rof )
-          }
-          contractDownTo( retProof, seq, proof.root.toHOLClause )
-        }
-        // this case is applicable only if the proof is an instance of RobinsonProofWithInstance
-        case Instance( root, p, s ) =>
-          val rp = recConvert( p, seq, map, createAxiom )
-          try {
-            applySub( rp, s )._1
-          } catch {
-            case e @ LKQuantifierException( root, occf, term, formula, qvar ) =>
-              throw new LKUnaryRuleCreationException( "Substitution errror: " + s + ":" + sys.props( "line.separator" ) + e.getMessage, rp, List( occf, formula ) )
-          }
-      }
-      map( proof.root.toHOLClause ) = ret
-
-      //trace( "proof.root: " + proof.root )
-      //trace( "ret.root: " + ret.root )
-      //trace( "ret.name: " + ret.name ) 
-      //trace( "proof.name: " + proof.name ) 
-
-      ret
-    }
-  }
-
-  /**
-   * Tests whether constructing an equality rule with a given equation, auxiliary formula and main formula would be superfluous.
+   * Converts a resolution refutation of a sequent into an LK proof.
    *
-   * @param equation An Equation.
-   * @param aux A Formula.
-   * @param main A Formula.
-   * @return True iff 1.) equation is of the form s = s 2,) main and aux coincide and 3.) s occurs in aux.
+   * @param resolutionProof  Resolution refutation ending in the empty clause,
+   *                         the input clauses are required to be from the CNF of endSequent.
+   * @param endSequent  End sequent that resolutionProof refutes.
+   * @return LKProof ending in endSequent.
    */
-  private def isTrivial( equation: HOLFormula, aux: HOLFormula, main: HOLFormula ): Boolean = equation match {
-    case Eq( s, t ) =>
-      if ( s != t || aux != main )
-        false
-      else if ( aux.find( s ).isEmpty )
-        throw new Exception( "Bad paramodulation: equation " + equation + ", aux formula " + aux + ", main formula" + main )
-      else
-        true
-    case _ => throw new Exception( equation + " is not an equation." )
+  def apply( resolutionProof: ResolutionProof, endSequent: HOLSequent ): LKProof = {
+    assert( resolutionProof.conclusion.isEmpty )
+    apply( resolutionProof, endSequent, PCNF( endSequent, _ ) )
+  }
+
+  def apply( resolutionProof: ResolutionProof, endSequent: HOLSequent,
+             justifications: Map[HOLClause, structuralCNF.Justification],
+             definitions:    Map[HOLAtomConst, LambdaExpression] ): LKProof = {
+    require( resolutionProof.conclusion.isEmpty )
+
+    import structuralCNF.{ ProjectionFromEndSequent, Definition }
+
+    val projections = justifications map {
+      case ( clause, ProjectionFromEndSequent( proj, index ) ) =>
+        val projWithDef = ExpansionProofToLK( ExpansionProof( proj ++ clause.map( ETAtom( _, false ), ETAtom( _, true ) ) ) )
+        clause -> DefinitionRule( projWithDef, toShallow( proj ).elements.head, endSequent( index ), index isSuc )
+
+      case ( clause, Definition( newAtom, expansion ) ) =>
+        val i = clause indexOf newAtom
+        val p = ExpansionProofToLK( ExpansionProof( clause.map( ETAtom( _, false ), ETAtom( _, true ) ).updated( i, expansion ) ) )
+        clause -> DefinitionRule( p, toShallow( expansion ), newAtom, i isSuc )
+    }
+
+    val proofWithDefs = apply( resolutionProof, endSequent, projections )
+    DefinitionElimination( definitions.toMap )( proofWithDefs )
+  }
+
+  /**
+   * Converts a resolution derivation into an LK proof with axioms.
+   *
+   * @param resolutionDerivation  Resolution derivation.
+   * @return  LK proof ending in the conclusion of resolutionDerivation,
+   *          where all TheoryAxioms occur as InputClauses in resolutionDerivation.
+   */
+  def apply( resolutionDerivation: ResolutionProof ): LKProof =
+    apply( resolutionDerivation, resolutionDerivation.conclusion, TheoryAxiom )
+
+  /**
+   * Converts a resolution derivation into an LK proof.
+   *
+   * Input clauses in the resolution derivation are replaced with the LK proofs returned by createAxiom.
+   * Their end-sequents are required to be the input clause plus possibly some formulas from endSequent.
+   *
+   * @param resolutionDerivation  Resolution derivation.
+   * @param endSequent  Additional formulas in the end-sequent of the returned LK proof.
+   * @param createAxiom  Gives the replacement LK proofs for the input clauses.
+   * @return  LK proof ending in endSequent ++ resolutionDerivation.conclusion.
+   */
+  def apply( resolutionDerivation: ResolutionProof, endSequent: HOLSequent, createAxiom: HOLClause => LKProof, addWeakenings: Boolean = true ): LKProof = {
+    val memo = mutable.Map[ResolutionProof, LKProof]()
+
+    def f( p: ResolutionProof ): LKProof = memo.getOrElseUpdate( p, p match {
+      case TautologyClause( atom )   => LogicalAxiom( atom )
+      case ReflexivityClause( term ) => ReflexivityAxiom( term )
+      case InputClause( cls )        => createAxiom( cls )
+      case Factor( p1, idx1 @ Ant( _ ), idx2 ) =>
+        ContractionLeftRule( f( p1 ), p1.conclusion( idx1 ) )
+      case Factor( p1, idx1 @ Suc( _ ), idx2 ) =>
+        ContractionRightRule( f( p1 ), p1.conclusion( idx1 ) )
+      case Instance( p1, s ) => s( f( p1 ) )
+      case Resolution( p1, idx1, p2, idx2 ) =>
+        ContractionMacroRule(
+          CutRule( f( p1 ), f( p2 ), p1.conclusion( idx1 ) ),
+          endSequent ++ p.conclusion, strict = false
+        )
+      case p @ Paramodulation( p1, eq, p2, lit @ Ant( _ ), poss, dir ) =>
+        ContractionMacroRule(
+          ParamodulationLeftRule( f( p1 ), p1.conclusion( eq ),
+            f( p2 ), p2.conclusion( lit ), p.rewrittenAtom ),
+          endSequent ++ p.conclusion, strict = false
+        )
+      case p @ Paramodulation( p1, eq, p2, lit @ Suc( _ ), poss, dir ) =>
+        ContractionMacroRule(
+          ParamodulationRightRule( f( p1 ), p1.conclusion( eq ),
+            f( p2 ), p2.conclusion( lit ), p.rewrittenAtom ),
+          endSequent ++ p.conclusion, strict = false
+        )
+    } )
+    val rproof = f( resolutionDerivation )
+    if ( addWeakenings ) WeakeningContractionMacroRule( rproof, endSequent )
+    else ContractionMacroRule( rproof )
   }
 
 }

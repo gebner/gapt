@@ -4,17 +4,16 @@
 
 package at.logic.gapt.expr
 
-import at.logic.gapt.proofs.lk.{ Axiom, BinaryLKProof, UnaryLKProof }
-import at.logic.gapt.proofs.lk.base.{ OccSequent, HOLSequent, LKProof }
-import at.logic.gapt.proofs.resolution.HOLClause
+import at.logic.gapt.proofs._
 
 import scala.collection.GenTraversable
+import scala.collection.mutable
 
 /**
  * Matches constants and variables, but nothing else.
  */
 object VarOrConst {
-  def unapply( e: LambdaExpression ): Option[( String, TA )] = e match {
+  def unapply( e: LambdaExpression ): Option[( String, Ty )] = e match {
     case Var( name, et )   => Some( ( name, et ) )
     case Const( name, et ) => Some( ( name, et ) )
     case _                 => None
@@ -23,32 +22,50 @@ object VarOrConst {
 
 /**
  * A lambda term is in variable-normal form (VNF) if different binders bind
- * different variables.
+ * different variables, and bound variables are disjoint from the free ones.
  */
 object isInVNF {
-  def apply( e: LambdaExpression ): Boolean = apply_( e )._1
+  def apply( e: LambdaExpression ): Boolean = {
+    val seen = mutable.Set[Var]()
+    seen ++= freeVariables( e )
 
-  private def apply_( e: LambdaExpression ): ( Boolean, Set[Var] ) = e match {
-    case Var( _, _ )   => ( true, Set() )
-    case Const( _, _ ) => ( true, Set() )
-    case App( exp, arg ) => {
-      val ih_exp = apply_( exp )
-      val ih_arg = apply_( arg )
-
-      val ok = ih_exp._1 && ih_arg._1 && ( ( ih_exp._2 intersect ih_arg._2 ) == Set() )
-      val vars = ih_exp._2 union ih_arg._2
-
-      ( ok, vars )
+    def check( e: LambdaExpression ): Boolean = e match {
+      case _: Var | _: Const              => true
+      case App( a, b )                    => check( a ) && check( b )
+      case Abs( v, a ) if seen contains v => false
+      case Abs( v, a )                    => seen += v; check( a )
     }
-    case Abs( v, exp ) => {
-      val ih = apply_( exp )
 
-      val ok = ih._1 && !ih._2.contains( v )
-      val vars = ih._2 + v
-
-      ( ok, vars )
-    }
+    check( e )
   }
+}
+
+/**
+ * Transforms an expression into an alpha-equivalent expression in
+ * variable-normal form, where no two binders bind the same variable,
+ * and the bound variables are disjoint from the free ones.
+ */
+object toVNF {
+  def apply( e: LambdaExpression ): LambdaExpression = {
+    val seen = mutable.Set[Var]()
+
+    def makeDistinct( e: LambdaExpression ): LambdaExpression = e match {
+      case v @ Var( _, _ ) =>
+        seen += v; v
+      case Const( _, _ ) => e
+      case App( a, b )   => App( makeDistinct( a ), makeDistinct( b ) )
+      case Abs( v, a ) if seen contains v =>
+        val newVar = rename( v, seen toList )
+        makeDistinct( Abs( newVar, Substitution( v -> newVar )( a ) ) )
+      case Abs( v, a ) if !( seen contains v ) =>
+        seen += v
+        Abs( v, makeDistinct( a ) )
+    }
+
+    makeDistinct( e )
+  }
+
+  def apply( f: HOLFormula ): HOLFormula = apply( f.asInstanceOf[LambdaExpression] ).asInstanceOf[HOLFormula]
 }
 
 /**
@@ -63,51 +80,66 @@ object variables {
     case Abs( v, t ) => apply( v ) ++ apply( t )
   }
 
-  def apply( t: FOLTerm ): Set[FOLVar] = apply( t.asInstanceOf[LambdaExpression] ).asInstanceOf[Set[FOLVar]]
+  def apply( t: FOLExpression ): Set[FOLVar] = apply( t.asInstanceOf[LambdaExpression] ).asInstanceOf[Set[FOLVar]]
   def apply( s: HOLSequent ): Set[Var] = ( s.antecedent ++ s.succedent ).foldLeft( Set[Var]() )( ( x, y ) => x ++ apply( y ) )
-  def apply( s: OccSequent )( implicit dummy: DummyImplicit ): Set[Var] = apply( s.toHOLSequent )
-  def apply( p: LKProof ): Set[Var] = p.fold( apply )( _ ++ apply( _ ) )( _ ++ _ ++ apply( _ ) )
+  def apply( s: Sequent[FOLFormula] )( implicit dummyImplicit: DummyImplicit, dummyImplicit2: DummyImplicit ): Set[FOLVar] = s.elements flatMap apply toSet
+  def apply( s: at.logic.gapt.proofs.lkOld.base.OccSequent )( implicit dummy: DummyImplicit ): Set[Var] = apply( s.map( _.formula ) )
+  def apply( p: at.logic.gapt.proofs.lkOld.base.LKProof ): Set[Var] = p.fold( apply )( _ ++ apply( _ ) )( _ ++ _ ++ apply( _ ) )
+  def apply[Expr <: LambdaExpression, Proof <: SequentProof[Expr, Proof]]( p: SequentProof[Expr, Proof] ): Set[Var] =
+    p.subProofs flatMap { _.conclusion.elements } flatMap { variables( _ ) }
 }
 
 /**
  * Returns the set of free variables in the given argument.
  */
 object freeVariables {
-  def apply( e: LambdaExpression ): Set[Var] = apply_( e, Set() )
+  def apply( e: LambdaExpression ): Set[Var] = freeVariables( Some( e ) )
 
-  def apply( e: FOLExpression ): Set[FOLVar] = apply( e.asInstanceOf[LambdaExpression] ).asInstanceOf[Set[FOLVar]]
-
-  def apply( es: GenTraversable[LambdaExpression] ): Set[Var] = ( Set.empty[Var] /: es ) { ( acc, e ) => acc union apply( e ) }
-
-  def apply( es: GenTraversable[FOLExpression] )( implicit dummyImplicit: DummyImplicit ): Set[FOLVar] = ( Set.empty[FOLVar] /: es ) { ( acc, e ) => acc union apply( e ) }
-
-  def apply( seq: HOLSequent ): Set[Var] = apply( seq.antecedent ++ seq.succedent )
-
-  private def apply_( e: LambdaExpression, boundvars: Set[Var] ): Set[Var] = e match {
-    case v: Var          => if ( !boundvars.contains( v ) ) Set( v ) else Set()
-    case Const( _, _ )   => Set()
-    case App( exp, arg ) => apply_( exp, boundvars ) ++ apply_( arg, boundvars )
-    case Abs( v, exp )   => apply_( exp, boundvars + v )
+  def apply( es: TraversableOnce[LambdaExpression] ): Set[Var] = {
+    val fvs = Set.newBuilder[Var]
+    def f( e: LambdaExpression ): Unit = e match {
+      case v: Var => fvs += v
+      case App( a, b ) =>
+        f( a )
+        f( b )
+      case Abs( x, a ) => fvs ++= freeVariables( a ) - x
+      case _           =>
+    }
+    es foreach f
+    fvs.result()
   }
+
+  def apply( seq: HOLSequent ): Set[Var] = apply( seq.elements )
+
+  def apply( e: FOLExpression ): Set[FOLVar] = apply( Some( e ) )
+  def apply( es: TraversableOnce[FOLExpression] )( implicit dummyImplicit: DummyImplicit ): Set[FOLVar] =
+    freeVariables( es.asInstanceOf[TraversableOnce[LambdaExpression]] ).asInstanceOf[Set[FOLVar]]
+  def apply( seq: FOLSequent )( implicit dummyImplicit: DummyImplicit ): Set[FOLVar] = apply( seq.elements )
 }
 
 /**
  * Returns the set of non-logical constants occuring in the given argument.
  */
 object constants {
-  def apply( e: LambdaExpression ): Set[Const] = e match {
-    case _: Var             => Set()
-    case _: LogicalConstant => Set()
-    case c: Const           => Set( c )
-    case App( exp, arg )    => constants( exp ) union constants( arg )
-    case Abs( v, exp )      => constants( exp )
+  def apply( expression: LambdaExpression ): Set[Const] = {
+    val cs = mutable.Set[Const]()
+    def f( e: LambdaExpression ): Unit = e match {
+      case _: Var             =>
+      case _: LogicalConstant =>
+      case c: Const           => cs += c
+      case App( exp, arg ) =>
+        f( exp ); f( arg )
+      case Abs( v, exp ) => f( exp )
+    }
+    f( expression )
+    cs.toSet
   }
 
   def apply( es: GenTraversable[LambdaExpression] ): Set[Const] = ( Set.empty[Const] /: es ) { ( acc, e ) => acc union apply( e ) }
 
   def apply( s: HOLSequent ): Set[Const] = ( s.antecedent ++ s.succedent ).foldLeft( Set[Const]() )( ( x, y ) => x ++ apply( y ) )
-  def apply( s: OccSequent )( implicit dummy: DummyImplicit ): Set[Const] = apply( s.toHOLSequent )
-  def apply( p: LKProof ): Set[Const] = p.fold( apply )( _ ++ apply( _ ) )( _ ++ _ ++ apply( _ ) )
+  def apply( s: at.logic.gapt.proofs.lkOld.base.OccSequent )( implicit dummy: DummyImplicit ): Set[Const] = apply( s.map( _.formula ) )
+  def apply( p: at.logic.gapt.proofs.lkOld.base.LKProof ): Set[Const] = p.fold( apply )( _ ++ apply( _ ) )( _ ++ _ ++ apply( _ ) )
 }
 
 /**
@@ -118,6 +150,14 @@ object subTerms {
     case Var( _, _ ) | Const( _, _ ) => Set( e )
     case Abs( _, e0 )                => apply( e0 ) + e
     case App( e1, e2 )               => ( apply( e1 ) ++ apply( e2 ) ) + e
+  }
+}
+
+object expressionSize {
+  def apply( e: LambdaExpression ): Int = e match {
+    case Var( _, _ ) | Const( _, _ ) => 1
+    case Abs( _, f )                 => 1 + expressionSize( f )
+    case App( a, b )                 => 1 + expressionSize( a ) + expressionSize( b )
   }
 }
 
@@ -142,6 +182,13 @@ object rename {
     val v_list = vs.toList
     ( v_list zip
       v_list.foldLeft( Nil: List[FOLVar] )(
+        ( res, v ) => res :+ apply( v, ( blackList ++ res ).toList )
+      ) ).toMap
+  }
+  def apply( vs: Set[Var], blackList: Set[Var] )( implicit dummyImplicit: DummyImplicit ): Map[Var, Var] = {
+    val v_list = vs.toList
+    ( v_list zip
+      v_list.foldLeft( Nil: List[Var] )(
         ( res, v ) => res :+ apply( v, ( blackList ++ res ).toList )
       ) ).toMap
   }

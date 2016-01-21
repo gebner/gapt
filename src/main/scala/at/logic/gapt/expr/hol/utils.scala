@@ -5,7 +5,7 @@
 package at.logic.gapt.expr.hol
 
 import at.logic.gapt.expr._
-import at.logic.gapt.proofs.lk.base.HOLSequent
+import at.logic.gapt.proofs.{ Sequent, HOLSequent, FOLClause }
 
 /**
  * Returns true iff the given LambdaExpression consists of a logical constant.
@@ -327,13 +327,13 @@ object removeAllQuantifiers {
    * Removes all quantifiers from the logical level of a HOLFormula. Atoms are not changed.
    */
   def apply( f: HOLFormula ): HOLFormula = f match {
-    case HOLAtom( _, _ ) => f
-    case Neg( f1 )       => Neg( apply( f1 ) )
-    case Imp( f1, f2 )   => Imp( apply( f1 ), apply( f2 ) )
-    case And( f1, f2 )   => And( apply( f1 ), apply( f2 ) )
-    case Or( f1, f2 )    => Or( apply( f1 ), apply( f2 ) )
-    case Ex( x, f1 )     => apply( f1 )
-    case All( x, f1 )    => apply( f1 )
+    case HOLAtom( _, _ ) | Top() | Bottom() => f
+    case Neg( f1 )                          => Neg( apply( f1 ) )
+    case Imp( f1, f2 )                      => Imp( apply( f1 ), apply( f2 ) )
+    case And( f1, f2 )                      => And( apply( f1 ), apply( f2 ) )
+    case Or( f1, f2 )                       => Or( apply( f1 ), apply( f2 ) )
+    case Ex( x, f1 )                        => apply( f1 )
+    case All( x, f1 )                       => apply( f1 )
   }
   def apply( f: FOLFormula ): FOLFormula = apply( f.asInstanceOf[HOLFormula] ).asInstanceOf[FOLFormula]
 }
@@ -374,6 +374,29 @@ object instantiate {
   def apply( f: FOLFormula, t: FOLTerm ): FOLFormula = apply( f.asInstanceOf[HOLFormula], t.asInstanceOf[LambdaExpression] ).asInstanceOf[FOLFormula]
   def apply( f: FOLFormula, ts: Seq[FOLTerm] ): FOLFormula = apply( f.asInstanceOf[HOLFormula], ts.asInstanceOf[Seq[LambdaExpression]] ).asInstanceOf[FOLFormula]
   def apply( f: FOLFormula, tss: Seq[Seq[FOLTerm]] ): Seq[FOLFormula] = apply( f.asInstanceOf[HOLFormula], tss.asInstanceOf[Seq[Seq[FOLTerm]]] ).asInstanceOf[Seq[FOLFormula]]
+
+  /**
+   * Compute all clauses obtainable from substituting terms from the given set for variables in the given clause.
+   */
+  def apply( cl: FOLClause, ts: Set[FOLTerm] ): Set[FOLClause] = {
+    val vars = freeVariables( cl )
+    val mappings = vars.foldLeft( Set( Map[FOLVar, FOLTerm]() ) )( ( ms, x ) => {
+      for { m <- ms; t <- ts } yield m + ( x -> t )
+    } )
+    mappings.map( m => { FOLSubstitution( m )( cl ) } ).asInstanceOf[Set[FOLClause]] //TODO: get rid of this cast (see issue 425)
+  }
+
+  /**
+   * Compute all clauses obtainable from substituting terms from the given set for variables in one of the given clauses.
+   */
+  def apply( cls: Set[FOLClause], ts: Set[FOLTerm] ): Set[FOLClause] = {
+    cls.flatMap( apply( _, ts ) )
+  }
+
+  /**
+   * Compute all clauses obtainable from substituting terms from the given set for variables in one of the given clauses.
+   */
+  def apply( cls: List[FOLClause], ts: Set[FOLTerm] ): List[FOLClause] = apply( cls.toSet, ts ).toList
 }
 
 object normalizeFreeVariables {
@@ -448,5 +471,28 @@ object normalizeFreeVariables {
 
     val sub = Substitution( map )
     ( sub( f ), sub )
+  }
+}
+
+/**
+ * Removes top-level connectives from a formula.
+ */
+object prenexify {
+  /**
+   * Returns a sequent that is equivalent to :- formula.
+   */
+  def pos( formula: HOLFormula ): HOLSequent = formula match {
+    case Or( a, b )  => pos( a ) ++ pos( b )
+    case Imp( a, b ) => neg( a ) ++ pos( b )
+    case Neg( a )    => neg( a )
+    case _           => Sequent() :+ formula
+  }
+  /**
+   * Returns a sequent that is equivalent to formula :-.
+   */
+  def neg( formula: HOLFormula ): HOLSequent = formula match {
+    case And( a, b ) => neg( a ) ++ neg( b )
+    case Neg( a )    => pos( a )
+    case _           => formula +: Sequent()
   }
 }

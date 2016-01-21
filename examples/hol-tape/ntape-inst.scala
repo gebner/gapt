@@ -1,69 +1,77 @@
+package at.logic.gapt.examples.ntape
+
+import at.logic.gapt.examples.Script
+import at.logic.gapt.proofs.ceres.StructCreators
+import at.logic.gapt.proofs.lk.{ LKToLKsk, AtomicExpansion, regularize, DefinitionElimination }
+import java.nio.file.{ Paths, Files }
+
+import at.logic.gapt.expr.hol._
+
+import at.logic.gapt.formats.arithmetic.HOLTermArithmeticalExporter
+import at.logic.gapt.formats.latex.SequentsListLatexExporter
+
+import at.logic.gapt.formats.llk.HybridLatexParser
+import at.logic.gapt.formats.tptp.TPTPHOLExporter
+import at.logic.gapt.formats.writers.FileWriter
+import at.logic.gapt.proofs.HOLSequent
+import at.logic.gapt.proofs.lkOld.{ deleteTautologies, subsumedClausesRemovalHOL }
+
 /* *************************************************************************** *
    n-Tape Proof script: loads an instance of the n-Tape proof, extracts the
    characteristic sequent set and exports it to tptp.
-   Usage:                                                                       
-     (start cli in gapt/source directory or adjust the filename variable below command)     
-     :load examples/hol-tape/ntape-inst.scala                               
-     prooftool(acnf)                                                            
-                                                                                
  * *************************************************************************** */
+/*
+object inst extends Script {
+  /* adjust filename to load a different example */
+  //val filename = "tape3-4c.llk"
+  val filename = "examples/hol-tape/tape3-3.llk"
 
-/* adjust filename to load a different example */
-//val filename = "tape3-4c.llk"  
-val filename = "examples/hol-tape/tape3-3.llk"  
+  /* begin of proof script  */
 
-/* begin of proof script  */
+  object exportLatex {
+    def apply( list: List[HOLSequent], fn: String ) = {
+      val writer = new FileWriter( fn ) with SequentsListLatexExporter with HOLTermArithmeticalExporter
+      writer.exportSequentList( list, Nil ).close
+    }
+  }
 
-import at.logic.gapt.expr.fol.{undoHol2Fol, replaceAbstractions, reduceHolToFol}
-import at.logic.gapt.expr.hol._
+  object exportTHF {
+    def apply( ls: List[HOLSequent], filename: String, positive: Boolean = false ) =
+      Files.write( Paths.get( filename ), TPTPHOLExporter( ls, positive ).getBytes )
+  }
 
-import at.logic.gapt.expr.fol.undoHol2Fol
+  val nLine = sys.props( "line.separator" )
 
-import at.logic.gapt.formats.llk.HybridLatexParser
-import at.logic.gapt.algorithms.rewriting.DefinitionElimination
-import at.logic.gapt.proofs.lk.{AtomicExpansion, regularize, subsumedClausesRemovalHOL}
-import at.logic.gapt.proofs.lksk.sequentToLabelledSequent
-import at.logic.gapt.proofs.resolution.RobinsonToRal
+  def show( s: String ) = println( nLine + nLine + "+++++++++ " + s + " ++++++++++" + nLine )
 
-import at.logic.gapt.provers.prover9._
-import at.logic.gapt.proofs.ceres.clauseSets._
-import at.logic.gapt.proofs.ceres.projections.Projections
-import at.logic.gapt.proofs.ceres.struct.StructCreators
+  show( "Loading file" )
+  val pdb = HybridLatexParser( filename )
 
-import at.logic.gapt.proofs.ceres.ceres_omega
-import at.logic.gapt.proofs.lksk.LKskToExpansionProof
-import at.logic.gapt.proofs.lk.LKToLKsk
+  show( "Eliminating definitions, expanding tautological axioms" )
+  val elp = AtomicExpansion( DefinitionElimination( pdb.Definitions )( regularize( pdb.proof( "TAPEPROOF" ) ) ) )
 
- val nLine = sys.props("line.separator")
+  show( "Skolemizing" )
+  val selp = LKToLKsk( elp )
 
- def show(s:String) = println( nLine + nLine + "+++++++++ "+s+" ++++++++++" + nLine )
+  show( "Extracting struct" )
+  val struct = StructCreators.extract( selp, x => containsQuantifierOnLogicalLevel( x ) || freeHOVariables( x ).nonEmpty )
 
- show("Loading file")
- val pdb = loadLLK(filename)
+  show( "Computing clause set" )
+  //val cl = AlternativeStandardClauseSet(struct)
+  val cl = SimpleStandardClauseSet( struct )
+  //val cl = StandardClauseSet.transformStructToClauseSet(struct).map(_.toHOLSequent)
 
- show("Eliminating definitions, expanding tautological axioms")
- val elp = AtomicExpansion(DefinitionElimination(pdb.Definitions, regularize(pdb.proof("TAPEPROOF"))))
+  show( "simplifying clause set" )
+  val fs = HOLSequent( Nil, List( HLKHOLParser.parseFormula( "var x :i; x = x" ) ) )
+  val rcl = subsumedClausesRemovalHOL( fs :: ( cl.toList ) )
+  val tcl = deleteTautologies( rcl )
 
- show("Skolemizing")
- val selp = LKtoLKskc(elp)
+  show( "exporting to THF and Tex" )
+  exportTHF( tcl.sorted( HOLSequentOrdering ), filename + ".tptp" )
+  exportLatex( tcl.sorted( HOLSequentOrdering ), filename + ".tex" )
 
- show("Extracting struct")
- val struct = StructCreators.extract(selp, x => containsQuantifierOnLogicalLevel(x) || freeHOVariables(x).nonEmpty)
-
- show("Computing clause set")
- //val cl = AlternativeStandardClauseSet(struct)
- val cl = SimpleStandardClauseSet(struct)
- //val cl = structToClausesList(struct).map(_.toHOLSequent)
-
- show("simplifying clause set")
- val fs = HOLSequent(Nil, List(parseLLKFormula("var x :i; x = x")))
- val rcl = subsumedClausesRemovalHOL(fs::(cl.toList))
- val tcl = deleteTautologies(rcl)
-
- show("exporting to THF and Tex")
- exportTHF(tcl.sorted(FSequentOrdering), filename+".tptp")
- exportLatex(tcl.sorted(FSequentOrdering), filename+".tex")
-
- show("statistics")
- println("Clause set:"+cl.size)
- println("Reduced clause set:"+tcl.size)
+  show( "statistics" )
+  println( "Clause set:" + cl.size )
+  println( "Reduced clause set:" + tcl.size )
+}
+*/

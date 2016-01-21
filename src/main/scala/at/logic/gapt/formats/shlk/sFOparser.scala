@@ -1,20 +1,22 @@
 package at.logic.gapt.formats.shlk_parsing
 
-import at.logic.gapt.proofs.lk.solve
+import at.logic.gapt.formats.simple.TypeParsers
+import at.logic.gapt.proofs.HOLSequent
+import at.logic.gapt.proofs.lkOld.solve
 
 import scala.util.parsing.combinator._
 import scala.util.matching.Regex
 import java.io.InputStreamReader
 import at.logic.gapt.expr.schema._
-import at.logic.gapt.proofs.lk.base.{ HOLSequent, OccSequent, LKProof }
+import at.logic.gapt.proofs.lkOld.base._
 import collection.mutable.{ Map => MMap }
 import at.logic.gapt.proofs.shlk._
 import scala.Tuple4
 import at.logic.gapt.expr._
 import scala.Tuple2
 import at.logic.gapt.expr.StringSymbol
-import at.logic.gapt.expr.{ To, FunctionType, Tindex, Ti }
-import at.logic.gapt.proofs.lk._
+import at.logic.gapt.expr.{ To, FunctionType, Ti }
+import at.logic.gapt.proofs.lkOld._
 
 object sFOParser {
   val nLine = sys.props( "line.separator" )
@@ -37,7 +39,7 @@ object sFOParser {
       case x: AnyRef => // { println( nLine + nLine + "FAIL parse : " + nLine + error_buffer ); throw new Exception( nLine + nLine + "FAIL parse :( " + nLine ); }
         throw new Exception( "Error in sFOParser.parseSequent : " + x.toString )
     }
-    class SequentParser extends JavaTokenParsers with at.logic.gapt.expr.Parsers {
+    class SequentParser extends JavaTokenParsers with TypeParsers {
       def name = """[\\]*[a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r,s,t,u,v,w,x,y,z,_,0,1,2,3,4,5,6,7,8,9]*""".r
       def term: Parser[SchemaExpression] = ( non_formula | formula )
       def formula: Parser[SchemaFormula] = ( atom | neg | big | and | or | indPred | imp | forall | exists | variable | constant ) ^? { case trm: SchemaFormula => trm }
@@ -204,7 +206,7 @@ object sFOParser {
     //      }
     //    }
 
-    class SimpleSLKParser extends JavaTokenParsers with at.logic.gapt.expr.Parsers {
+    class SimpleSLKParser extends JavaTokenParsers with TypeParsers {
       def line: Parser[List[Unit]] = rep( mappingBase )
       def mappingBase: Parser[Unit] = label.r ~ ":" ~ proof ^^ {
         case l ~ ":" ~ p => {

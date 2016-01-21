@@ -5,13 +5,14 @@
 
 package at.logic.gapt.proofs.shlk
 
+import at.logic.gapt.proofs.HOLSequent
 import org.specs2.mutable._
 import org.specs2.execute.Success
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.schema._
-import at.logic.gapt.proofs.lk.base._
-import at.logic.gapt.proofs.lk.Axiom
+import at.logic.gapt.proofs.lkOld.base._
+import at.logic.gapt.proofs.lkOld.Axiom
 import at.logic.gapt.proofs.occurrences._
 
 class SLKTest extends Specification {

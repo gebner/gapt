@@ -10,14 +10,13 @@ import java.io.InputStreamReader
 import at.logic.gapt.formats.shlk_parsing.SHLK
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.schema._
-import at.logic.gapt.proofs.lk._
+import at.logic.gapt.proofs.lkOld._
 import org.specs2.execute.Success
 import org.specs2.mutable._
 
 class SimpleSLKParserTest extends Specification {
   "SimpleSLKParser" should {
 
-    sequential
     "parse correctly a SLK-proof" in {
       val var3 = SchemaAtom( Var( "x3", To ), Nil )
       val var4 = SchemaAtom( Var( "x4", To ), Nil )

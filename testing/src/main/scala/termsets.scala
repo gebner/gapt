@@ -1,13 +1,15 @@
 package at.logic.gapt.testing
 import java.nio.file._
 
-import at.logic.gapt.algorithms.rewriting.NameReplacement
+import at.logic.gapt.algorithms.rewriting.TermReplacement
+import at.logic.gapt.examples.proofSequences
 import at.logic.gapt.expr._
 import at.logic.gapt.formats.leanCoP.LeanCoPParser
-import at.logic.gapt.proofs.expansionTrees.{ toShallow, InstanceTermEncoding, ExpansionSequent }
+import at.logic.gapt.proofs.expansion.{ toShallow, FOLInstanceTermEncoding, ExpansionSequent }
+import at.logic.gapt.proofs.lk.LKToExpansionProof
 import at.logic.gapt.provers.prover9.Prover9Importer
 import at.logic.gapt.utils.executionModels.timeout.withTimeout
-import org.apache.commons.lang3.exception.ExceptionUtils
+import at.logic.gapt.utils.glob
 
 import scala.App
 
@@ -18,13 +20,14 @@ object dumpTermsets extends App {
   Files createDirectories outDir
 
   def termsetFromExpansionProof( e: ExpansionSequent ): Set[FOLTerm] =
-    simplifyNames( new InstanceTermEncoding( toShallow( e ) ) encode e toSet )
+    simplifyNames( FOLInstanceTermEncoding( toShallow( e ) ) encode e map { _.asInstanceOf[FOLTerm] } )
 
   def simplifyNames( termset: Set[FOLTerm] ): Set[FOLTerm] = {
-    val renaming = constants( termset ).toSeq.sortBy( _.toString ).
-      zipWithIndex.map { case ( FOLFunctionHead( sym, arity ), i ) => sym -> ( arity, s"f$i" ) }.
-      toMap
-    termset.map( NameReplacement( _, renaming ) )
+    val renaming: Map[LambdaExpression, LambdaExpression] =
+      ( constants( termset ).toSeq ++ freeVariables( termset ).toSeq ).sortBy( _.toString ).
+        zipWithIndex.map { case ( c, i ) => c -> Const( s"f$i", c.exptype ) }.
+        toMap
+    termset.map( TermReplacement( _, renaming ).asInstanceOf[FOLTerm] )
   }
 
   def termToString( t: FOLTerm ): String = t match {
@@ -50,16 +53,29 @@ object dumpTermsets extends App {
     }
   }
 
+  println( "Proof sequences" )
+  betterForeach( proofSequences ) { proofSeq =>
+    Stream.from( 1 ).map { i =>
+      println( s"${proofSeq.name}($i)" )
+      i -> termsetFromExpansionProof( LKToExpansionProof( proofSeq( i ) ).expansionSequent )
+    }.takeWhile( _._2.size < 100 ).foreach {
+      case ( i, termset ) =>
+        writeTermset( outDir resolve s"proofseq-${proofSeq.name}-$i.termset", termset )
+    }
+  }
+
   println( "Prover9 proofs" )
-  betterForeach( RegressionTests.prover9Proofs.map( _.toPath ) ) { p9File =>
+  betterForeach( glob paths "testing/**/prover9/**/*.s.out" ) { p9File =>
+    val expansionProof = Prover9Importer expansionProofFromFile p9File.toString
+
     writeTermset(
       outDir resolve s"p9-${p9File.getParent.getFileName}.termset",
-      termsetFromExpansionProof( Prover9Importer expansionProofFromFile p9File.toString )
+      termsetFromExpansionProof( expansionProof )
     )
   }
 
   println( "LeanCoP proofs" )
-  betterForeach( RegressionTests.leancopProofs.map( _.toPath ) ) { leanCoPFile =>
+  betterForeach( glob paths "testing/**/leanCoP/**/*.out" ) { leanCoPFile =>
     writeTermset(
       outDir resolve s"leancop-${leanCoPFile.getParent.getFileName}.termset",
       termsetFromExpansionProof( LeanCoPParser getExpansionProof leanCoPFile.toString get )

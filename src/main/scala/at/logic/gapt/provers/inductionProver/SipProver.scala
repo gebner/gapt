@@ -1,16 +1,16 @@
 package at.logic.gapt.provers.inductionProver
 
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.{ FOLSubstitution, Utils }
+import at.logic.gapt.expr.fol.Utils
 import at.logic.gapt.expr.hol.CNFp
 import at.logic.gapt.grammars.findMinimalSipGrammar
-import at.logic.gapt.proofs.expansionTrees._
-import at.logic.gapt.proofs.lk.LKToExpansionProof
-import at.logic.gapt.proofs.lk.base.{ LKProof, HOLSequent }
-import at.logic.gapt.provers.Prover
-import at.logic.gapt.provers.maxsat.{ MaxSATSolver, QMaxSAT }
-import at.logic.gapt.provers.prover9.Prover9Prover
-import at.logic.gapt.provers.veriT.VeriTProver
+import at.logic.gapt.proofs.HOLSequent
+import at.logic.gapt.proofs.expansion._
+import at.logic.gapt.proofs.lk.LKProof
+import at.logic.gapt.provers.{ OneShotProver, Prover }
+import at.logic.gapt.provers.maxsat.{ bestAvailableMaxSatSolver, MaxSATSolver }
+import at.logic.gapt.provers.prover9.Prover9
+import at.logic.gapt.provers.veriT.VeriT
 import at.logic.gapt.utils.logging.Logger
 
 trait SolutionFinder {
@@ -19,14 +19,14 @@ trait SolutionFinder {
 
 class SipProver(
   solutionFinder:            SolutionFinder = new HeuristicSolutionFinder( 1 ),
-  instanceProver:            Prover         = new Prover9Prover(),
+  instanceProver:            Prover         = Prover9,
   instances:                 Seq[Int]       = 0 until 3,
   testInstances:             Seq[Int]       = 0 until 15,
   minimizeInstanceLanguages: Boolean        = false,
-  quasiTautProver:           Prover         = new VeriTProver,
-  maxSATSolver:              MaxSATSolver   = new QMaxSAT
+  quasiTautProver:           Prover         = VeriT,
+  maxSATSolver:              MaxSATSolver   = bestAvailableMaxSatSolver
 )
-    extends Prover with Logger {
+    extends OneShotProver with Logger {
 
   val nLine = sys.props( "line.separator" )
 
@@ -43,17 +43,17 @@ class SipProver(
 
   }
 
-  def getSimpleInductionProof( endSequent: HOLSequent, instanceProofs: Seq[( Int, ExpansionSequent )] ): Option[SimpleInductionProof] = {
+  def getSimpleInductionProof( endSequent: HOLSequent, instanceProofs: Seq[( Int, ExpansionProof )] ): Option[SimpleInductionProof] = {
 
     val inductionVariable = freeVariables( endSequent.formulas.toList.map( _.asInstanceOf[FOLExpression] ) ) match {
       case singleton if singleton.size == 1 => singleton.head
     }
     require( inductionVariable == SimpleInductionProof.alpha ) // TODO: maybe relax this restriction
 
-    val termEncoding = InstanceTermEncoding( endSequent )
+    val termEncoding = FOLInstanceTermEncoding( endSequent )
     var instanceLanguages = instanceProofs map {
       case ( n, expSeq ) =>
-        n -> termEncoding.encode( expSeq )
+        n -> termEncoding.encode( expSeq ).map( _.asInstanceOf[FOLTerm] )
     }
 
     // Ground the instance languages.
@@ -63,7 +63,7 @@ class SipProver(
 
     instanceLanguages foreach {
       case ( n, l ) =>
-        debug( s"Instance language for n=$n:$nLine${l.map( _.toString ).sorted.mkString( nLine )}" )
+        debug( s"Instance language for n=$n:$nLine${l.toSeq.map( _.toString ).sorted.mkString( nLine )}" )
     }
 
     debug( "Finding grammar..." )
@@ -72,7 +72,7 @@ class SipProver(
 
     if ( testInstances.forall { n =>
       val generatedInstanceSequent = FOLSubstitution( inductionVariable -> Utils.numeral( n ) )(
-        termEncoding.decodeToFSequent( grammar.instanceGrammar( n ).language )
+        termEncoding.decodeToInstanceSequent( grammar.instanceGrammar( n ).language )
       )
       val isQuasiTaut = quasiTautProver.isValid( generatedInstanceSequent )
       debug( s"[n=$n] Instance language is quasi-tautological: $isQuasiTaut" )
@@ -99,11 +99,11 @@ class SipProver(
     }
   }
 
-  def generateInstanceProofs( endSequent: HOLSequent, inductionVariable: FOLVar ): Seq[( Int, ExpansionSequent )] = {
+  def generateInstanceProofs( endSequent: HOLSequent, inductionVariable: FOLVar ): Seq[( Int, ExpansionProof )] = {
     var instanceProofs = instances map { n =>
       val instanceSequent = FOLSubstitution( inductionVariable -> Utils.numeral( n ) )( endSequent )
       debug( s"[n=$n] Proving $instanceSequent" )
-      n -> instanceProver.getExpansionSequent( instanceSequent ).get
+      n -> instanceProver.getExpansionProof( instanceSequent ).get
     }
     if ( minimizeInstanceLanguages ) {
       instanceProofs = instanceProofs map {

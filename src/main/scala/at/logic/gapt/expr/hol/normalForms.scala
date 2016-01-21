@@ -1,7 +1,7 @@
 package at.logic.gapt.expr.hol
 
 import at.logic.gapt.expr._
-import at.logic.gapt.proofs.resolution._
+import at.logic.gapt.proofs.{ FOLClause, HOLClause }
 import at.logic.gapt.utils.dssupport.ListSupport
 
 /**
@@ -101,8 +101,8 @@ object CNFp {
   def toClauseList( f: HOLFormula ): List[HOLClause] = {
     apply( f ).distinct.map(
       literals => {
-        val neg = literals.filter( isNeg( _ ) ).map( removeNeg( _ ) )
-        val pos = literals.filterNot( isNeg( _ ) )
+        val neg = literals.filter( isNeg( _ ) ).map( removeNeg( _ ) ).map( _.asInstanceOf[HOLAtom] )
+        val pos = literals.filterNot( isNeg( _ ) ).map( _.asInstanceOf[HOLAtom] )
         HOLClause( neg, pos )
       }
     )
@@ -141,12 +141,14 @@ object CNFn {
   def toFClauseList( f: HOLFormula ): List[HOLClause] = {
     apply( f ).distinct.map(
       literals => {
-        val neg = literals.filter( isNeg( _ ) ).map( removeNeg( _ ) )
-        val pos = literals.filterNot( isNeg( _ ) )
+        val neg = literals.filter( isNeg( _ ) ).map( removeNeg( _ ) ).map( _.asInstanceOf[HOLAtom] )
+        val pos = literals.filterNot( isNeg( _ ) ).map( _.asInstanceOf[HOLAtom] )
         HOLClause( neg, pos )
       }
     )
   }
+
+  def toClauseList( f: FOLFormula ): List[FOLClause] = toFClauseList( f.asInstanceOf[HOLFormula] ).asInstanceOf[List[FOLClause]]
 
   def toFormulaList( f: HOLFormula ): List[HOLFormula] = apply( f ).map( Or( _ ) )
 

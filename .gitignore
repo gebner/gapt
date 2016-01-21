@@ -11,17 +11,24 @@ testing/veriT-SMT-LIB/QF_UF
 
 # cut-intro experiments
 /*.json
+/termsets
 
 # latex
 doc/*.aux
 doc/*.bbl
 doc/*.blg
 doc/*.log
-doc/*.pdf
+doc/user_manual.pdf
 doc/*.toc
 doc/*.fdb_latexmk
 doc/*.fls
 doc/*.out
+doc/*.lox
+doc/*.synctex.gz
+doc/auto
+doc/_region_.*
+doc/prv_user_manual.fmt
+doc/*.tex.backup
 *-proposal/*.aux
 *-proposal/*.bbl
 *-proposal/*.blg
@@ -31,6 +38,7 @@ doc/*.out
 *-proposal/*.fdb_latexmk
 *-proposal/*.fls
 *-proposal/*.out
+*-proposal/*.synctex.gz
 
 # vim
 .*.sw?
@@ -45,6 +53,8 @@ doc/*.out
 .cache-main
 .cache-test
 .cache-tests
+*.settings
+
 
 # emacs
 /.ensime*

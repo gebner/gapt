@@ -1,390 +1,194 @@
-// This package implements the higher-order analogue to Skolemization:
-// a transformation from LK to LK_skc
-
 package at.logic.gapt.proofs.lk
 
 import at.logic.gapt.expr._
-import at.logic.gapt.formats.llk.{ HybridLatexExporter, toLatexString }
-import at.logic.gapt.proofs.lk.base.{ HOLSequent, LKProof, OccSequent }
-import at.logic.gapt.proofs.lksk.TypeSynonyms.{ EmptyLabel, Label }
-import at.logic.gapt.proofs.lksk.{ Axiom => LKskAxiom, WeakeningLeftRule => LKskWeakeningLeftRule, WeakeningRightRule => LKskWeakeningRightRule, applySubstitution => LKskapplySubstitution, _ }
-import at.logic.gapt.proofs.occurrences._
+import at.logic.gapt.expr.hol.TypeSynonyms.SkolemSymbol
+import at.logic.gapt.expr.hol.{ HOLPosition, SkolemSymbolFactory }
+import at.logic.gapt.proofs._
+import at.logic.gapt.proofs.lkskNew.LKskProof._
+import at.logic.gapt.proofs.lkskNew
+import at.logic.gapt.proofs.lk
+import at.logic.gapt.proofs.lkskNew._
 import at.logic.gapt.utils.logging.Logger
-import scala.collection.mutable.{ Map, HashMap }
 
-object LKToLKsk extends Logger {
-  def fo2occ( f: HOLFormula ) = factory.createFormulaOccurrence( f, Nil )
+class LKToLKsk( skolemSymbolFactory: SkolemSymbolFactory ) extends Logger {
+  type HPathsSequent = Sequent[List[HPath]]
+  type SkolemSymbolTable = Map[HPath, SkolemSymbol]
 
-  def apply( proof: LKProof ): LKProof = apply( proof, getCutAncestors( proof ) )
+  def apply( p: LKProof ): LKskProof = apply( p, p.conclusion map { _ => Seq() },
+    p.conclusion map { _ => false },
+    p.conclusion map { _ => Nil } )( Map() )._1
 
-  // cut_occs is the set of cut-ancestors in the proof.
-  def apply( proof: LKProof, cut_occs: Set[FormulaOccurrence] ): LKProof = {
-    // initialize map from occurrences to substitution terms:
-    // in the end-sequent, there are no substitution terms for any
-    // formula occurrences on the path to the end-sequent
-    val subst_terms = new HashMap[FormulaOccurrence, Label]
-    proof.root.antecedent.foreach( fo => subst_terms.update( fo, EmptyLabel() ) )
-    proof.root.succedent.foreach( fo => subst_terms.update( fo, EmptyLabel() ) )
-    rec( proof, subst_terms, cut_occs )._1
+  def apply( p: LKProof, labels: Sequent[Label], isCutAnc: Sequent[Boolean], hpaths: HPathsSequent )( implicit contracted_symbols: SkolemSymbolTable ): ( LKskProof, SkolemSymbolTable ) = {
+    val res: ( LKskProof, SkolemSymbolTable ) = p match {
+      case LogicalAxiom( atom )     => ( lkskNew.Axiom( labels( Ant( 0 ) ), labels( Suc( 0 ) ), atom ), contracted_symbols )
+      case ReflexivityAxiom( term ) => ( Reflexivity( labels( Suc( 0 ) ), term ), contracted_symbols )
+      case TopAxiom                 => ( TopRight( labels( Suc( 0 ) ) ), contracted_symbols )
+      case BottomAxiom              => ( BottomLeft( labels( Ant( 0 ) ) ), contracted_symbols )
+      case lk.TheoryAxiom( seq )    => ( lkskNew.TheoryAxiom( labels zip seq ), contracted_symbols )
+
+      case p @ ContractionLeftRule( subProof, aux1: Ant, aux2: Ant ) =>
+        val nhpath = extend_hpaths( p, hpaths.zipWithIndex map ( {
+          case ( path, i ) if i == aux1 =>
+            HPath( p, List( p.mainFormula ) ) :: path
+          case ( path, i ) if i == aux2 =>
+            HPath( p, List( p.mainFormula ) ) :: path
+          case ( path, _ ) =>
+            path
+        } ) )
+        val ( uproof, utable ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), nhpath )
+        ( ContractionLeft( uproof, aux1, aux2 ), utable )
+      case p @ ContractionRightRule( subProof, aux1: Suc, aux2: Suc ) =>
+        val nhpath = extend_hpaths( p, hpaths.zipWithIndex map ( {
+          case x if x._2 == aux1 || x._2 == aux2 => HPath( p, List( p.mainFormula ) ) :: x._1
+          case x                                 => x._1
+        } ) )
+        val ( uproof, utable ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), nhpath )
+        ( ContractionRight( uproof, aux1, aux2 ), utable )
+
+      case p @ WeakeningLeftRule( subProof, formula ) =>
+        val ( uproof, utable ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( WeakeningLeft( uproof, labels( p.mainIndices.head ) -> formula ), utable )
+      case p @ WeakeningRightRule( subProof, formula ) =>
+        val ( uproof, utable ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( WeakeningRight( uproof, labels( p.mainIndices.head ) -> formula ), utable )
+
+      case p @ NegLeftRule( subProof, aux: Suc ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( NegLeft( uproof, aux ), table )
+      case p @ NegRightRule( subProof, aux: Ant ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( NegRight( uproof, aux ), table )
+
+      case p @ AndLeftRule( subProof, aux1: Ant, aux2: Ant ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( AndLeft( uproof, aux1, aux2 ), table )
+      case p @ AndRightRule( subProof1, aux1: Suc, subProof2, aux2: Suc ) =>
+        val ( uproof1, table1 ) = apply( subProof1, p.getLeftOccConnector.parent( labels ), p.getLeftOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths, 0 ) )
+        val ( uproof2, table2 ) = apply( subProof2, p.getRightOccConnector.parent( labels ), p.getRightOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths, 1 ) )( table1 )
+        ( AndRight( uproof1, aux1, uproof2, aux2 ), table2 )
+
+      case p @ OrLeftRule( subProof1, aux1: Ant, subProof2, aux2: Ant ) =>
+        val ( uproof1, table1 ) = apply( subProof1, p.getLeftOccConnector.parent( labels ), p.getLeftOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths, 0 ) )
+        val ( uproof2, table2 ) = apply( subProof2, p.getRightOccConnector.parent( labels ), p.getRightOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths, 1 ) )( table1 )
+        ( OrLeft( uproof1, aux1, uproof2, aux2 ), table2 )
+      case p @ OrRightRule( subProof, aux1: Suc, aux2: Suc ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( OrRight( uproof, aux1, aux2 ), table )
+
+      case p @ ImpLeftRule( subProof1, aux1: Suc, subProof2, aux2: Ant ) =>
+        val ( uproof1, table1 ) = apply( subProof1, p.getLeftOccConnector.parent( labels ), p.getLeftOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths, 0 ) )
+        val ( uproof2, table2 ) = apply( subProof2, p.getRightOccConnector.parent( labels ), p.getRightOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths, 1 ) )( table1 )
+        ( ImpLeft( uproof1, aux1, uproof2, aux2 ), table2 )
+      case p @ ImpRightRule( subProof, aux1: Ant, aux2: Suc ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( ImpRight( uproof, aux1, aux2 ), table )
+
+      case p @ CutRule( subProof1, aux1: Suc, subProof2, aux2: Ant ) =>
+        val ( uproof1, table1 ) = apply( subProof1, p.getLeftOccConnector.parent( labels, Seq() ), p.getLeftOccConnector.parent( isCutAnc, true ), extend_hpaths( p, hpaths, 0 ) )
+        val ( uproof2, table2 ) = apply( subProof2, p.getRightOccConnector.parent( labels, Seq() ), p.getRightOccConnector.parent( isCutAnc, true ), extend_hpaths( p, hpaths, 1 ) )( table1 )
+        ( Cut( uproof1, aux1, uproof2, aux2 ), table2 )
+
+      case p: EqualityRule =>
+        val lambdaPos = p.positions map { HOLPosition.toLambdaPosition( p.auxFormula ) }
+        val ( uproof, table ) = apply( p.subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( Equality( uproof, p.eq.asInstanceOf[Ant], p.aux, p.leftToRight, lambdaPos ), table )
+
+      case p @ ForallLeftRule( subProof, aux: Ant, formula, term, v ) if !isCutAnc( p.mainIndices.head ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ).updated( aux, labels( p.mainIndices.head ) :+ term ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( AllSkLeft( uproof, aux, All( v, formula ), term ), table )
+      case p @ ExistsRightRule( subProof, aux: Suc, formula, term, v ) if !isCutAnc( p.mainIndices.head ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ).updated( aux, labels( p.mainIndices.head ) :+ term ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( ExSkRight( uproof, aux, Ex( v, formula ), term ), table )
+      case p @ ForallLeftRule( subProof, aux: Ant, formula, term, v ) if isCutAnc( p.mainIndices.head ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( AllLeft( uproof, aux, All( v, formula ), term ), table )
+      case p @ ExistsRightRule( subProof, aux: Suc, formula, term, v ) if isCutAnc( p.mainIndices.head ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( ExRight( uproof, aux, Ex( v, formula ), term ), table )
+
+      case p @ ForallRightRule( subProof, aux: Suc, eigen, quant ) if !isCutAnc( p.mainIndices.head ) =>
+        val ls = labels( p.mainIndices.head )
+        val ( skolemSymbol, newTable ) = createSkolemSymbol( skolemSymbolFactory, hpaths( p.mainIndices( 0 ) ), contracted_symbols )
+        val skolemConstant = Const( skolemSymbol, FunctionType( eigen.exptype, ls.map( _.exptype ) ) )
+        val subProof_ = Substitution( eigen -> skolemConstant( ls: _* ) )( subProof )
+        val ( uproof, table ) = apply( subProof_, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )( newTable )
+        ( AllSkRight( uproof, aux, p.mainFormula, skolemConstant ), table )
+
+      case p @ ExistsLeftRule( subProof, aux: Ant, eigen, quant ) if !isCutAnc( p.mainIndices.head ) =>
+        val ls = labels( p.mainIndices.head )
+        val ( skolemSymbol, newTable ) = createSkolemSymbol( skolemSymbolFactory, hpaths( p.mainIndices( 0 ) ), contracted_symbols )
+        val skolemConstant = Const( skolemSymbol, FunctionType( eigen.exptype, ls.map( _.exptype ) ) )
+        val subProof_ = Substitution( eigen -> skolemConstant( ls: _* ) )( subProof )
+        val ( uproof, table ) = apply( subProof_, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )( newTable )
+        ( ExSkLeft( uproof, aux, p.mainFormula, skolemConstant ), table )
+
+      case p @ ForallRightRule( subProof, aux: Suc, eigen, quant ) if isCutAnc( p.mainIndices.head ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( AllRight( uproof, aux, p.mainFormula, eigen ), table )
+      case p @ ExistsLeftRule( subProof, aux: Ant, eigen, quant ) if isCutAnc( p.mainIndices.head ) =>
+        val ( uproof, table ) = apply( subProof, p.getOccConnector.parent( labels ), p.getOccConnector.parent( isCutAnc ), extend_hpaths( p, hpaths ) )
+        ( ExLeft( uproof, aux, p.mainFormula, eigen ), table )
+    }
+    require( res._1.labels == labels, s"${res._1.labels} == $labels" )
+    res
   }
 
-  private def f( f: LambdaExpression ): String = toLatexString.apply( f )
-
-  private def f( s: OccSequent ): String =
-    s.antecedent.map( { case LabelledFormulaOccurrence( formula, _, l ) => f( formula ) + ":label" + l.map( f ).mkString( "{", ",", "}" ) } ).mkString( ";" ) + " :- " +
-      s.succedent.map( { case LabelledFormulaOccurrence( formula, _, l ) => f( formula ) + ":label" + l.map( f ).mkString( "{", ",", "}" ) } ).mkString( ";" )
-
-  // TODO: refactor this method! There is redundancy w.r.t. the symmetric rules
-  // like ForallLeft, ExistsRight etc. For an example, see algorithms.lk.substitution
-  // and the handleEquationalRule method below!
-  def rec( proof: LKProof, subst_terms: Map[FormulaOccurrence, Label], cut_occs: Set[FormulaOccurrence] ): ( LKProof, Map[FormulaOccurrence, LabelledFormulaOccurrence] ) = proof match {
-    case Axiom( so ) => {
-      val ant = so.antecedent.map( fo => fo.formula )
-      val succ = so.succedent.map( fo => fo.formula )
-      val labels_ant = so.antecedent.map( fo => subst_terms( fo ) ).toList
-      val labels_succ = so.succedent.map( fo => subst_terms( fo ) ).toList
-
-      val a = LKskAxiom.createDefault( HOLSequent( ant, succ ), Tuple2( labels_ant, labels_succ ) )
-
-      //assert( a._1.root.isInstanceOf[LabelledSequent] )
-      val map = new HashMap[FormulaOccurrence, LabelledFormulaOccurrence]
-      a._2._1.zip( a._2._1.indices ).foreach( p => map.update( so.antecedent( p._2 ), p._1 ) )
-      a._2._2.zip( a._2._2.indices ).foreach( p => map.update( so.succedent( p._2 ), p._1 ) )
-      ( a._1, map )
+  def createSkolemSymbol( factory: SkolemSymbolFactory, current_hpaths: List[HPath], symbol_table: SkolemSymbolTable ): ( SkolemSymbol, SkolemSymbolTable ) = {
+    //println( s"creating skolem symbol for $current_hpaths" )
+    //println( s"symbol table is:" )
+    //symbol_table.map( x => println( s"${x._1} -> ${x._2}" ) )
+    //we reverse the list to have the longest hpath first. since find returns the first match, it will find the longest matching hpath.
+    current_hpaths.reverse.find( symbol_table.contains ) match {
+      case Some( hpath ) =>
+        debug( "reusing skolem symbol: " + symbol_table( hpath ) )
+        ( symbol_table( hpath ), symbol_table )
+      case None =>
+        val sym = factory.getSkolemSymbol
+        debug( s"new skolem symbol $sym" )
+        val ntable = current_hpaths.foldLeft( symbol_table )( ( t, path ) => t + ( ( path, sym ) ) )
+        ( sym, ntable )
     }
-    case ForallLeftRule( p, s, a, m, t ) =>
-      if ( !cut_occs.contains( m ) )
-        transformWeakQuantRule( proof, subst_terms, p, a, m, t, ( s.antecedent filterNot ( _ == m ) ) ++ s.succedent,
-          cut_occs, ForallSkLeftRule.apply )
-      else
-        copyWeakQuantRule( proof, subst_terms, p, a, m, t, s, cut_occs, ForallLeftRule.apply )
-    case ExistsRightRule( p, s, a, m, t ) =>
-      if ( !cut_occs.contains( m ) )
-        transformWeakQuantRule( proof, subst_terms, p, a, m, t, s.antecedent ++ ( s.succedent filterNot ( _ == m ) ),
-          cut_occs, ExistsSkRightRule.apply )
-      else
-        copyWeakQuantRule( proof, subst_terms, p, a, m, t, s, cut_occs, ExistsRightRule.apply )
-    case ForallRightRule( p, s, a, m, v ) =>
-      if ( !cut_occs.contains( m ) ) {
-        val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-        val r = rec( p, new_label_map, cut_occs )
-        val newaux: LabelledFormulaOccurrence = r._2( a )
-        val args = newaux.skolem_label.toList
-        m.formula match {
-          case All( Var( _, alpha ), _ ) =>
-            val f = Const( getFreshSkolemFunctionSymbol, FunctionType( alpha, args.map( _.exptype ) ) )
-            debug( "Using Skolem function symbol '" + f + "' for formula " + m.formula )
-            val s = HOLFunction( f, args )
-            val subst = Substitution( v, s )
-            val new_parent = LKskapplySubstitution( r._1, subst )
-            val new_proof = ForallSkRightRule( new_parent._1, new_parent._2( newaux ), m.formula, s )
-            //assert( new_proof.root.isInstanceOf[LabelledSequent] )
-            // TODO: casts are only due to Set/Map not being covariant!?
-            val composed_map = r._2.clone
-            composed_map.transform( ( k, v ) => new_parent._2( v ) )
-            ( new_proof, computeMap(
-              p.root.antecedent ++
-                p.root.succedent,
-              proof, new_proof, composed_map
-            ) )
-        }
-      } else {
-        val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-        val r = rec( p, new_label_map, cut_occs )
-        val sk_proof = ForallRightRule( r._1, r._2( a ), m.formula, v )
-        //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-        ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
+  }
+
+  def extend_hpaths( p: LKProof, hpaths: HPathsSequent, occ_conn_idx: Int = 0, default: List[HPath] = Nil ): HPathsSequent = {
+    //map conclusion index to ancestor indices in parent
+    val anc_indices = hpaths.zipWithIndex.map( x => ( x._1, p.occConnectors( occ_conn_idx ).parents( x._2 ) ) )
+    //iterate parent indices and check if it occurs in one of the ancestor indices, if not use default
+    val nhpsequent = p.immediateSubProofs( occ_conn_idx ).conclusion.zipWithIndex.map( x => {
+      anc_indices find ( _._2 contains x._2 ) match {
+        case Some( idx ) =>
+          val oldpaths = anc_indices( idx )._1
+          //add new formula
+          //println( "extending: " + x._1 )
+          oldpaths map ( _ extend x._1 )
+        case None => default
       }
-    case ExistsLeftRule( p, s, a, m, v ) =>
-      if ( !cut_occs.contains( m ) ) {
-        val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-        val r = rec( p, new_label_map, cut_occs )
-        val newaux = r._2( a )
-        val args = newaux.skolem_label.toList
-        m.formula match {
-          case Ex( Var( _, alpha ), _ ) =>
-            val f = Const( getFreshSkolemFunctionSymbol, FunctionType( alpha, args.map( _.exptype ) ) )
-            debug( "Using Skolem function symbol '" + f + "' for formula " + m.formula )
-            val s = HOLFunction( f, args )
-            val subst = Substitution( v, s )
-            val new_parent = LKskapplySubstitution( r._1, subst )
-            val new_proof = ExistsSkLeftRule( new_parent._1, new_parent._2( newaux ), m.formula, s )
-            //assert( new_proof.root.isInstanceOf[LabelledSequent] )
-            // TODO: casts are only due to Set/Map not being covariant!?
-            val composed_map = r._2.clone
-            composed_map.transform( ( k, v ) => new_parent._2( v ) )
-            ( new_proof, computeMap(
-              p.root.antecedent ++
-                p.root.succedent,
-              proof, new_proof, composed_map
-            ) )
-
-        }
-      } else {
-        val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-        val r = rec( p, new_label_map, cut_occs )
-        val sk_proof = ExistsLeftRule( r._1, r._2( a ), m.formula, v )
-        //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-        ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-      }
-    case ImpLeftRule( p1, p2, s, a1, a2, m ) => {
-      //      val new_label_map_1 = copyMapFromAncestor( 
-      //                              p1.root.antecedent.map( proof.getDescendantInLowerSequent(_).get ) ++
-      //                              p1.root.succedent.map( proof.getDescendantInLowerSequent(_).get ), 
-      //                              subst_terms )
-      //      val new_label_map_2 = copyMapFromAncestor(
-      //                              p2.root.antecedent.map( proof.getDescendantInLowerSequent(_).get ) ++
-      //                              p2.root.succedent.map( proof.getDescendantInLowerSequent(_).get ), 
-      //                              subst_terms )
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r1 = rec( p1, new_label_map, cut_occs )
-      val r2 = rec( p2, new_label_map, cut_occs )
-      val sk_proof = ImpLeftRule( r1._1, r2._1, r1._2( a1 ), r2._2( a2 ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p1.root.antecedent ++ p1.root.succedent, proof, sk_proof, r1._2 ) ++
-        computeMap( p2.root.antecedent ++ p2.root.succedent, proof, sk_proof, r2._2 ) )
-    }
-    case AndRightRule( p1, p2, s, a1, a2, m ) => {
-      //      val new_label_map_1 = copyMapFromAncestor( 
-      //                              p1.root.antecedent.map( proof.getDescendantInLowerSequent(_).get ) ++
-      //                              p1.root.succedent.map( proof.getDescendantInLowerSequent(_).get ), 
-      //                              subst_terms )
-      //      val new_label_map_2 = copyMapFromAncestor(
-      //                              p2.root.antecedent.map( proof.getDescendantInLowerSequent(_).get ) ++
-      //                              p2.root.succedent.map( proof.getDescendantInLowerSequent(_).get ), 
-      //                              subst_terms )
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r1 = rec( p1, new_label_map, cut_occs )
-      val r2 = rec( p2, new_label_map, cut_occs )
-      val sk_proof = AndRightRule( r1._1, r2._1, r1._2( a1 ), r2._2( a2 ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p1.root.antecedent ++ p1.root.succedent, proof, sk_proof, r1._2 ) ++
-        computeMap( p2.root.antecedent ++ p2.root.succedent, proof, sk_proof, r2._2 ) )
-    }
-    case OrLeftRule( p1, p2, s, a1, a2, m ) => {
-      //      val new_label_map_1 = copyMapFromAncestor( 
-      //                              p1.root.antecedent.map( proof.getDescendantInLowerSequent(_).get ) ++
-      //                              p1.root.succedent.map( proof.getDescendantInLowerSequent(_).get ), 
-      //                              subst_terms )
-      //      val new_label_map_2 = copyMapFromAncestor(
-      //                              p2.root.antecedent.map( proof.getDescendantInLowerSequent(_).get ) ++
-      //                              p2.root.succedent.map( proof.getDescendantInLowerSequent(_).get ), 
-      //                              subst_terms )
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r1 = rec( p1, new_label_map, cut_occs )
-      val r2 = rec( p2, new_label_map, cut_occs )
-      val sk_proof = OrLeftRule( r1._1, r2._1, r1._2( a1 ), r2._2( a2 ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p1.root.antecedent ++ p1.root.succedent, proof, sk_proof, r1._2 ) ++
-        computeMap( p2.root.antecedent ++ p2.root.succedent, proof, sk_proof, r2._2 ) )
-    }
-    case AndLeft1Rule( p, s, a, m ) => {
-      val weak = m.formula match { case And( _, w ) => w }
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      //assert( r._1.root.isInstanceOf[LabelledSequent] )
-      val sk_proof = AndLeft1Rule( r._1, r._2( a ), weak )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case AndLeft2Rule( p, s, a, m ) => {
-      val weak = m.formula match { case And( w, _ ) => w }
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      //assert( r._1.root.isInstanceOf[LabelledSequent] )
-      val sk_proof = AndLeft2Rule( r._1, weak, r._2( a ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case NegLeftRule( p, s, a, m ) => {
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      //assert( r._1.root.isInstanceOf[LabelledSequent] )
-      val sk_proof = NegLeftRule( r._1, r._2( a ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case NegRightRule( p, s, a, m ) => {
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      //assert( r._1.root.isInstanceOf[LabelledSequent] )
-      val sk_proof = NegRightRule( r._1, r._2( a ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case OrRight1Rule( p, s, a, m ) => {
-      val weak = m.formula match { case Or( _, w ) => w }
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      //assert( r._1.root.isInstanceOf[LabelledSequent] )
-      val sk_proof = OrRight1Rule( r._1, r._2( a ), weak )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case OrRight2Rule( p, s, a, m ) => {
-      val weak = m.formula match { case Or( w, _ ) => w }
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      val sk_proof = OrRight2Rule( r._1, weak, r._2( a ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case ImpRightRule( p, s, a1, a2, m ) => {
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      val sk_proof = ImpRightRule( r._1, r._2( a1 ), r._2( a2 ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case WeakeningLeftRule( p, s, m ) => {
-      val new_label_map = copyMapFromAncestor( ( s.antecedent filterNot ( _ == m ) ) ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      val sk_proof = LKskWeakeningLeftRule.createDefault( r._1, m.formula, subst_terms.apply( m ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) +
-        Tuple2( m, sk_proof.prin.head ) )
-    }
-    case WeakeningRightRule( p, s, m ) => {
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ ( s.succedent filterNot ( _ == m ) ), subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      val sk_proof = LKskWeakeningRightRule.createDefault( r._1, m.formula, subst_terms.apply( m ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) +
-        Tuple2( m, sk_proof.prin.head ) )
-    }
-    case ContractionRightRule( p, s, a1, a2, m ) => {
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      val sk_proof = ContractionRightRule( r._1, r._2( a1 ), r._2( a2 ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case ContractionLeftRule( p, s, a1, a2, m ) => {
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-      val r = rec( p, new_label_map, cut_occs )
-      val sk_proof = ContractionLeftRule( r._1, r._2( a1 ), r._2( a2 ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-    }
-    case CutRule( p1, p2, s, a1, a2 ) => {
-      val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms ) +
-        ( ( a1, EmptyLabel() ), ( a2, EmptyLabel() ) )
-      val r1 = rec( p1, new_label_map, cut_occs )
-      val r2 = rec( p2, new_label_map, cut_occs )
-      val sk_proof = CutRule( r1._1, r2._1, r1._2( a1 ), r2._2( a2 ) )
-      //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-      ( sk_proof, computeMap( p1.root.antecedent ++ ( p1.root.succedent filterNot ( _ == a1 ) ), proof, sk_proof, r1._2 ) ++
-        computeMap( ( p2.root.antecedent filterNot ( _ == a2 ) ) ++ p2.root.succedent, proof, sk_proof, r2._2 ) )
-
-    }
-    case DefinitionRightRule( p, s, a, m ) =>
-      {
-        val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-        val r = rec( p, new_label_map, cut_occs )
-        //assert( r._1.root.isInstanceOf[LabelledSequent] )
-        val sk_proof = DefinitionRightRule( r._1, r._2( a ), m.formula )
-        //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-        ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-      }
-    case DefinitionLeftRule( p, s, a, m ) =>
-      {
-        val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-        val r = rec( p, new_label_map, cut_occs )
-        //assert( r._1.root.isInstanceOf[LabelledSequent] )
-        val sk_proof = DefinitionLeftRule( r._1, r._2( a ), m.formula )
-        //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-        ( sk_proof, computeMap( p.root.antecedent ++ p.root.succedent, proof, sk_proof, r._2 ) )
-      }
-    case EquationLeft1Rule( p1, p2, s, a1, a2, _, m ) =>
-      handleEquationRule( EquationLeftRule.apply, p1, p2, s, a1, a2,
-        m.formula, proof, subst_terms, cut_occs )
-    case EquationLeft2Rule( p1, p2, s, a1, a2, _, m ) =>
-      handleEquationRule( EquationLeftRule.apply, p1, p2, s, a1, a2,
-        m.formula, proof, subst_terms, cut_occs )
-    case EquationRight1Rule( p1, p2, s, a1, a2, _, m ) =>
-      handleEquationRule( EquationRightRule.apply, p1, p2, s, a1, a2,
-        m.formula, proof, subst_terms, cut_occs )
-    case EquationRight2Rule( p1, p2, s, a1, a2, _, m ) =>
-      handleEquationRule( EquationRightRule.apply, p1, p2, s, a1, a2,
-        m.formula, proof, subst_terms, cut_occs )
+    } )
+    nhpsequent
   }
 
-  def handleEquationRule(
-    constructor: ( LKProof, LKProof, FormulaOccurrence, FormulaOccurrence, HOLFormula ) => LKProof,
-    p1:          LKProof,
-    p2:          LKProof,
-    s:           OccSequent,
-    a1:          FormulaOccurrence,
-    a2:          FormulaOccurrence,
-    m:           HOLFormula,
-    old_proof:   LKProof,
-    subst_terms: Map[FormulaOccurrence, Label],
-    cut_occs:    Set[FormulaOccurrence]
-  ) = {
-    val new_label_map = copyMapFromAncestor( s.antecedent ++ s.succedent, subst_terms )
-    val r1 = rec( p1, new_label_map, cut_occs )
-    val r2 = rec( p2, new_label_map, cut_occs )
-    val sk_proof = constructor( r1._1, r2._1, r1._2( a1 ), r2._2( a2 ), m )
-    ( sk_proof, computeMap( p1.root.antecedent ++ p1.root.succedent, old_proof, sk_proof, r1._2 ) ++
-      computeMap( p2.root.antecedent ++ p2.root.succedent, old_proof, sk_proof, r2._2 ) )
-  }
-
-  /*
-  def computeMap( occs: Set[FormulaOccurrence], old_proof: LKProof, 
-                  new_proof: LKProof, old_map : Map[FormulaOccurrence, LabelledFormulaOccurrence]) =
-  {
-    val map = new HashMap[FormulaOccurrence, LabelledFormulaOccurrence]
-    occs.foreach( fo => map.update( old_proof.getDescendantInLowerSequent( fo ).get, 
-      new_proof.getDescendantInLowerSequent( old_map(fo) ).get.asInstanceOf[LabelledFormulaOccurrence] ) )
-    map
-  } */
-
-  def computeMap( occs: Seq[FormulaOccurrence], old_proof: LKProof,
-                  new_proof: LKProof, old_map: Map[FormulaOccurrence, LabelledFormulaOccurrence] ) =
-    {
-      val map = new HashMap[FormulaOccurrence, LabelledFormulaOccurrence]
-      occs.foreach( fo => map.update(
-        old_proof.getDescendantInLowerSequent( fo ).get,
-        new_proof.getDescendantInLowerSequent( old_map( fo ) ).get.asInstanceOf[LabelledFormulaOccurrence]
-      ) )
-      map
+  case class HPath( contracting_inference: LKProof, path: List[HOLFormula] ) {
+    /** extends a homomorphic path by formula f. since homomorphic paths don't have repetitions, skip them. */
+    def extend( f: HOLFormula ): HPath = path match {
+      case x :: xs if x == f => HPath( contracting_inference, path )
+      case _                 => HPath( contracting_inference, f :: path )
     }
 
-  def copyWeakQuantRule( proof: LKProof, subst_terms: Map[FormulaOccurrence, Label],
-                         parent: LKProof, aux: FormulaOccurrence, main: FormulaOccurrence,
-                         term: LambdaExpression, end_seq: OccSequent, cut_occs: Set[FormulaOccurrence],
-                         constructor: ( LKProof, FormulaOccurrence, HOLFormula, LambdaExpression ) => LKProof ) = {
-    val new_label_map = copyMapFromAncestor( end_seq.antecedent ++ end_seq.succedent, subst_terms )
-    val r = rec( parent, new_label_map, cut_occs )
-    val sk_proof = constructor( r._1, r._2( aux ), main.formula, term )
-    //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-    ( sk_proof, computeMap( parent.root.antecedent ++ parent.root.succedent, proof, sk_proof, r._2 ) )
-  }
-
-  def transformWeakQuantRule( proof: LKProof, subst_terms: Map[FormulaOccurrence, Label],
-                              parent: LKProof, aux: FormulaOccurrence, main: FormulaOccurrence,
-                              term: LambdaExpression, context: Seq[FormulaOccurrence], cut_occs: Set[FormulaOccurrence],
-                              constructor: ( LKProof, LabelledFormulaOccurrence, HOLFormula, LambdaExpression, Boolean ) => LKProof ) = {
-    val new_label_map = copyMapFromAncestor( context, subst_terms ) + Tuple2( aux, subst_terms( main ) + term )
-    val r = rec( parent, new_label_map, cut_occs )
-    val sk_proof = constructor( r._1, r._2( aux ), main.formula, term,
-      !subst_terms( main ).contains( term ) )
-    //assert( sk_proof.root.isInstanceOf[LabelledSequent] )
-    val antecedent: Seq[FormulaOccurrence] = parent.root.antecedent
-    val succedent: Seq[FormulaOccurrence] = parent.root.succedent
-    ( sk_proof, computeMap( antecedent ++ succedent, proof, sk_proof, r._2 ) )
-  }
-
-  def copyMapFromAncestor( fos: Seq[FormulaOccurrence], map: Map[FormulaOccurrence, Label] ): Map[FormulaOccurrence, Label] = map ++
-    fos.map( fo => Tuple2( fo.parents.head, map( fo ) ) ) ++
-    fos.map( fo => Tuple2( fo.parents.last, map( fo ) ) )
-
-  // TODO: implement this in a reasonable way!
-  // Tomer suggested a skolem symbol trait to distinguish skolem symbols from normal symbols
-  // regarding freshness: the user should probably supply the list of symbols that is in use
-  var skolem_cnt = -1
-  def getFreshSkolemFunctionSymbol = {
-    skolem_cnt += 1
-    StringSymbol( "s_{" + skolem_cnt + "}" )
+    def extend( p: LKProof ): HPath = extend( p.mainFormulas( 0 ) )
+    override def toString() = s"HPath(${contracting_inference.hashCode}, $path)"
   }
 }
+
+object LKToLKsk {
+  def apply( p: LKProof ): LKskProof = ( new LKToLKsk( new SkolemSymbolFactory ) )( p )
+}
+
+/**
+ * \Gamma :- P(s(q)), \Delta                               \Gamma :- P(s(q)), \Delta
+ * --------------------------------- all:l                 --------------------------------- all:l
+ * \Gamma :- \forall x P(x), \Delta                        \Gamma :- \forall x P(x), \Delta
+ * ----------------------------------------------------------------------------------------- X:l
+ *      \Gamma' :- \forall x P(x), \forall x P(x), \Delta
+ *      ------------------------------------------------- c:r
+ *      \Gamma' :- \forall x P(x), \Delta
+ */

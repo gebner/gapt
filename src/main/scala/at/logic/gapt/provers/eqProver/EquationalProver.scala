@@ -5,22 +5,24 @@
 
 package at.logic.gapt.provers.eqProver
 
-import at.logic.gapt.provers.Prover
+import at.logic.gapt.proofs.HOLSequent
+import at.logic.gapt.provers.escargot.Escargot
+import at.logic.gapt.provers.smtlib.Z3
+import at.logic.gapt.provers.{ OneShotProver, Prover }
 import at.logic.gapt.provers.prover9._
 import at.logic.gapt.provers.veriT._
-import at.logic.gapt.proofs.lk.base.HOLSequent
 
-class EquationalProver extends Prover {
+/** Use prover9 to get LK proof and Z3 or veriT for validity check. */
+object EquationalProver extends Prover {
+  private val smtSolver =
+    if ( Z3 isInstalled ) Z3
+    else if ( VeriT isInstalled ) VeriT
+    else Escargot
+  private val resProver =
+    if ( Prover9 isInstalled ) Prover9
+    else Escargot
 
-  // Use prover9 to get LK proof and veriT for validity check.
-
-  override def isValid( s: HOLSequent ): Boolean = {
-    val p = new VeriTProver()
-    p.isValid( s )
-  }
-
-  override def getLKProof( s: HOLSequent ) = {
-    val p = new Prover9Prover()
-    p.getLKProof( s )
-  }
+  override def startIncrementalSession() = smtSolver.startIncrementalSession()
+  override def isValid( s: HOLSequent ): Boolean = smtSolver isValid s
+  override def getLKProof( s: HOLSequent ) = resProver getLKProof s
 }

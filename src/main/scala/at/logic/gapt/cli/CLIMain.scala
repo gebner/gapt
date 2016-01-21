@@ -1,68 +1,82 @@
 package at.logic.gapt.cli
 
-import scala.sys.SystemProperties
+import at.logic.gapt.examples.Script
+
+import scala.io.Source
 import scala.tools.nsc.interpreter._
 import scala.tools.nsc.Settings
+import at.logic.gapt.utils.logging.Logger
 
-object CLIMain {
+object CLIMain extends Logger {
 
   val welcomeMessage = """
     *************************************
     *    Welcome to the GAPT shell!     *
-    *                                   *
-    *  See help for a list of commands. *
     *************************************
 
- Copyright (C) 2009-2015  GAPT developers
+ Copyright (C) 2009-2016  GAPT developers
 
  This program comes with ABSOLUTELY NO WARRANTY. This is free
  software, and you are welcome to redistribute it under certain
  conditions; type `copying' for details.
 """
 
-  val imports = """
-  import at.logic.gapt.cli.GAPScalaInteractiveShellLibrary._
-  import at.logic.gapt.expr._
-  import at.logic.gapt.expr.fol._
-  import at.logic.gapt.expr.hol._
-  import at.logic.gapt.proofs.expansionTrees._
-  import at.logic.gapt.proofs.hoare._
-  import at.logic.gapt.proofs.lk._
-  import at.logic.gapt.proofs.lk.base._
-  import at.logic.gapt.proofs.lk.cutIntroduction.Deltas._
-  import at.logic.gapt.proofs.lksk
-  import at.logic.gapt.proofs.occurrences.FormulaOccurrence
-  import at.logic.gapt.provers.minisat.MiniSATProver
-  import at.logic.gapt.prooftool.{Main => PT}
-  import help.{apply => help}
-  import at.logic.gapt.cli.GPL.{apply => copying, printLicense => license}
-  """
+  val imports = Source.fromInputStream( getClass.getClassLoader.getResourceAsStream( "gapt-cli-prelude.scala" ) ).mkString
 
-  def main( args: Array[String] ) {
+  def main( args: Array[String] ): Unit = {
     val settings = new Settings
-    settings.Yreplsync.value = true
     settings.usejavacp.value = true
-
-    new SystemProperties += ( "scala.shell.prompt" -> ( sys.props( "line.separator" ) + "gapt> " ) )
-
-    val repl = new ILoop {
-      override def printWelcome = {
-        println( welcomeMessage )
-        intp.beQuietDuring {
-          print( "Importing gapt... " )
-          processLine( imports )
-          println( "done." )
-        }
-
-        // If invoked as ./cli.sh script.scala,
-        // then load script.scala and exit.
-        if ( args.length >= 1 ) {
-          withFile( args( 0 ) ) { f => interpretAllFrom( f ) }
-          sys.exit( 0 )
-        }
-      }
+    settings.language.value = {
+      import settings.language.domain._
+      ValueSet( postfixOps, implicitConversions )
     }
+    settings.feature.value = true
+    settings.deprecation.value = true
 
-    repl process settings
+    args match {
+
+      // If invoked as ./gapt.sh script.scala,
+      // then load script.scala and exit.
+      case Array( scriptFile, scriptArgs @ _* ) =>
+        debug( "Initializing logging framework" )
+
+        // Strip package declaration, the script compiler doesn't like it.
+        val packageRegex = """(?s)package [A-Za-z.]+\n(.*)""".r
+        val scriptSrc = Source.fromFile( scriptFile ).mkString match {
+          case packageRegex( restOfScript ) => restOfScript
+          case scriptWithoutPackage         => scriptWithoutPackage
+        }
+
+        val intp = new IMain( settings )
+        intp beSilentDuring { intp.interpret( imports + scriptSrc ) }
+
+        // Execute all defined objects of type Script.
+        for {
+          defTerm <- intp.namedDefinedTerms
+          if intp.typeOfTerm( defTerm.toString ) <:< intp.global.typeOf[Script]
+        } intp eval defTerm.toString match {
+          case script: Script => script main scriptArgs.toArray
+        }
+
+      case _ =>
+        settings.Yreplsync.value = true
+
+        sys.props( "scala.shell.prompt" ) = sys.props( "line.separator" ) + "gapt> "
+
+        val repl = new ILoop {
+          override def printWelcome = {
+            println( welcomeMessage )
+            intp beQuietDuring {
+              print( "Importing gapt... " )
+              processLine( imports )
+              println( "done." )
+            }
+          }
+        }
+
+        repl process settings
+
+    }
   }
+
 }

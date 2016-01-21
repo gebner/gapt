@@ -69,7 +69,7 @@ abstract class RegressionTestCase( val name: String ) extends Serializable {
       val runtime = ( endTime - beginTime ) nanos
 
       val ( exception, isTimeout ) = result match {
-        case Left( t @ ( _: TimeOutException | _: ThreadDeath | _: OutOfMemoryError | _: InterruptedException ) ) => ( Some( t ), true )
+        case Left( t @ ( _: TimeOutException | _: ThreadDeath | _: OutOfMemoryError | _: InterruptedException | _: StackOverflowError ) ) => ( Some( t ), true )
         case Left( t ) => ( Some( t ), false )
         case Right( _ ) => ( None, false )
       }
@@ -191,14 +191,4 @@ object runOutOfProcess {
       case Right( result ) => result.asInstanceOf[T]
     }
   }
-}
-
-object recursiveListFiles {
-  def apply( fn: String ): List[File] = apply( new File( fn ) )
-
-  def apply( f: File ): List[File] =
-    if ( f.isDirectory )
-      f.listFiles.toList.flatMap( apply )
-    else
-      List( f )
 }

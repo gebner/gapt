@@ -1,12 +1,11 @@
 package at.logic.gapt.formats.prover9
 
+import at.logic.gapt.proofs.HOLSequent
+
 import util.parsing.combinator.JavaTokenParsers
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.fol.FOLSubstitution
-import at.logic.gapt.proofs.lk.base.HOLSequent
 import scala.util.parsing.combinator.PackratParsers
 import scala.collection.immutable.HashSet
-import at.logic.gapt.expr.StringSymbol
 
 /**
  * Parser for first order formulas in the prover 9 format.
@@ -115,15 +114,13 @@ abstract trait Prover9TermParserA extends JavaTokenParsers with PackratParsers {
 
   //infixatom
   lazy val iatom: PackratParser[FOLFormula] = term ~ """((<|>)=?)|(!?=)|[+\-*]""".r ~ term ^^ {
-    _ match {
-      case t1 ~ "=" ~ t2  => Eq( t1, t2 )
-      case t1 ~ "!=" ~ t2 => Neg( Eq( t1, t2 ) )
-      case t1 ~ "<" ~ t2  => FOLAtom( less_sym, List( t1, t2 ) )
-      case t1 ~ ">" ~ t2  => FOLAtom( greater_sym, List( t1, t2 ) )
-      case t1 ~ "<=" ~ t2 => FOLAtom( lesseq_sym, List( t1, t2 ) )
-      case t1 ~ ">=" ~ t2 => FOLAtom( greatereq_sym, List( t1, t2 ) )
-      case t1 ~ sym ~ t2  => FOLAtom( sym, List( t1, t2 ) )
-    }
+    case t1 ~ "=" ~ t2  => Eq( t1, t2 )
+    case t1 ~ "!=" ~ t2 => Neg( Eq( t1, t2 ) )
+    case t1 ~ "<" ~ t2  => FOLAtom( less_sym, List( t1, t2 ) )
+    case t1 ~ ">" ~ t2  => FOLAtom( greater_sym, List( t1, t2 ) )
+    case t1 ~ "<=" ~ t2 => FOLAtom( lesseq_sym, List( t1, t2 ) )
+    case t1 ~ ">=" ~ t2 => FOLAtom( greatereq_sym, List( t1, t2 ) )
+    case t1 ~ sym ~ t2  => FOLAtom( sym, List( t1, t2 ) )
   }
   /*
   def iatom: Parser[FOLFormula] = poseq | negeq
@@ -135,14 +132,12 @@ abstract trait Prover9TermParserA extends JavaTokenParsers with PackratParsers {
   lazy val term: PackratParser[FOLTerm] = ifunction | noniterm
   lazy val noniterm: PackratParser[FOLTerm] = function | constant | variable
   lazy val ifunction: PackratParser[FOLTerm] = ( noniterm | parens( ifunction ) ) ~ """[+\-*/^v]""".r ~ ( noniterm | parens( ifunction ) ) ^^ {
-    _ match {
-      case t1 ~ "+" ~ t2 => FOLFunction( plus_sym, List( t1, t2 ) )
-      case t1 ~ "-" ~ t2 => FOLFunction( minus_sym, List( t1, t2 ) )
-      case t1 ~ "*" ~ t2 => FOLFunction( times_sym, List( t1, t2 ) )
-      case t1 ~ "/" ~ t2 => FOLFunction( div_sym, List( t1, t2 ) )
-      case t1 ~ "^" ~ t2 => FOLFunction( wedge_sym, List( t1, t2 ) )
-      case t1 ~ sym ~ t2 => FOLFunction( sym, List( t1, t2 ) )
-    }
+    case t1 ~ "+" ~ t2 => FOLFunction( plus_sym, List( t1, t2 ) )
+    case t1 ~ "-" ~ t2 => FOLFunction( minus_sym, List( t1, t2 ) )
+    case t1 ~ "*" ~ t2 => FOLFunction( times_sym, List( t1, t2 ) )
+    case t1 ~ "/" ~ t2 => FOLFunction( div_sym, List( t1, t2 ) )
+    case t1 ~ "^" ~ t2 => FOLFunction( wedge_sym, List( t1, t2 ) )
+    case t1 ~ sym ~ t2 => FOLFunction( sym, List( t1, t2 ) )
   }
   lazy val function: PackratParser[FOLTerm] = conssymb ~ "(" ~ repsep( term, "," ) ~ ")" ^^ {
     case x ~ "(" ~ params ~ ")" => FOLFunction( x, params.asInstanceOf[List[FOLTerm]] )

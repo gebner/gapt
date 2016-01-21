@@ -6,7 +6,7 @@ package at.logic.gapt.expr.fol
 
 import at.logic.gapt.expr._
 import at.logic.gapt.expr.hol.containsQuantifier
-import at.logic.gapt.proofs.lk.base.HOLSequent
+import at.logic.gapt.proofs.HOLSequent
 import scala.collection.{ GenTraversable, mutable }
 
 object isFOLFunction {
@@ -72,6 +72,19 @@ object FOLSubTerms {
 
 }
 
+object Numeral {
+  def apply( k: Int ): FOLTerm = k match {
+    case 0 => FOLFunction( "0" )
+    case _ => FOLFunction( "s", Numeral( k - 1 ) )
+  }
+
+  def unapply( t: FOLTerm ): Option[Int] = t match {
+    case FOLFunction( "s", List( Numeral( k ) ) ) => Some( k + 1 )
+    case FOLFunction( "0", List() )               => Some( 0 )
+    case _                                        => None
+  }
+}
+
 object isFOLPrenexSigma1 {
   def apply( f: LambdaExpression ): Boolean = f match {
     case Ex.Block( _, matrix: FOLFormula ) if !containsQuantifier( matrix ) => true
@@ -97,7 +110,7 @@ object Utils {
     else FOLFunction( f, iterateTerm( a, f, k - 1 ) :: Nil )
 
   // Constructs the FOLTerm s^k(0)
-  def numeral( k: Int ) = iterateTerm( FOLConst( "0" ).asInstanceOf[FOLTerm], "s", k )
+  def numeral( k: Int ) = Numeral( k )
 }
 
 object getArityOfConstants {
@@ -220,11 +233,11 @@ object toAbbreviatedString {
  */
 object Sigma {
   def unapply( f: FOLFormula ): Option[Int] = f match {
-    case FOLAtom( _ ) => Some( 0 )
-    case Neg( g )     => unapply( g )
-    case And( g, h )  => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
-    case Or( g, h )   => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
-    case Imp( g, h )  => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
+    case FOLAtom( _, _ ) => Some( 0 )
+    case Neg( g )        => unapply( g )
+    case And( g, h )     => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
+    case Or( g, h )      => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
+    case Imp( g, h )     => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
     case Ex.Block( vars, g ) =>
       println( s"$vars, $g" )
       g match {
@@ -239,11 +252,11 @@ object Sigma {
  */
 object Pi {
   def unapply( f: FOLFormula ): Option[Int] = f match {
-    case FOLAtom( _ ) => Some( 0 )
-    case Neg( g )     => unapply( g )
-    case And( g, h )  => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
-    case Or( g, h )   => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
-    case Imp( g, h )  => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
+    case FOLAtom( _, _ ) => Some( 0 )
+    case Neg( g )        => unapply( g )
+    case And( g, h )     => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
+    case Or( g, h )      => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
+    case Imp( g, h )     => Some( Math.max( unapply( g ).get, unapply( h ).get ) )
     case All.Block( _, g ) => g match {
       case Sigma( i ) => Some( i + 1 )
     }
@@ -260,4 +273,61 @@ object Delta {
       case Pi( j ) => Some( Math.min( k, j ) )
     }
   }
+}
+
+trait CountingFormulas {
+  def exactly: {
+    def noneOf( fs: Seq[FOLFormula] ): FOLFormula
+    def oneOf( fs: Seq[FOLFormula] ): FOLFormula
+  }
+  def atMost: {
+    def oneOf( fs: Seq[FOLFormula] ): FOLFormula
+  }
+}
+
+object thresholds extends CountingFormulas {
+
+  object exactly {
+
+    def noneOf( fs: Seq[FOLFormula] ): FOLFormula = -Or( fs )
+
+    def oneOf( fs: Seq[FOLFormula] ): FOLFormula = fs match {
+      case Seq()    => Bottom()
+      case Seq( f ) => f
+      case _ =>
+        val ( a, b ) = fs.splitAt( fs.size / 2 )
+        ( noneOf( a ) & oneOf( b ) ) | ( oneOf( a ) & noneOf( b ) )
+    }
+
+  }
+
+  object atMost {
+
+    def oneOf( fs: Seq[FOLFormula] ): FOLFormula = fs match {
+      case Seq() | Seq( _ ) => Top()
+      case _ =>
+        val ( a, b ) = fs.splitAt( fs.size / 2 )
+        ( exactly.noneOf( a ) & atMost.oneOf( b ) ) | ( atMost.oneOf( a ) & exactly.noneOf( b ) )
+    }
+
+  }
+
+}
+
+object naive extends CountingFormulas {
+
+  object exactly {
+
+    def noneOf( fs: Seq[FOLFormula] ): FOLFormula = -Or( fs )
+
+    def oneOf( fs: Seq[FOLFormula] ): FOLFormula = Or( fs ) & atMost.oneOf( fs )
+
+  }
+
+  object atMost {
+
+    def oneOf( fs: Seq[FOLFormula] ): FOLFormula = And( for ( a <- fs; b <- fs if a != b ) yield -a | -b )
+
+  }
+
 }
