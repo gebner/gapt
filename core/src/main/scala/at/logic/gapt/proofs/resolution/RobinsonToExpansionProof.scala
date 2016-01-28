@@ -91,7 +91,7 @@ object expansionProofFromInstances {
       case ( ETBottom( pol ), _ ) => ETBottom( pol )
       case ( ETAtom( atom @ Apps( abbrev: HOLAtomConst, args ), pol ), _ ) if definitions isDefinedAt abbrev =>
         defAtomExpansion.getOrElseUpdate(
-          atom -> pol,
+          atom.asInstanceOf[HOLAtom] -> pol,
           ETMerge( ( for {
             ( clause, Definition( defAtom, expansionWithDefs ) ) <- justifications
             if substs isDefinedAt clause

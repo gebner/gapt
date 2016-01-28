@@ -401,8 +401,8 @@ class Sequent[+A]( val antecedent: Seq[A], val succedent: Seq[A] ) {
 
   def indexOfPol[B >: A]( elem: B, inSuc: Boolean ): SequentIndex =
     if ( inSuc ) indexOfInSuc( elem ) else indexOfInAnt( elem )
-  def indexOfInAnt[B >: A]( elem: B ): SequentIndex = Ant( antecedent indexOf elem )
-  def indexOfInSuc[B >: A]( elem: B ): SequentIndex = Suc( succedent indexOf elem )
+  def indexOfInAnt[B >: A]( elem: B ): Ant = Ant( antecedent indexOf elem )
+  def indexOfInSuc[B >: A]( elem: B ): Suc = Suc( succedent indexOf elem )
 
   def swapped: Sequent[A] = Sequent( succedent, antecedent )
 

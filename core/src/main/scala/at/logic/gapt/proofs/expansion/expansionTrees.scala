@@ -42,7 +42,7 @@ object ETMerge {
     nonEmptyChildren reduce { ETMerge( _, _ ) }
 }
 
-case class ETAtom( atom: HOLAtom, polarity: Boolean ) extends ExpansionTree {
+case class ETAtom( atom: HOLFormula, polarity: Boolean ) extends ExpansionTree {
   def shallow = atom
   def deep = atom
   def immediateSubProofs = Seq()
@@ -173,7 +173,7 @@ private[expansion] object expansionTreeSubstitution extends ClosedUnderSub[Expan
     case et @ ETWeakening( formula, _ ) =>
       et.copy( formula = subst( formula ) )
     case et @ ETAtom( atom, _ ) =>
-      et.copy( atom = subst( atom ).asInstanceOf[HOLAtom] )
+      et.copy( atom = subst( atom ) )
 
     case _: ETTop | _: ETBottom  => et
     case ETNeg( child )          => ETNeg( applySubstitution( subst, child ) )
