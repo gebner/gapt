@@ -1,7 +1,7 @@
 package at.logic.gapt.proofs.lk
 
 import at.logic.gapt.expr.hol.containsQuantifierOnLogicalLevel
-import at.logic.gapt.expr.{ Eq, HOLAtom }
+import at.logic.gapt.expr._
 import at.logic.gapt.proofs.Sequent
 import at.logic.gapt.proofs.expansion._
 
@@ -15,8 +15,18 @@ object LKToExpansionProof {
    * @param proof The proof π.
    * @return The expansion proof Ex(π).
    */
-  def apply( proof: LKProof ): ExpansionProofWithCut = {
+  def apply( proof: LKProof, includeEqualityAxioms: Boolean = false): ExpansionProofWithCut = {
     val ( cuts, expansionSequent ) = extract( regularize( AtomicExpansion( proof ) ) )
+
+    lazy val reflAx = ETWeakQuantifier.withMerge(hof"!x x=x",
+      for (ReflexivityAxiom(term) <- proof.subProofs)
+        yield term -> ETAtom(term === term, false)
+    )
+    lazy val eqAx = ETWeakQuantifier.withMerge(hof"!X!x!y x=y (X(x) <-> X(y))", 3,
+      for (p: EqualityRule <- proof.subProofs)
+        yield Seq() -> ???
+    )
+
     eliminateMerges( ExpansionProofWithCut( cuts, expansionSequent ) )
   }
 

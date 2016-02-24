@@ -2,7 +2,7 @@ package at.logic.gapt.proofs.expansion
 
 import at.logic.gapt.algorithms.rewriting.TermReplacement
 import at.logic.gapt.expr._
-import at.logic.gapt.expr.hol.HOLPosition
+import at.logic.gapt.expr.hol.{HOLPosition, instantiate}
 import at.logic.gapt.proofs.DagProof
 
 trait ExpansionTree extends DagProof[ExpansionTree] {
@@ -110,6 +110,14 @@ case class ETWeakQuantifier( shallow: HOLFormula, instances: Map[LambdaExpressio
 object ETWeakQuantifier {
   def withMerge( shallow: HOLFormula, instances: Iterable[( LambdaExpression, ExpansionTree )] ): ExpansionTree = {
     ETWeakQuantifier( shallow, instances groupBy { _._1 } mapValues { children => ETMerge( children map { _._2 } ) } )
+  }
+  def withMerge( shallow: HOLFormula, blockSize: Int, instances: Iterable[( Seq[LambdaExpression], ExpansionTree )] )(implicit dummyImplicit: DummyImplicit): ExpansionTree =
+  if (blockSize == 0) {
+    ETMerge(instances map {_._2})
+  } else {
+    ETWeakQuantifier( shallow, instances groupBy { _._1.head } mapValues { children =>
+      withMerge(instantiate(shallow, children.head._1.head), blockSize-1,
+        children map { case (ts, et) => ts.tail -> et}) } )
   }
 }
 
