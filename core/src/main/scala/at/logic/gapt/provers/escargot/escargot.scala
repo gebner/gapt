@@ -1,7 +1,7 @@
 package at.logic.gapt.provers.escargot
 
 import at.logic.gapt.expr._
-import at.logic.gapt.formats.tptp2.{ TptpParser, resolutionToTptp, tptpToCNF }
+import at.logic.gapt.formats.tptp.{ TptpParser, resolutionToTptp, tptpProblemToResolution }
 import at.logic.gapt.proofs._
 import at.logic.gapt.proofs.resolution._
 import at.logic.gapt.provers.ResolutionProver
@@ -68,7 +68,7 @@ object Escargot extends Escargot( splitting = true, equality = true, proposition
         org.apache.log4j.Logger.getLogger( classOf[EscargotState] ).setLevel( org.apache.log4j.Level.DEBUG )
 
         val tptp = TptpParser.loadFile( tptpInputFile )
-        getResolutionProof( tptpToCNF( tptp ) ) match {
+        getResolutionProof( structuralCNF.onProofs( tptpProblemToResolution( tptp ) ) ) match {
           case Some( proof ) =>
             println( "SZS status Unsatisfiable" )
             println( resolutionToTptp( proof ).mkString )

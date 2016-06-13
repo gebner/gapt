@@ -3,7 +3,7 @@ package at.logic.gapt.provers.eprover
 import java.io.IOException
 
 import at.logic.gapt.expr._
-import at.logic.gapt.formats.tptp.TptpProofParser
+import at.logic.gapt.formats.tptp.{ TPTPFOLExporter, TptpProofParser }
 import at.logic.gapt.proofs.resolution.ResolutionProof
 import at.logic.gapt.proofs.{ FOLClause, HOLClause }
 import at.logic.gapt.proofs.sketch.RefutationSketchToResolution
@@ -16,10 +16,15 @@ class EProver extends ResolutionProver with ExternalProgram {
     renameConstantsToFi.wrap( seq.toSeq )(
       ( renaming, cnf: Seq[HOLClause] ) => {
         val labelledCNF = cnf.zipWithIndex.map { case ( clause, index ) => s"formula$index" -> clause.asInstanceOf[FOLClause] }.toMap
+        //        val tptpIn = TPTPFOLExporter.exportLabelledCNF( labelledCNF ).toString
         val tptpIn = toTPTP( labelledCNF )
         val output = runProcess.withTempInputFile( Seq( "eproof", "--tptp3-format" ), tptpIn )
-        if ( output.split( "\n" ).contains( "# SZS status Unsatisfiable" ) )
-          RefutationSketchToResolution( TptpProofParser.parse( output, labelledCNF mapValues { Seq( _ ) } ) ).toOption
+        val lines = output.split( "\n" )
+        if ( lines.contains( "# SZS status Unsatisfiable" ) )
+          RefutationSketchToResolution( TptpProofParser.parse(
+            lines.filterNot( _ startsWith "# " ).mkString( "\n" ),
+            labelledCNF mapValues { Seq( _ ) }
+          ) ).toOption
         else None
       }
     )

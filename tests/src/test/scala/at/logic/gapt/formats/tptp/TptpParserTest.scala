@@ -1,4 +1,4 @@
-package at.logic.gapt.formats.tptp2
+package at.logic.gapt.formats.tptp
 
 import org.specs2.mutable.Specification
 
@@ -6,7 +6,7 @@ class TptpParserTest extends Specification {
 
   def loadTPTP( fileName: String ) =
     resolveIncludes(
-      Seq( IncludeDirective( fileName, Seq() ) ),
+      TptpFile( Seq( IncludeDirective( fileName, None ) ) ),
       fileName => TptpParser.parseString( io.Source.fromInputStream(
         getClass.getClassLoader.getResourceAsStream( fileName )
       ).mkString, fileName )
@@ -14,12 +14,6 @@ class TptpParserTest extends Specification {
 
   "gra014p1" in {
     loadTPTP( "GRA014+1.p" )
-    ok
-  }
-
-  "grp069m1" in {
-//    skipped
-    TptpParser.loadFile( "/home/gebner/.nix-profile/share/tptp/Problems/GRP/GRP069-1.p" )
     ok
   }
 

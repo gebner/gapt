@@ -1,45 +1,37 @@
-package at.logic.gapt.formats.tptp2
-import definitions._
+package at.logic.gapt.formats.tptp
 
 import at.logic.gapt.expr._
 
 object tptpToString {
 
   def tptpInput( input: TptpInput ): String = input match {
-    case TptpFormulaInput( language, name, role, formula, annots ) => s"${atomic_word( language )}(${atomic_word( name )}, $role, ${expression( formula )}${annotations( annots )}).\n"
+    case AnnotatedFormula( language, name, role, formula, annots ) => s"${atomic_word( language )}(${atomic_word( name )}, $role, ${expression( formula )}${annotations( annots )}).\n"
     case IncludeDirective( fileName, Seq() )                       => s"include(${single_quoted( fileName )}).\n"
   }
 
-  def annotations( annots: Option[Annotations] ): String = annots match {
-    case Some( annot ) => s", ${source( annot.source )}${optional_info( annot.usefulInfo )}"
-    case None          => ""
-  }
+  def annotations( annots: Seq[LambdaExpression] ): String = annots.map( expression ).map( ", " + _ ).mkString
 
-  def source( source: Source ): String = source match {
-    case DagSource( name ) => atomic_word( name )
-    case InferenceRecord( inferenceRule, usefulInfo, parentInfo ) =>
-      s"inference(${atomic_word( inferenceRule )}, ${useful_info( usefulInfo )}, ${inference_parents( parentInfo )})"
-    case InternalSource( introType, introInfo ) =>
-      s"introduced(${atomic_word( introType )}${optional_info( introInfo )})"
-    case FileSource( fileName, None )             => s"file(${single_quoted( fileName )})"
-    case FileSource( fileName, Some( fileInfo ) ) => s"file(${single_quoted( fileName )}, ${atomic_word( fileInfo )})"
-    case Theory( theoryName, usefulInfo )         => s"theory(${atomic_word( theoryName )}${optional_info( usefulInfo )})"
-    case CreatorSource( creatorName, usefulInfo ) => s"creator(${atomic_word( creatorName )}${optional_info( usefulInfo )})"
-  }
-
-  def optional_info( infos: Seq[InfoItem] ): String =
-    if ( infos.isEmpty ) "" else ", " + useful_info( infos )
-  def useful_info( infos: Seq[InfoItem] ): String =
-    "[" + ( infos map expression mkString ", " ) + "]"
-
-  def inference_parents( parentInfos: Seq[ParentInfo] ): String =
-    "[" + ( parentInfos map parent_info mkString ", " ) + "]"
-  def parent_info( parentInfo: ParentInfo ): String = {
-    require( parentInfo.parentDetails.isEmpty )
-    source( parentInfo.source )
-  }
+  //  def source( source: Source ): String = source match {
+  //    case DagSource( name ) => atomic_word( name )
+  //    case InferenceRecord( inferenceRule, usefulInfo, parentInfo ) =>
+  //      s"inference(${atomic_word( inferenceRule )}, ${useful_info( usefulInfo )}, ${inference_parents( parentInfo )})"
+  //    case InternalSource( introType, introInfo ) =>
+  //      s"introduced(${atomic_word( introType )}${optional_info( introInfo )})"
+  //    case FileSource( fileName, None )             => s"file(${single_quoted( fileName )})"
+  //    case FileSource( fileName, Some( fileInfo ) ) => s"file(${single_quoted( fileName )}, ${atomic_word( fileInfo )})"
+  //    case Theory( theoryName, usefulInfo )         => s"theory(${atomic_word( theoryName )}${optional_info( usefulInfo )})"
+  //    case CreatorSource( creatorName, usefulInfo ) => s"creator(${atomic_word( creatorName )}${optional_info( usefulInfo )})"
+  //  }
 
   def expression( expr: LambdaExpression ): String = expr match {
+    case GeneralList( elements @ _* ) =>
+      s"[${elements map expression mkString ", "}]"
+    case GeneralColon( a, b ) =>
+      s"${expression( a )}:${expression( b )}"
+
+    case And( Imp( a, b ), Imp( b_, a_ ) ) if a == a_ && b == b_ =>
+      s"(${expression( a )} <=> ${expression( b )})"
+
     case Top()             => "$true"
     case Bottom()          => "$false"
     case Const( c, _ )     => atomic_word( c )
