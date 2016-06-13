@@ -6,10 +6,8 @@ import at.logic.gapt.expr._
 object tptpToString {
 
   def tptpInput( input: TptpInput ): String = input match {
-    case ThfFormula( name, role, formula, annots ) => s"thf(${atomic_word( name )}, ${role.name}, ${expression( formula )}${annotations( annots )}).\n"
-    case FofFormula( name, role, formula, annots ) => s"fof(${atomic_word( name )}, ${role.name}, ${expression( formula )}${annotations( annots )}).\n"
-    case CnfFormula( name, role, formula, annots ) => s"cnf(${atomic_word( name )}, ${role.name}, ${expression( formula )}${annotations( annots )}).\n"
-    case IncludeDirective( fileName, Seq() )       => s"include(${single_quoted( fileName )}).\n"
+    case TptpFormulaInput( language, name, role, formula, annots ) => s"${atomic_word( language )}(${atomic_word( name )}, $role, ${expression( formula )}${annotations( annots )}).\n"
+    case IncludeDirective( fileName, Seq() )                       => s"include(${single_quoted( fileName )}).\n"
   }
 
   def annotations( annots: Option[Annotations] ): String = annots match {

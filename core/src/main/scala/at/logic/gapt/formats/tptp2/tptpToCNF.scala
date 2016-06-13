@@ -13,14 +13,14 @@ object tptpToCNF {
     )
 
     tptpFile foreach {
-      case FofFormula( _, Conjecture, formula, _ ) =>
-        clausifier expand Input( formula +: Sequent() )
-      case FofFormula( _, _, formula, _ ) =>
-        clausifier expand Input( Sequent() :+ formula )
-      case CnfFormula( _, _, formula, _ ) =>
+      case TptpFormulaInput( "cnf", _, _, formula, _ ) =>
         CNFp.toClauseList( formula ) match {
           case Seq( clause ) => clausifier expand Input( clause )
         }
+      case TptpFormulaInput( _, _, "conjecture", formula, _ ) =>
+        clausifier expand Input( formula +: Sequent() )
+      case TptpFormulaInput( _, _, _, formula, _ ) =>
+        clausifier expand Input( Sequent() :+ formula )
       case input => throw new IllegalArgumentException( input.toString )
     }
 

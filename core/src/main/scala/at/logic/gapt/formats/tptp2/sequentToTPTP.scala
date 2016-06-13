@@ -12,18 +12,18 @@ object sequentToTPTP {
 
     sequent.antecedent.zipWithIndex foreach {
       case ( formula: FOLFormula, i ) =>
-        file += FofFormula( s"ant_$i", Axiom, formula, None )
+        file += TptpFormulaInput( "fof", s"ant_$i", "axiom", formula, None )
     }
 
     if ( sequent.succedent.size <= 1 ) {
       sequent.succedent foreach {
         case formula: FOLFormula =>
-          file += FofFormula( "conjecture", Conjecture, formula, None )
+          file += TptpFormulaInput( "fof", "suc_0", "conjecture", formula, None )
       }
     } else {
       sequent.succedent.zipWithIndex foreach {
         case ( formula: FOLFormula, i ) =>
-          file += FofFormula( s"suc_$i", Axiom, -formula, None )
+          file += TptpFormulaInput( "fof", s"suc_$i", "axiom", -formula, None )
       }
     }
 

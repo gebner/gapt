@@ -1,6 +1,7 @@
 package at.logic.gapt.formats.tptp2
 
 import at.logic.gapt.expr._
+import at.logic.gapt.formats.tptp2.definitions.FormulaRole
 import at.logic.gapt.proofs.resolution._
 
 object resolutionToTptp {
@@ -9,9 +10,9 @@ object resolutionToTptp {
     else inf.conclusion.toDisjunction | inf.assertions.toDisjunction
     if ( inf.conclusion.forall( _.isInstanceOf[HOLAtom] ) ) {
       val ( _, disj_ ) = tptpToString.renameVars( freeVariables( disj ).toSeq, disj )
-      CnfFormula( label, role, disj, annotations )
+      TptpFormulaInput( "cnf", label, role, disj, annotations )
     } else {
-      FofFormula( label, role, disj.asInstanceOf[FOLFormula], annotations )
+      TptpFormulaInput( "cnf", label, role, disj.asInstanceOf[FOLFormula], annotations )
     }
   }
 
@@ -19,10 +20,10 @@ object resolutionToTptp {
     val label = labelMap( inf )
     inf match {
       case Input( sequent ) =>
-        fofOrCnf( label, Axiom, inf, None )
+        fofOrCnf( label, "axiom", inf, None )
 
       case AvatarComponentIntro( comp @ AvatarNonGroundComp( splAtom, defn, vars ) ) =>
-        fofOrCnf( label, Definition, inf, Some( Annotations(
+        fofOrCnf( label, "definition", inf, Some( Annotations(
           InternalSource( "avatar_non_ground_component", Seq() ),
           Seq()
         ) ) )
@@ -32,7 +33,7 @@ object resolutionToTptp {
           case c if c.isUpper => "_" + c.toLower
           case c              => c.toString
         }.dropWhile( _ == '_' )
-        fofOrCnf( label, Plain, inf, Some( Annotations( InferenceRecord( inferenceName, Seq(),
+        fofOrCnf( label, "plain", inf, Some( Annotations( InferenceRecord( inferenceName, Seq(),
           p.immediateSubProofs.map( sp => ParentInfo( DagSource( labelMap( sp ) ), Seq() ) ) ), Seq() ) ) )
     }
   }
