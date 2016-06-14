@@ -37,7 +37,7 @@ class TptpParser( val input: ParserInput ) extends Parser {
   def variable_list = rule { variable.+.separatedBy( Comma ) }
   def unary_formula = rule { "~" ~ Ws ~ unitary_formula ~> ( Neg( _ ) ) }
 
-  def atomic_formula = rule { defined_prop | infix_formula | plain_atomic_formula }
+  def atomic_formula = rule { defined_prop | infix_formula | plain_atomic_formula | ( distinct_object ~> ( FOLAtom( _ ) ) ) }
   def plain_atomic_formula = rule { atomic_word ~ ( "(" ~ Ws ~ arguments ~ ")" ~ Ws ).? ~> ( ( p, as ) => TptpAtom( p, as.getOrElse( Seq() ) ) ) }
   def defined_prop = rule { "$" ~ Ws ~ ( "true" ~ push( Top() ) | "false" ~ push( Bottom() ) ) ~ Ws }
   def infix_formula = rule { term ~ ( "=" ~ Ws ~ term ~> ( Eq( _: LambdaExpression, _ ) ) | "!=" ~ Ws ~ term ~> ( ( _: LambdaExpression ) !== _ ) ) }
@@ -52,7 +52,7 @@ class TptpParser( val input: ParserInput ) extends Parser {
       ( "~&" ~ push( ( a: LambdaExpression, b: LambdaExpression ) => -( a & b ) ) ) ) ~ Ws
   }
 
-  def term: Rule1[LambdaExpression] = rule { function_term | variable }
+  def term: Rule1[LambdaExpression] = rule { variable | ( distinct_object ~> ( FOLConst( _ ) ) ) | ( number ~> ( FOLConst( _ ) ) ) | function_term }
   def function_term = rule { name ~ ( "(" ~ Ws ~ term.+.separatedBy( Comma ) ~ ")" ~ Ws ).? ~> ( ( hd, as ) => TptpTerm( hd, as.getOrElse( Seq() ) ) ) }
   def variable = rule { capture( upper_word ) ~ Ws ~> ( FOLVar( _: String ) ) }
   def arguments = rule { term.+.separatedBy( Comma ) }
@@ -67,8 +67,12 @@ class TptpParser( val input: ParserInput ) extends Parser {
       general_list ~> ( GeneralList( _: Seq[LambdaExpression] ) )
   }
   def general_data: Rule1[LambdaExpression] = rule {
-    general_function | atomic_word ~> ( FOLConst( _ ) ) |
+    formula_data | general_function | atomic_word ~> ( FOLConst( _ ) ) |
       variable | ( number ~> ( FOLConst( _ ) ) ) | ( distinct_object ~> ( FOLConst( _ ) ) )
+  }
+  def formula_data: Rule1[LambdaExpression] = rule {
+    ( ( capture( "$" ~ ( "thf" | "tff" | "fof" | "cnf" ) ) ~ "(" ~ Ws ~ formula ~ ")" ~ Ws ) |
+      ( capture( "$fot" ) ~ "(" ~ Ws ~ term ~ ")" ~ Ws ) ) ~> ( TptpTerm( _: String, _: LambdaExpression ) )
   }
   def general_function = rule { atomic_word ~ "(" ~ Ws ~ general_terms ~ ")" ~ Ws ~> ( TptpTerm( _, _ ) ) }
 
@@ -76,7 +80,7 @@ class TptpParser( val input: ParserInput ) extends Parser {
   // We include defined words as atomic_word, since no prover can keep them apart...
   def atomic_word = rule { ( capture( lower_word ) ~ Ws ) | single_quoted }
 
-  def number = rule { integer /* TODO: | rational | real */ }
+  def number = rule { rational | real | integer }
 
   def file_name = rule { single_quoted }
 
@@ -88,10 +92,15 @@ class TptpParser( val input: ParserInput ) extends Parser {
   def upper_word = rule { UpperAlpha ~ alpha_numeric.* }
   def lower_word = rule { ( LowerAlpha ++ CharPredicate( "$_" ) ) ~ alpha_numeric.* }
 
-  def integer = rule { capture( anyOf( "+-" ).? ~ ( '0' | ( Digit19 ~ Digit.* ) ) ) ~ Ws }
+  def real = rule { capture( anyOf( "+-" ).? ~ decimal ~ ( '.' ~ Digit.* ).? ~ ( anyOf( "Ee" ) ~ anyOf( "+-" ).? ~ decimal ).? ) ~ Ws }
+  def rational = rule { capture( anyOf( "+-" ).? ~ decimal ~ '/' ~ positive_decimal ) ~ Ws }
+  def integer = rule { capture( anyOf( "+-" ).? ~ decimal ) ~ Ws }
+  def decimal = rule { '0' | positive_decimal }
+  def positive_decimal = rule { Digit19 ~ Digit.* }
 
-  val sg_char_pred = CharPredicate( ']' to '~', ' ' to '&', '(' to '[' )
-  def do_char = rule { capture( sg_char_pred ) | ( "\\\\" ~ push( "\\" ) ) | ( "\\\"" ~ push( "\"" ) ) }
+  val do_char_pred = CharPredicate( ' ' to '!', '#' to '[', '(' to '[', ']' to '~' )
+  def do_char = rule { capture( do_char_pred ) | ( "\\\\" ~ push( "\\" ) ) | ( "\\\"" ~ push( "\"" ) ) }
+  val sg_char_pred = CharPredicate( ' ' to '&', '(' to '[', ']' to '~' )
   def sg_char = rule { capture( sg_char_pred ) | ( "\\\\" ~ push( "\\" ) ) | ( "\\'" ~ push( "'" ) ) }
 }
 
