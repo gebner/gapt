@@ -87,6 +87,8 @@ class Viper( val problem: TipProblem, val options: ViperOptions ) {
       info()
 
       msrsf
+    case "lgg" =>
+      LggGrammarFindingMethod( vs.map( _.exptype ), implicitly )
   }
 
   def solve(): LambdaExpression = {
