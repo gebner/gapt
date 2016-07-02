@@ -1,5 +1,5 @@
 package at.logic.gapt.formats.nanocop
-import at.logic.gapt.expr.{ FOLAtom, FOLConst, FOLFunction, FOLTerm, FOLVar }
+import at.logic.gapt.expr._
 import org.parboiled2._
 
 import scala.util.{ Failure, Success }
@@ -22,8 +22,14 @@ class NanocopParser( val input: ParserInput ) extends Parser {
 
   def Atom: Rule1[NanocopAtom] = rule {
     "-" ~ Ws ~ "(" ~ Atom ~ ")" ~> ( _.copy( pol = false ) ) |
-      Word ~ optional( "(" ~ Ws ~ oneOrMore( Term ).separatedBy( "," ~ Ws ) ~ ")" ~ Ws ) ~>
-      ( ( hd: String, args: Option[Seq[FOLTerm]] ) => NanocopAtom( args.fold( FOLAtom( hd ) )( FOLAtom( hd, _ ) ), true ) )
+      Word ~ optional( "(" ~ Ws ~ oneOrMore( Term ).separatedBy( "," ~ Ws ) ~ ")" ~ Ws ) ~ optional( "=" ~ Ws ~ Term ) ~>
+      ( ( hd: String, args: Option[Seq[FOLTerm]], eqRhsOpt: Option[FOLTerm] ) =>
+        eqRhsOpt match {
+          case Some( eqRhs ) =>
+            NanocopAtom( Eq( args.fold( FOLFunction( hd ) )( FOLFunction( hd, _ ) ), eqRhs ), true )
+          case None =>
+            NanocopAtom( args.fold( FOLAtom( hd ) )( FOLAtom( hd, _ ) ), true )
+        } )
   }
 
   def Term: Rule1[FOLTerm] = rule {
