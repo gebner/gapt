@@ -87,6 +87,9 @@ class Viper( val problem: TipProblem, val options: ViperOptions ) {
       info()
 
       msrsf
+
+    case "substtree" =>
+      new SubstTreeGFM( vs.map( _.exptype ), encoding.instanceTermType, implicitly )
   }
 
   def solve(): LambdaExpression = {
