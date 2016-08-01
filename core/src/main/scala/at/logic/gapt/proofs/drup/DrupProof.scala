@@ -78,41 +78,40 @@ object DrupToResolutionProof {
       else ( p._1.removeFromAntecedent( lit._1 ), Need( Factor( Resolution( unit._2.value, p._2.value, lit._1 ) ) ) )
 
     // Handle a new clause, and fully interreduce it with the clauses we have found so far
-    def add( p: ResProofThunk ): Unit =
+    def add( p0: ResProofThunk ): Unit =
       if ( emptyClause.isDefined ) {
         // already found empty clause somewhere else
-      } else if ( p._1.isEmpty ) {
-        emptyClause = Some( p )
       } else {
-        val lits = p._1.polarizedElements
+        val lits = p0._1.polarizedElements
         if ( lits.exists( unitIndex.contains ) ) {
           // subsumed by unit clause
         } else {
-          lits.find( l => unitIndex.contains( negate( l ) ) ) match {
-            case Some( lit ) =>
-              val q = unitIndex( negate( lit ) )
-              add( resolve( p, q, lit ) )
-            case None =>
-              if ( lits.size == 1 ) { // found unit clause
-                val lit = lits.head
-                unitIndex( lit ) = p
+          var p = p0
+          for {
+            lit <- lits
+            unit <- unitIndex.get( negate( lit ) )
+          } p = resolve( p, unit, lit )
 
-                // propagate
-                val negLit = negate( lit )
-                val qs = nonUnitIndex( negLit )
-                nonUnitIndex.remove( negLit )
-                for {
-                  q <- qs.keys
-                  lit_ <- q.polarizedElements.view.take( 2 )
-                  if lit_ != negLit
-                } nonUnitIndex( lit_ ) -= q
+          if ( p._1.isEmpty ) {
+            emptyClause = Some( p )
+          } else if ( p._1.size == 1 ) { // found unit clause
+            val lit = p._1.polarizedElements.head
+            unitIndex( lit ) = p
 
-                // .map removes duplicate clauses
-                qs.map( resolve( _, p, negLit ) ).foreach( add )
-              } else {
-                val watched = lits.view.take( 2 )
-                for ( lit <- watched ) nonUnitIndex( lit ) += p
-              }
+            // propagate
+            val negLit = negate( lit )
+            val qs = nonUnitIndex( negLit )
+            nonUnitIndex.remove( negLit )
+            for {
+              q <- qs.keys
+              lit_ <- q.polarizedElements.view.take( 2 )
+              if lit_ != negLit
+            } nonUnitIndex( lit_ ) -= q
+
+            for ( q <- qs ) add( q )
+          } else {
+            val watched = p._1.polarizedElements.view.take( 2 )
+            for ( lit <- watched ) nonUnitIndex( lit ) += p
           }
         }
       }
