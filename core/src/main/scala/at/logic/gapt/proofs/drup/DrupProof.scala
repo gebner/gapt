@@ -46,21 +46,31 @@ object DrupProof {
 }
 
 object DrupToResolutionProof {
+
   // We operate on pairs of clauses and resolution proofs.
   //   - Proofs are computed only when needed (Name[_] does lazy evaluation)
   //   - The clauses can be smaller than the conclusion of the proof,
   //      e.g. we can have a pair (:- a, Taut(a))
   private type ResProofThunk = ( HOLSequent, Name[ResolutionProof] )
 
-  private def unitPropagationProver( cnf: Iterable[ResProofThunk] ): ResolutionProof = {
-    // An atom together with a polarity (true iff it is in the succedent)
-    type Literal = ( HOLFormula, Boolean )
+  // An atom together with a polarity (true iff it is in the succedent)
+  private type Literal = ( HOLFormula, Boolean )
+
+  private class ClauseIndex {
 
     var emptyClause: Option[ResProofThunk] = None
     // All unit clauses that we have found so far, indexed by their one literal
     val unitIndex = mutable.Map[Literal, ResProofThunk]()
     // All non-unit clauses that we have found so far, indexed by all of their literals
     val nonUnitIndex = mutable.Map[Literal, Map[HOLSequent, Name[ResolutionProof]]]().withDefaultValue( Map() )
+
+    override def clone() = {
+      val copy = new ClauseIndex
+      copy.emptyClause = emptyClause
+      copy.unitIndex ++= unitIndex
+      copy.nonUnitIndex ++= nonUnitIndex
+      copy
+    }
 
     def negate( lit: Literal ) = ( lit._1, !lit._2 )
     def resolve( p: ResProofThunk, unit: ResProofThunk, lit: Literal ): ResProofThunk =
@@ -91,43 +101,39 @@ object DrupToResolutionProof {
                 val negLit = negate( lit )
                 val qs = nonUnitIndex( negLit )
                 nonUnitIndex.remove( negLit )
-                for ( lit_ <- qs.keySet.flatMap( _.polarizedElements ) if lit_ != negLit )
-                  nonUnitIndex( lit_ ) --= qs.keys
+                for {
+                  q <- qs.keys
+                  lit_ <- q.polarizedElements.view.take( 2 )
+                  if lit_ != negLit
+                } nonUnitIndex( lit_ ) -= q
 
                 // .map removes duplicate clauses
                 qs.map( resolve( _, p, negLit ) ).foreach( add )
               } else {
-                for ( lit <- lits ) nonUnitIndex( lit ) += p
+                val watched = lits.view.take( 2 )
+                for ( lit <- watched ) nonUnitIndex( lit ) += p
               }
           }
         }
       }
 
-    cnf.toSeq.sortBy( _._1.size ).foreach( add )
-
-    emptyClause.get._2.value
-  }
-
-  def unitPropagationReplay( cnf: Iterable[ResolutionProof], toDerive: HOLClause ): ResolutionProof = {
-    val inputClauses = for ( p <- cnf ) yield p.conclusion -> Value( p )
-    val negatedUnitClauses =
-      for {
-        ( a, i ) <- toDerive.zipWithIndex.elements
-        concl = if ( i.isSuc ) Seq( a ) :- Seq() else Seq() :- Seq( a )
-      } yield concl -> Need( Taut( a ) )
-    unitPropagationProver( inputClauses ++ negatedUnitClauses )
   }
 
   def apply( drup: DrupProof ): ResolutionProof = {
-    val cnf = mutable.Set[ResolutionProof]()
+    val index = new ClauseIndex
     drup.refutation foreach {
       case DrupInput( clause ) =>
-        cnf += Input( clause )
+        index.add( clause -> Value( Input( clause ) ) )
       case DrupDerive( clause ) =>
-        cnf += unitPropagationReplay( cnf, clause )
+        val derivationIndex = index.clone()
+        for {
+          ( a, i ) <- clause.zipWithIndex.elements
+          negatedUnitClause = if ( i.isSuc ) Seq( a ) :- Seq() else Seq() :- Seq( a )
+        } derivationIndex.add( negatedUnitClause -> Need( Taut( a ) ) )
+        val derivation = derivationIndex.emptyClause.get._2.value
+        index.add( derivation.conclusion -> Value( derivation ) )
       case DrupForget( clause ) =>
-        cnf.retain( !_.conclusion.multiSetEquals( clause ) )
     }
-    simplifyResolutionProof( cnf.find( _.conclusion.isEmpty ).get )
+    simplifyResolutionProof( index.emptyClause.get._2.value )
   }
 }
