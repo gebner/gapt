@@ -44,7 +44,7 @@ trait TacticCommands {
   /**
    * Attempts to apply the tactics `axiomTop`, `axiomBot`, `axiomRefl`, and `axiomLog`.
    */
-  def trivial = axiomTop orElse axiomBot orElse axiomRefl orElse axiomLog
+  def trivial: Tactic[Unit] = Tactic { axiomTop orElse axiomBot orElse axiomRefl orElse axiomLog }
 
   /**
    * Applies the `NegLeft` tactic to the current subgoal: The goal
@@ -562,7 +562,7 @@ trait TacticCommands {
    *
    */
   def forget( ls: String* ): Tactical[Unit] =
-    Tactical.sequence( ls map { label => WeakeningLeftTactic( label ) orElse WeakeningRightTactic( label ) } ).map( _ => () )
+    Tactical( Tactical.sequence( ls map { label => WeakeningLeftTactic( label ) orElse WeakeningRightTactic( label ) } ).map( _ => () ) )
 
   /**
    * Moves the specified goal to the front of the goal list.
@@ -626,10 +626,11 @@ trait TacticCommands {
    */
   def currentGoal: Tactic[OpenAssumption] = new Tactic[OpenAssumption] {
     def apply( goal: OpenAssumption ) = ( goal -> goal ).success
+    override def toString = "currentGoal"
   }
 
   /** Instantiates prenex quantifiers to obtain a formula in a given polarity. */
-  def haveInstance( formula: HOLFormula, polarity: Boolean ): Tactical[String] = {
+  def haveInstance( formula: HOLFormula, polarity: Boolean ): Tactical[String] = Tactical {
     def findInstances( labelledSequent: Sequent[( String, HOLFormula )] ): Seq[( String, Seq[LambdaExpression] )] = {
       val quantifiedFormulas = labelledSequent.zipWithIndex.collect {
         case ( ( l, Ex.Block( vs, m ) ), i ) if i.isSuc && polarity   => ( l, vs, m )

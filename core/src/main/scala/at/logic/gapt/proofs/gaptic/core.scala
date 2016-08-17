@@ -188,12 +188,14 @@ trait Tactical[+T] { self =>
     override def toString = s"$self andThen $t2"
   }
 
-  def map[S]( f: T => S ): Tactical[S] = new Tactical[S] {
+  def map[S]( f: T => S )( implicit name: sourcecode.Name ): Tactical[S] = new Tactical[S] {
     def apply( proofState: ProofState ) = self( proofState ) map { x => f( x._1 ) -> x._2 }
+    override def toString = name.value
   }
 
-  def flatMap[S]( f: T => Tactical[S] ): Tactical[S] = new Tactical[S] {
+  def flatMap[S]( f: T => Tactical[S] )( implicit name: sourcecode.Name ): Tactical[S] = new Tactical[S] {
     def apply( proofState: ProofState ) = self( proofState ) flatMap { x => f( x._1 )( x._2 ) }
+    override def toString = name.value
   }
 
   def onAllSubGoals: Tactical[Unit] = new Tactical[Unit] {
@@ -212,15 +214,22 @@ trait Tactical[+T] { self =>
   }
 }
 object Tactical {
+  def apply[T]( tactical: Tactical[T] )( implicit name: sourcecode.Name, args: sourcecode.Args ): Tactical[T] =
+    new Tactical[T] {
+      def apply( proofState: ProofState ) = tactical( proofState )
+      override def toString =
+        if ( args.value.isEmpty ) name.value else s"$name(${args.value.mkString( ", " )})"
+    }
+
   def sequence[T]( tacticals: Seq[Tactical[T]] ): Tactical[List[T]] =
-    tacticals.toList.sequence
+    ( tacticals.toList.sequence )
 
   def sequence[T]( tacticals: Sequent[Tactical[T]] ): Tactical[Sequent[T]] =
-    sequence( tacticals.elements ).map( resultElements =>
+    ( sequence( tacticals.elements ).map( resultElements =>
       Sequent(
         resultElements.take( tacticals.antecedent.size ),
         resultElements.drop( tacticals.antecedent.size )
-      ) )
+      ) ) )
 }
 
 trait Tactic[+T] extends Tactical[T] { self =>
@@ -285,6 +294,14 @@ trait Tactic[+T] extends Tactical[T] { self =>
     def flatMap[U]( func: Val => ValidationNel[TacticalFailure, U] ): ValidationNel[TacticalFailure, U] =
       withFilter( _ => true ).flatMap( func )
   }
+}
+object Tactic {
+  def apply[T]( tactic: Tactic[T] )( implicit name: sourcecode.Name, args: sourcecode.Args ): Tactic[T] =
+    new Tactic[T] {
+      def apply( goal: OpenAssumption ) = tactic( goal )
+      override def toString =
+        if ( args.value.isEmpty ) name.value else s"$name(${args.value.mkString( ", " )})"
+    }
 }
 
 /**
