@@ -5,7 +5,7 @@ import at.logic.gapt.expr.fol.{ folSubTerms, folTermSize }
 import at.logic.gapt.expr.hol.{ CNFp, instantiate }
 import at.logic.gapt.formats.{ InputFile, StringInputFile }
 import at.logic.gapt.formats.tip.{ TipProblem, TipSmtParser }
-import at.logic.gapt.grammars.{ RecursionScheme, Rule, instantiateRS }
+import at.logic.gapt.grammars.{ NsapSPWIFinder, RecursionScheme, Rule, instantiateRS }
 import at.logic.gapt.proofs.Context.InductiveType
 import at.logic.gapt.proofs.{ Context, Sequent }
 import at.logic.gapt.proofs.expansion.{ ExpansionProof, InstanceTermEncoding, extractInstances }
@@ -93,6 +93,9 @@ class Viper( val problem: TipProblem, val options: ViperOptions ) extends Logger
         info( s"$lhs -> $rhs" )
 
       msrsf
+
+    case "nsap" =>
+      NsapSPWIFinder( vs.map( _.exptype ), encoding.instanceTermType, options.grammarWeighting, implicitly )
   }
 
   val smtSolver =
