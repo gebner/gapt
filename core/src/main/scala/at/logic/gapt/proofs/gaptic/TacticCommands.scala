@@ -2,6 +2,7 @@ package at.logic.gapt.proofs.gaptic
 
 import tactics._
 import at.logic.gapt.expr._
+import at.logic.gapt.expr.hol.{ existentialClosure, universalClosure }
 import at.logic.gapt.proofs._
 import at.logic.gapt.proofs.lk._
 import at.logic.gapt.provers.viper.ViperTactic
@@ -590,6 +591,10 @@ trait TacticCommands {
   def forget( ls: String* ): Tactical[Unit] =
     Tactical( Tactical.sequence( ls map { label => WeakeningLeftTactic( label ) orElse WeakeningRightTactic( label ) } ).map( _ => () ) )
 
+  def keepOnly( ls: String* ): Tactical[Unit] = Tactic { goal =>
+    Right( () -> OpenAssumption( goal.labelledSequent.filter( ls contains _._1 ) ) )
+  }
+
   /**
    * Moves the specified goal to the front of the goal list.
    * @param indexOfSubGoal The index of the goal.
@@ -681,4 +686,23 @@ trait TacticCommands {
     Tactical.sequence( for ( ( f, i ) <- sequent.zipWithIndex ) yield haveInstance( f, i.polarity ) )
 
   def viper( implicit ctx: Context ): ViperTactic = new ViperTactic
+
+  def haveCaseDistinction( typ: String )( implicit ctx: Context ): Tactical[Unit] = Tactical {
+    val ty = TBase( typ )
+    val Some( ctrs ) = ctx.getConstructors( ty )
+    val x = Var( "x", ty )
+    val f = All( x, Or(
+      for {
+        ctr @ Const( _, FunctionType( _, argTys ) ) <- ctrs
+        args = for ( ( a, i ) <- argTys.zipWithIndex ) yield Var( s"y_$i", a )
+      } yield Ex.Block( args, hof"$x = ${ctr( args )}" )
+    ) )
+    val label = s"cases_$typ"
+    for {
+      _ <- cut( label, f )
+      _ <- keepOnly( label )
+      _ <- allR
+      _ <- induction( x, label ).onAll( decompose.andThen( escargot ) )
+    } yield ()
+  }
 }

@@ -42,11 +42,30 @@ case class TipProblem(
         ctr2( ( for ( ( t, j ) <- args2.zipWithIndex ) yield Var( s"y$j", t ) ): _* )
     )
 
+  def projections =
+    for {
+      TipDatatype( ty, ctrs ) <- datatypes
+      if ty != To
+      tipCtr @ TipConstructor( ctr, projs ) <- ctrs
+      argVars = for ( ( t, i ) <- tipCtr.fieldTypes.zipWithIndex ) yield Var( s"x_$i", t )
+      ( proj, i ) <- projs.zipWithIndex
+    } yield universalClosure( hof"$proj ${ctr( argVars )} = ${argVars( i )}" )
+
+  def caseDistinctions =
+    for {
+      TipDatatype( ty, ctrs ) <- datatypes
+      if ty != To
+      x = Var( "x", ty )
+    } yield All( x, Or( for ( TipConstructor( ctr, projs ) <- ctrs )
+      yield x === ctr( projs.map( _( x ) ) ) ) )
+
   def toSequent = existentialClosure(
     datatypes.flatMap( _.constructors ).flatMap( _.projectorDefinitions ) ++:
       functions.flatMap( _.definitions ) ++:
       constructorInjectivity ++:
       assumptions ++:
+      projections ++:
+      caseDistinctions ++:
       Sequent()
       :+ goal
   )
