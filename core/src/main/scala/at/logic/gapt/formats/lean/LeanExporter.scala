@@ -151,15 +151,17 @@ class LeanExporter {
     val out = new StringBuilder
 
     out ++= s"lemma ${nameMap.nameGenerator.fresh( "lk_proof" )} : ${export( p.endSequent )} :=\n"
-    out ++= "begin\n"
+    out ++= "by "
 
     val hs = p.endSequent.indicesSequent.map {
       case Ant( i ) => i
       case Suc( j ) => p.endSequent.antecedent.size + j
     }
 
+    val tactics = mutable.Buffer[String]()
+
     def mkHypNameList( is: Seq[Int] ): String = s"[${is.map( s"`$hypName" + _ ).mkString( ", " )}]"
-    out ++= s"gapt.lk.sequent_formula_to_hyps ${mkHypNameList( hs.antecedent )} ${mkHypNameList( hs.succedent )},\n"
+    tactics += s"gapt.lk.sequent_formula_to_hyps ${mkHypNameList( hs.antecedent )} ${mkHypNameList( hs.succedent )}"
 
     import at.logic.gapt.proofs.lk._
     def f( p: LKProof, hs: Sequent[Int], hi: Int ): Unit = p match {
@@ -168,7 +170,7 @@ class LeanExporter {
       case p: WeakeningLeftRule    => f( p.subProof, p.getSequentConnector.parent( hs ), hi )
       case p: WeakeningRightRule   => f( p.subProof, p.getSequentConnector.parent( hs ), hi )
       case p: DefinitionRule       => f( p.subProof, p.getSequentConnector.parent( hs ), hi )
-      case _: TheoryAxiom          => out ++= "exact sorry,\n"
+      case _: TheoryAxiom          => tactics += "exact sorry"
       case _ =>
         var rule = s"gapt.lk.${p.longName}"
         p match {
@@ -183,7 +185,7 @@ class LeanExporter {
         }
         for ( i <- p.mainIndices )
           rule += s" $hypName${hs( i )}"
-        out ++= s"apply ($rule), "
+        tactics += s"tactic.interactive.apply `($rule)"
         for ( ( q, occConn_, auxs_ ) <- ( p.immediateSubProofs, p.occConnectors, p.auxIndices ).zipped ) {
           val ( occConn, auxs ) = p match {
             case p: EqualityRule =>
@@ -196,21 +198,32 @@ class LeanExporter {
             case _ => ( occConn_, auxs_ )
           }
           val hs_ = auxs.zip( Stream.from( hi ) ).foldLeft( occConn.parent( hs, -1 ) )( ( hs_, ai ) => hs_.updated( ai._1, ai._2 ) )
-          out ++= "intros"
-          p match {
+          val introHyps = ( p match {
             case p: Eigenvariable =>
-              out ++= s" ${nameMap.getLeanName( p.eigenVariable.name, VAR )}"
-            case _ =>
-          }
-          for ( a <- auxs )
-            out ++= s" $hypName${hs_( a )}"
-          out ++= ",\n"
+              Seq( nameMap.getLeanName( p.eigenVariable.name, VAR ) )
+            case _ => Seq()
+          } ) ++ ( for ( a <- auxs ) yield s"$hypName${hs_( a )}" )
+          tactics += s"tactic.intro_lst [${introHyps.map( "`" + _ ).mkString( ", " )}]"
           f( q, hs_, math.max( ( hs_.elements :+ 0 ).max + 1, hi ) )
         }
     }
     f( p, hs, ( hs.elements :+ 0 ).max + 1 )
 
-    out ++= "end\n"
+    def mkSeqTree( tactics: Seq[String] ): Unit = {
+      if ( tactics.size < 4 ) {
+        out ++= tactics.mkString( " >>\n" )
+      } else {
+        val ( left, right ) = tactics.splitAt( tactics.size / 2 )
+        out ++= "("
+        mkSeqTree( left )
+        out ++= ") >>\n("
+        mkSeqTree( right )
+        out ++= ")"
+      }
+    }
+    mkSeqTree( tactics )
+    out ++= "\n"
+
     out.result()
   }
 
