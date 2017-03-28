@@ -101,6 +101,8 @@ object preExpr {
     App( Ident( name, ArrType( ArrType( freshMetaType(), Bool ), Bool ) ), Abs( v, sub ) )
   def Ex: ( Ident, Expr ) => Expr = Quant( real.ExistsC.name )
   def All = Quant( real.ForallC.name )
+  def Eps(v: Ident, sub: Expr): Expr =
+    App( Ident( real.EpsilonC.name, ArrType( ArrType( freshMetaType(), Bool ), Bool ) ), Abs( v, sub ) )
 
   def liftTypePoly( t: real.Ty ) = {
     val vars = mutable.Map[real.TVar, Type]()

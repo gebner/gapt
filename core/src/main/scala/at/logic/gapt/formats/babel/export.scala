@@ -140,6 +140,7 @@ class BabelExporter( unicode: Boolean, sig: BabelSignature, omitTypes: Boolean =
 
       case All( v, e ) if !bound( ForallC.name ) => showQuant( if ( unicode ) "∀" else "!", v, e, bound, t0, p )
       case Ex( v, e ) if !bound( ExistsC.name )  => showQuant( if ( unicode ) "∃" else "?", v, e, bound, t0, p )
+      case Epsilon( v, e ) if !bound( EpsilonC.name )  => showQuant( if ( unicode ) "ε" else "@", v, e, bound, t0, p )
 
       case Apps( _, args ) if args.nonEmpty      => showApps( expr, knownType, bound, t0, p )
 
