@@ -138,11 +138,11 @@ class BabelExporter( unicode: Boolean, sig: BabelSignature, omitTypes: Boolean =
         ( parenIf( p, prio.lam, ( if ( unicode ) "λ" else "^" ) <> v_ </> e_ ),
           t1 - vn ++ t0.get( vn ).map { vn -> _ } )
 
-      case All( v, e ) if !bound( ForallC.name ) => showQuant( if ( unicode ) "∀" else "!", v, e, bound, t0, p )
-      case Ex( v, e ) if !bound( ExistsC.name )  => showQuant( if ( unicode ) "∃" else "?", v, e, bound, t0, p )
-      case Epsilon( v, e ) if !bound( EpsilonC.name )  => showQuant( if ( unicode ) "ε" else "@", v, e, bound, t0, p )
+      case All( v, e ) if !bound( ForallC.name )      => showQuant( if ( unicode ) "∀" else "!", v, e, bound, t0, p )
+      case Ex( v, e ) if !bound( ExistsC.name )       => showQuant( if ( unicode ) "∃" else "?", v, e, bound, t0, p )
+      case Epsilon( v, e ) if !bound( EpsilonC.name ) => showQuant( if ( unicode ) "ε" else "@", v, e, bound, t0, p )
 
-      case Apps( _, args ) if args.nonEmpty      => showApps( expr, knownType, bound, t0, p )
+      case Apps( _, args ) if args.nonEmpty           => showApps( expr, knownType, bound, t0, p )
 
       case expr @ Const( name, ty ) =>
         if ( bound( name ) || t0.get( name ).exists { _ != expr } || sig.signatureLookup( name ).isVar )

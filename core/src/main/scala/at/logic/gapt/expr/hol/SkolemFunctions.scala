@@ -1,7 +1,6 @@
 package at.logic.gapt.expr.hol
 
 import at.logic.gapt.expr._
-import at.logic.gapt.proofs.epsilon.Epsilon
 import at.logic.gapt.utils.linearizeStrictPartialOrder
 
 /**

@@ -83,10 +83,6 @@ class Context private ( val state: State, val updates: List[Update] ) extends Ba
   def contains( defn: EDefinition ): Boolean =
     definition( defn.what ).contains( defn.by )
 
-  /** Returns the Skolem definition of skSym.  See [[at.logic.gapt.expr.hol.SkolemFunctions]]. */
-  def skolemDef( skSym: Const ): Option[Expr] =
-    get[SkolemFunctions].skolemDefs.get( skSym )
-
   /**
    * Adds an element to the context.
    *
@@ -377,21 +373,6 @@ object Context {
     override def apply( ctx: Context ): State = {
       sequent.foreach( ctx.check( _ ) )
       ctx.state.update[Axioms]( _ + sequent )
-    }
-  }
-
-  implicit val skolemFunsFacet: Facet[SkolemFunctions] = Facet[SkolemFunctions]( SkolemFunctions( None ) )
-
-  case class SkolemFun( sym: Const, defn: Expr ) extends Update {
-    val Abs.Block( argumentVariables, strongQuantifier @ Quant( boundVariable, matrix, isForall ) ) = defn
-    require( sym.ty == FunctionType( boundVariable.ty, argumentVariables.map( _.ty ) ) )
-    require( freeVariables( defn ).isEmpty )
-
-    override def apply( ctx: Context ): State = {
-      ctx.check( sym.ty )
-      ctx.check( defn )
-      ctx.state.update[Constants]( _ + sym )
-        .update[SkolemFunctions]( _ + ( sym, defn ) )
     }
   }
 

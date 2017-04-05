@@ -75,10 +75,10 @@ object BabelParserCombinators {
 
   val Conj = PE( QuantOrNeg.rep( 1, "&" | "∧" ).map( _.reduceLeft( preExpr.And ) ) )
 
-  val QuantOrNeg: P[preExpr.Expr] = P( Ex | All | Neg | InfixRel )
+  val QuantOrNeg: P[preExpr.Expr] = P( Ex | All | Eps | Neg | InfixRel )
   val Ex = PE( ( ( "?" | "∃" ) ~/ BoundVar ~ QuantOrNeg ).map( preExpr.Ex.tupled ) )
   val All = PE( ( ( "!" | "∀" ) ~/ BoundVar ~ QuantOrNeg ).map( preExpr.All.tupled ) )
-  val All = PE( ( ( "@" | "ε" ) ~/ BoundVar ~ QuantOrNeg ).map( preExpr.Eps.tupled ) )
+  val Eps = PE( ( ( "@" | "ε" ) ~/ BoundVar ~ QuantOrNeg ).map( ( preExpr.Eps _ ).tupled ) )
   val Neg = PE( ( ( "-" | "¬" ) ~ QuantOrNeg ).map( preExpr.Neg ) )
 
   val InfixRelSym = P( "<=" | ">=" | "<" | ">" | "=" | "!=" )

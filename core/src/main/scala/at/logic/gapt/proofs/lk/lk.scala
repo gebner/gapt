@@ -990,6 +990,7 @@ trait SkolemQuantifierRule extends UnaryLKProof with CommonRule {
   def mainFormula: Formula
   def skolemTerm: Expr
   def skolemDef: Expr
+  def epsilonDef : Expr
 
   require( freeVariables( skolemDef ).isEmpty )
 
