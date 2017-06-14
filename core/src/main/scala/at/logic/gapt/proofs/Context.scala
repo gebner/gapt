@@ -481,7 +481,10 @@ object Context {
     }
   }
 
-  def mkCases( indTyName: String )( implicit ctx: Context ): PrimRecFun = {
+  def mkCases( indTyName: String )( implicit ctx: Context ): PrimRecFun =
+    mkCases(indTyName, s"${indTyName}_cases")
+
+    def mkCases( indTyName: String, casesName: String )( implicit ctx: Context ): PrimRecFun = {
     val ty = ctx.get[BaseTypes].baseTypes( indTyName )
     val ctrs = ctx.get[StructurallyInductiveTypes].constructors( indTyName )
     val motive = TVar( new NameGenerator( typeVariables( ty ).map( _.name ) ).fresh( "c" ) )
@@ -490,7 +493,7 @@ object Context {
       FunctionType( _, fieldTypes ) = ctr.ty
     } yield Var( s"y_$i", FunctionType( motive, fieldTypes ) )
     val major = Var( "x", ty )
-    val cases = Const( s"${indTyName}_cases", FunctionType( motive, ( major +: caseVars ).map( _.ty ) ) )
+    val cases = Const( casesName, FunctionType( motive, ( major +: caseVars ).map( _.ty ) ) )
     val eqns = for {
       ( caseVar, ctr ) <- caseVars zip ctrs
       FunctionType( _, fieldTypes ) = ctr.ty

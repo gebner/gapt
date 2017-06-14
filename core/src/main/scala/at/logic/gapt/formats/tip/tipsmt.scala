@@ -26,6 +26,7 @@ class TipSmtParser {
 
   typeDecls( "Bool" ) = To
   datatypes += TipDatatype( To, Seq( TipConstructor( TopC(), Seq() ), TipConstructor( BottomC(), Seq() ) ) )
+  ctx += Context.mkCases(To.name)
 
   def parse( sexp: SExpression ): Unit = sexp match {
     case LFun( "declare-sort", LAtom( name ), LAtom( ":skolem" | ":lambda" ), ar ) =>
@@ -39,6 +40,7 @@ class TipSmtParser {
       declare( t )
       val dt = TipDatatype( t, constructors map { parseConstructor( _, t ) } )
       ctx += Context.InductiveType( t, dt.constructors.map( _.constr ): _* )
+      ctx += Context.mkCases(t.name)
       datatypes += dt
       dt.constructors foreach { ctr =>
         declare( ctr.constr )
@@ -133,6 +135,40 @@ class TipSmtParser {
     case LAtom( "false" )                        => Bottom()
     case LAtom( "true" )                         => Top()
     case LAtom( name )                           => funDecls( name )
+          case LFun( "match", LAtom( varName ), cases @ _* ) =>
+      def handleCase( cas: SExpression ): Seq[Formula] = cas match {
+        case LFun( "case", LAtom( "default" ), body ) =>
+          val coveredConstructors = cases collect {
+            case LFun( "case", LFunOrAtom( constrName, _* ), _ ) if constrName != "default" =>
+              funDecls( constrName )
+          }
+          val missingConstructors = datatypes.find( _.t == freeVars( varName ).ty ).get.constructors.map( _.constr ) diff coveredConstructors
+          missingConstructors flatMap { ctr =>
+            val FunctionType( _, ts ) = ctr.ty
+            val nameGen = new NameGenerator( freeVars.keys )
+            val vs = for ( t <- ts ) yield LAtom( nameGen fresh "x" )
+            handleCase( LFun( "case", LFun( ctr.name, vs: _* ), body ) )
+          }
+        case LFun( "case", LFunOrAtom( constrName, argNames @ _* ), body ) =>
+          require(
+            freeVars( varName ).isInstanceOf[Var],
+            s"${freeVars( varName )} is not a variable"
+          )
+          val constr = funDecls( constrName )
+          val FunctionType( _, constrArgTypes ) = constr.ty
+          require( constrArgTypes.size == argNames.size )
+          val args = for ( ( LAtom( name ), ty ) <- argNames zip constrArgTypes ) yield Var( name, ty )
+          val subst = Substitution( freeVars( varName ).asInstanceOf[Var] -> constr( args: _* ) )
+          parseFunctionBody(
+            body,
+            subst( lhs ),
+            freeVars.mapValues( subst( _ ) ) ++ args.map { v => v.name -> v }
+          )
+      }
+      cases flatMap handleCase
+    case LFun( "ite", cond, ifTrue, ifFalse ) =>
+      parseFunctionBody( ifFalse, lhs, freeVars ).map( -parseExpression( cond, freeVars ) --> _ ) ++
+        parseFunctionBody( ifTrue, lhs, freeVars ).map( parseExpression( cond, freeVars ) --> _ )
     case LFun( "forall", LList( varNames @ _* ), formula ) =>
       val vars = for ( LFun( name, LAtom( typeName ) ) <- varNames ) yield Var( name, typeDecls( typeName ) )
       All.Block( vars, parseExpression( formula, freeVars ++ vars.map { v => v.name -> v } ) )
@@ -149,6 +185,30 @@ class TipSmtParser {
     case LFun( "=>", sexps @ _* )  => sexps map { parseExpression( _, freeVars ) } reduceRight { _ --> _ }
     case LFun( name, args @ _* ) =>
       funDecls( name )( args map { parseExpression( _, freeVars ) }: _* )
+  }
+
+  def elimMatch(on: Seq[Expr], default:Option[Expr], eqns: Seq[(Seq[Expr], Expr)])(implicit nameGen: NameGenerator): Expr =
+   on match {
+     case (on0 +: on_) if eqns.forall(_._1.head.isInstanceOf[Var]) =>
+       elimMatch(on_, default, eqns map {
+         case (lhs0 +: lhs_, rhs) =>
+           (lhs_, Substitution(lhs0.asInstanceOf[Var] -> on0)(rhs))
+       })
+     case (on0 +: on_) => // case split
+       val motive = eqns.head._2.ty
+       val cases = for {
+         ctr <- ctx.getConstructors(on0.ty).get
+         FunctionType(_, fieldTys) = ctr.ty
+         fieldVars = fieldTys.map(t => Var(nameGen.fresh("x"), t))
+        ctrPat = ctr(fieldVars)
+       } yield Abs.Block(fieldVars, elimMatch(fieldVars ++ on_, default,
+         for {
+           (lhs0 +: lhs_, rhs) <- eqns
+           subst <- syntacticMGU(ctrPat, lhs0)
+         } yield (subst(fieldVars ++ lhs_), subst(rhs))))
+       Const(on0.ty.asInstanceOf[TBase].name + "_cases", FunctionType(motive, cases.map(_.ty)))(cases)
+     case Seq() =>
+       eqns.headOption.map(_._2).getOrElse(default.get)
   }
 
   def toProblem: TipProblem =
