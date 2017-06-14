@@ -6,8 +6,8 @@ import Context._
 import at.logic.gapt.expr.fol.folSubTerms
 import at.logic.gapt.expr.hol.SkolemFunctions
 import at.logic.gapt.proofs.lk.LKProof
+import at.logic.gapt.utils.NameGenerator
 
-import scala.collection.immutable
 import scala.reflect.ClassTag
 
 /**
@@ -427,6 +427,13 @@ object Context {
         ( lhs, rhs ) <- eqns.view
         subst <- syntacticMatching( lhs, app ).toSeq
       } yield subst( rhs ) -> args.drop( nArgs ) ).headOption
+
+    override def toString =
+      equations.map {
+        case ( name, ( nArgs, recIdx, eqns ) ) =>
+          s"$name($recIdx/$nArgs):\n" + eqns.map { case ( lhs, rhs ) => "  " + ( lhs === rhs ).toUntypedString }.mkString( "\n" )
+      }.
+        mkString( "\n" )
   }
   implicit val primitiveRecursiveFunctionsFacet: Facet[PrimitiveRecursiveFunctions] = Facet( PrimitiveRecursiveFunctions( Map() ) )
 
@@ -472,6 +479,24 @@ object Context {
       ctx.state.update[Constants]( _ + c )
         .update[PrimitiveRecursiveFunctions]( _ + ( name, nArgs, recIdx, equations ) )
     }
+  }
+
+  def mkCases( indTyName: String )( implicit ctx: Context ): PrimRecFun = {
+    val ty = ctx.get[BaseTypes].baseTypes( indTyName )
+    val ctrs = ctx.get[StructurallyInductiveTypes].constructors( indTyName )
+    val motive = TVar( new NameGenerator( typeVariables( ty ).map( _.name ) ).fresh( "c" ) )
+    val caseVars = for {
+      ( ctr, i ) <- ctrs.zipWithIndex
+      FunctionType( _, fieldTypes ) = ctr.ty
+    } yield Var( s"y_$i", FunctionType( motive, fieldTypes ) )
+    val major = Var( "x", ty )
+    val cases = Const( s"${indTyName}_cases", FunctionType( motive, ( major +: caseVars ).map( _.ty ) ) )
+    val eqns = for {
+      ( caseVar, ctr ) <- caseVars zip ctrs
+      FunctionType( _, fieldTypes ) = ctr.ty
+      fieldVars = fieldTypes.zipWithIndex.map { case ( t, j ) => Var( s"z_$j", t ) }
+    } yield cases( ctr( fieldVars ) )( caseVars ) -> caseVar( fieldVars )
+    PrimRecFun( cases, 1 + caseVars.size, 0, eqns )
   }
 
   object PrimRecFun {

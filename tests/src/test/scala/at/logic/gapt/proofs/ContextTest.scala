@@ -82,4 +82,20 @@ class ContextTest extends Specification {
     ok
   }
 
+  "cases" in {
+    implicit var ctx = default
+    ctx += InductiveType( "nat", hoc"0: nat", hoc"s: nat>nat" )
+    ctx += mkCases( "nat" )
+    ctx.normalize( le"nat_cases 0 true (^x false)" ) must_== le"true"
+    ctx.normalize( le"nat_cases (s 0) true (^x false)" ) must_== le"false"
+
+    ctx += Context.InductiveType(
+      ty"list ?a",
+      hoc"nil: list ?a",
+      hoc"cons: ?a > list ?a > list ?a"
+    )
+    ctx += mkCases( "list" )
+    ctx.normalize( le"list_cases nil true (^x ^y false)" ) must_== le"true"
+  }
+
 }
