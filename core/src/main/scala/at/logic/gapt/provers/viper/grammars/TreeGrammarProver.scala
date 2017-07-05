@@ -184,7 +184,7 @@ class TreeGrammarProver( val ctx: Context, val sequent: HOLSequent, val options:
     info( s"Instance proof for ${inst.map( _.toSigRelativeString )}:" )
     info( instProof.toSigRelativeString )
     info( "Language:" )
-    encoding.encode( instProof ).toSeq.map( _.toString ).sorted.foreach( info( _ ) )
+    encoding.encode( instProof ).toSeq.map( _.toSigRelativeString ).sorted.foreach( info( _ ) )
 
     instProof
   }
