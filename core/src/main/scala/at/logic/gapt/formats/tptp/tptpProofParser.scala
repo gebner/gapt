@@ -150,6 +150,19 @@ object TptpProofParser {
         Seq( p )
       case AnnotatedFormula( "fof", _, "plain", Bottom(), ( justification @ TptpTerm( "inference", FOLVar( "AVATAR_sat_refutation" ), _, _ ) ) +: _ ) =>
         Seq( SketchSplitCombine( getParents( justification ).flatMap( convert ) ) )
+      case AnnotatedFormula( "cnf", _, "plain", disj: FOLFormula, ( justification @ TptpTerm( "inference", FOLConst( "global_propositional_subsumption" ), _, _ ) ) +: _ ) =>
+        // iprover produces both unsound and cyclic inferences :-(
+        val Seq( parent1, otherSubsumptionInference ) = getParents( justification )
+        val parent2 =steps(otherSubsumptionInference) match {
+          case AnnotatedFormula("cnf", _, "plain", disj: FOLFormula, (justification@TptpTerm("inference", FOLConst("global_propositional_subsumption"), _, _)) +: _) =>
+            getParents(justification).head
+          case _ =>
+            // and sometimes it doesn't
+            otherSubsumptionInference
+        }
+        val Seq( clause ) = CNFp( disj ).toSeq
+        val sketchParents = Seq( parent1, parent2 ).flatMap( convert )
+        Seq( SketchInference( clause, sketchParents ) )
       case AnnotatedFormula( "fof", _, "conjecture", _, TptpTerm( "file", _, TptpTerm( label ) ) +: _ ) =>
         labelledCNF( label ) map SketchAxiom
       case AnnotatedFormula( _, _, _, axiom: FOLFormula, TptpTerm( "file", _, TptpTerm( label ) ) +: _ ) =>
