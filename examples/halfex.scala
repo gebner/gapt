@@ -4,12 +4,12 @@ import at.logic.gapt.expr.hol.instantiate
 import at.logic.gapt.proofs.expansion.{ ExpansionProof, InstanceTermEncoding, minimalExpansionSequent }
 import at.logic.gapt.proofs.gaptic._
 import at.logic.gapt.proofs.lk.{ LKProof, ReductiveCutElimination, extractRecSchem, instanceProof }
-import at.logic.gapt.proofs.{ Context, HOLSequent, Suc }
+import at.logic.gapt.proofs.{ Context, HOLSequent, MutableContext, Suc }
 import at.logic.gapt.provers.OneShotProver
 import at.logic.gapt.provers.escargot.Escargot
 import at.logic.gapt.provers.smtlib.Z3
 import at.logic.gapt.provers.viper.grammars.TreeGrammarProver
-import at.logic.gapt.utils.Logger
+import at.logic.gapt.utils.{ Logger, Maybe }
 
 object halfex extends TacticsProof {
   ctx += Context.InductiveType( ty"nat", hoc"0: nat", hoc"s: nat>nat" )
@@ -18,17 +18,16 @@ object halfex extends TacticsProof {
 
   val bgTh = Normalizer(
     hoa"0 + x = x", hoa"x + 0 = x",
-    hoa"s x + y = s (x + y)", hoa"x + s y = s (x + y)"
-  )
+    hoa"s x + y = s (x + y)", hoa"x + s y = s (x + y)" )
   val bgThF = bgTh.toFormula
 
   def normSeq( seq: HOLSequent ): HOLSequent =
     seq.map( bgTh.normalize ).map( _.asInstanceOf[Formula] )
 
   val bgThProver = new OneShotProver {
-    override def getLKProof( seq: HOLSequent ): Option[LKProof] = ???
+    override def getLKProof( seq: HOLSequent )( implicit ctx: Maybe[MutableContext] ): Option[LKProof] = ???
 
-    override def getExpansionProof( seq: HOLSequent ): Option[ExpansionProof] = {
+    override def getExpansionProof( seq: HOLSequent )( implicit ctx: Maybe[MutableContext] ): Option[ExpansionProof] = {
       Escargot.getExpansionProof( bgThF +: seq ).map { foProof0 =>
         val foProof1 = ExpansionProof( foProof0.expansionSequent.filter( _.shallow != bgThF ) )
         val ( lang, enc ) = InstanceTermEncoding( foProof1 )
@@ -37,7 +36,7 @@ object halfex extends TacticsProof {
       }
     }
 
-    override def isValid( seq: HOLSequent ): Boolean =
+    override def isValid( seq: HOLSequent )( implicit ctx: Maybe[Context] ): Boolean =
       Z3.isValid( seq.map( bgTh.normalize( _ ).asInstanceOf[Formula] ) )
   }
 
@@ -59,7 +58,7 @@ object halfex extends TacticsProof {
 
   Logger.makeVerbose( classOf[TreeGrammarProver] )
   Lemma( sequent ) {
-    viper.instanceProver( bgThProver )
+    treeGrammarInduction.instanceProver( bgThProver )
       .smtSolver( bgThProver )
       .quantTys( "nat" )
       .canSolSize( 1, 1 )
