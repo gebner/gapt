@@ -233,6 +233,8 @@ object expressionDepth {
  * is not in the blackList.
  */
 object rename {
+  def awayFrom( blacklist: Iterable[TVar] )( implicit dummyImplicit: DummyImplicit ): NameGenerator =
+    new NameGenerator( blacklist.map( _.name ) )
   def awayFrom( blacklist: Iterable[VarOrConst] ): NameGenerator =
     new NameGenerator( blacklist map { _.name } )
 

@@ -17,12 +17,17 @@ class UOption[+T]( private val t: T ) extends AnyVal {
   def toOption: Option[T] = if ( isDefined ) Some( unsafeGet ) else None
 }
 
+object UOption {
+  def apply[T]( t: T ): UOption[T] = new UOption( t )
+}
+
 object USome {
   def apply[T]( t: T ): UOption[T] = new UOption( t )
   def unapply[T]( t: UOption[T] ): UOption[T] = t
 }
 
 object UNone {
-  def apply[T <: AnyRef](): UOption[T] = new UOption[T]( null.asInstanceOf[T] )
+  def apply[T](): UOption[T] =
+    new UOption[Null]( null ).asInstanceOf[UOption[T]]
 }
 
