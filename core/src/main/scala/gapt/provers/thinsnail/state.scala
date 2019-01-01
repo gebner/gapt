@@ -5,7 +5,7 @@ import gapt.provers.sat.Sat4j
 import gapt.utils.Logger
 import org.sat4j.minisat.SolverFactory
 import Sat4j._
-import gapt.proofs.{ Sequent, SequentIndex }
+import gapt.proofs.{ HOLSequent, Sequent, SequentIndex }
 import gapt.proofs.context.mutable.MutableContext
 import gapt.proofs.rup.RupProof
 import org.sat4j.specs.{ ContradictionException, IConstr, ISolverService }
@@ -145,7 +145,7 @@ class EscargotState( val ctx: MutableContext ) {
   val boolTy = termCtx.internBaseTy( To.name, 0 )
 
   var termOrdering: TermOrdering = LPO()
-  var nameGen = ctx.newNameGenerator
+  //  var nameGen = ctx.newNameGenerator
   var preprocessingRules = Seq[PreprocessingRule]()
   var inferences = Seq[InferenceRule]()
 
@@ -153,7 +153,13 @@ class EscargotState( val ctx: MutableContext ) {
     workedOff = workedOff.addIndex( idx )
 
   private var clsIdx = 0
-  //  def InputCls( clause: HOLSequent ): Cls = InputCls( Input( clause ) )
+  def InputCls( clause: HOLSequent ): Cls = InputCls( gapt.proofs.resolution.Input( clause ) )
+  def InputCls( clause: gapt.proofs.resolution.ResolutionProof ): Cls = {
+    val interner = new termCtx.Interner()
+    val ass = clause.assertions.map( interner.intern ).map( atomToSat ).map( -_, identity ).elements.toSet
+    val seq = clause.conclusion.map( interner.intern )
+    InputCls( new ResolutionProof( interner.lctx, seq, ass, Seq.empty ) )
+  }
   def InputCls( proof: ResolutionProof ): Cls = { clsIdx += 1; new Cls( this, proof, clsIdx ) }
   def SimpCls( parent: Cls, newProof: ResolutionProof ): Cls = new Cls( this, newProof, parent.index )
   def DerivedCls( parent: Cls, newProof: ResolutionProof ): Cls = { clsIdx += 1; new Cls( this, newProof, clsIdx ) }
@@ -189,17 +195,15 @@ class EscargotState( val ctx: MutableContext ) {
   } )
 
   /** Map from assertion atoms to SAT solver atoms */
-  val atomToSatSolver = mutable.Map[BoxedTerm, Int]()
-  val satSolverToAtom = mutable.Map[Int, BoxedTerm]()
-  def intern( atom: Term ): Int = {
-    val boxed = atom.box
-    atomToSatSolver.getOrElseUpdate( boxed, {
+  val atomToSatSolver = mutable.Map[Term, Int]()
+  val satSolverToAtom = mutable.Map[Int, Term]()
+  def atomToSat( atom: Term ): Int =
+    atomToSatSolver.getOrElseUpdate( atom, {
       val i = solver.nextFreeVarId( true )
-      satSolverToAtom( i ) = boxed
+      satSolverToAtom( i ) = atom
       i
     } )
-  }
-  def deintern( i: Int ): Term =
+  def satToAtom( i: Int ): Term =
     satSolverToAtom( i )
   //  def deinternLiteral( i: Int ): Formula =
   //    if ( i < 0 ) -deintern( -i ) else deintern( i )
@@ -326,7 +330,7 @@ class EscargotState( val ctx: MutableContext ) {
           return Some( cls.proof )
         if ( solver.isSatisfiable ) {
           info( s"sat splitting model: ${
-            solver.model().filter( _ >= 0 ).map( deintern ).
+            solver.model().filter( _ >= 0 ).map( satToAtom ).
               sortBy( _.toString ).mkString( ", " )
           }".replace( '\n', ' ' ) )
           switchToNewModel()

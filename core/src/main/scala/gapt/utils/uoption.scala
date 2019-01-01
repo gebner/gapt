@@ -14,11 +14,14 @@ class UOption[+T]( private val t: T ) extends AnyVal {
   def getOrElse[S >: T]( t: => S ): S = if ( isDefined ) unsafeGet else t
   def map[S]( f: T => S ): UOption[S] = if ( isDefined ) USome( f( unsafeGet ) ) else UNone()
   def flatMap[S]( f: T => UOption[S] ): UOption[S] = if ( isDefined ) f( unsafeGet ) else UNone()
+  def foreach( f: T => Unit ): Unit = if ( isDefined ) f( unsafeGet )
   def toOption: Option[T] = if ( isDefined ) Some( unsafeGet ) else None
 }
 
 object UOption {
   def apply[T]( t: T ): UOption[T] = new UOption( t )
+  def ofOption[T]( t: Option[T] ): UOption[T] =
+    if ( t.isDefined ) USome( t.get ) else UNone()
 }
 
 object USome {

@@ -1,5 +1,7 @@
 package gapt.provers.thinsnail
 
+import java.util
+
 import gapt.utils.{ UNone, UOption, USome }
 import gapt.expr
 import gapt.expr.TVar
@@ -7,92 +9,7 @@ import gapt.proofs.Sequent
 
 import scala.collection.mutable
 
-case class Var( idx: Int ) extends AnyVal {
-  def toTerm: Term = new Term( Integer.valueOf( idx ) )
-  def +( off: Int ): Var = Var( idx + off )
-}
-
-class FnSym(
-    val arity:            Int,
-    val name:             String,
-    val tyLCtx:           LCtx,
-    val retTy:            UOption[Term],
-    val argTys:           Array[UOption[Term]],
-    val extraTyParamArgs: Array[Int],
-    val needToPropagate:  Array[Boolean] ) extends DiscrTree.Label {
-  def toTerm: Term = new Term( this )
-  def ty: UOption[Term] = retTy
-  def isType: Boolean = retTy.isEmpty
-}
-
-class Fn( private val raw: Array[AnyRef] ) extends AnyVal {
-  def toTerm: Term = new Term( raw )
-
-  def fnSym: FnSym = raw( 0 ).asInstanceOf[FnSym]
-  def name: String = fnSym.name
-
-  def arity: Int = raw.length - 1
-  def apply( i: Int ): Term = new Term( raw( i + 1 ) )
-  def args: IndexedSeq[Term] = ( 0 until arity ).map( apply )
-
-  def map( f: Term => Term ): Fn = {
-    val newRaw = raw.clone()
-    var i = 1
-    while ( i < newRaw.length ) {
-      newRaw( i ) = f( new Term( newRaw( i ) ) ).raw
-      i += 1
-    }
-    new Fn( newRaw )
-  }
-
-  def updated( i: Int, term: Term ): Term = {
-    val newRaw = raw.clone()
-    newRaw( i ) = term.raw
-    new Fn( newRaw )
-  }
-
-  def forall( f: Term => Boolean ): Boolean =
-    ( 0 until arity ).forall( i => f( args( i ) ) )
-  def exists( f: Term => Boolean ): Boolean =
-    ( 0 until arity ).exists( i => f( args( i ) ) )
-  def foreach( f: Term => Unit ): Unit =
-    ( 0 until arity ).foreach( i => f( args( i ) ) )
-
-  override def toString: String = toTerm.toString
-}
-
-object Fn {
-  def apply( fnSym: FnSym, args: Iterable[Term] ): Fn =
-    new Fn( ( Vector( fnSym ) ++ args.view.map( _.raw ) ).toArray )
-
-  def apply( fnSym: FnSym, args: Term* ): Fn = apply( fnSym, args )
-
-  def unapply( term: Term ): Option[( FnSym, IndexedSeq[Term] )] =
-    term match {
-      case IsFn( f ) => Some( ( f.fnSym, f.args ) )
-      case _         => None
-    }
-}
-
-class Term( val raw: AnyRef ) extends AnyVal {
-
-  def ===( that: Term ): Boolean =
-    ( this, that ) match {
-      case ( IsVar( v1 ), IsVar( v2 ) ) => v1.idx == v2.idx
-      case ( IsFn( f1 ), IsFn( f2 ) ) =>
-        f1.fnSym == f2.fnSym && ( f1.args, f2.args ).zipped.forall( _ === _ )
-      case ( IsCon( c1 ), IsCon( c2 ) ) => c1 == c2
-      case _                            => false
-    }
-
-  def hash: Int =
-    this match {
-      case IsVar( v ) => v.idx
-      case IsCon( c ) => c.name.hashCode
-      case IsFn( f ) =>
-        f.name.hashCode ^ f.args.view.map( _.hash ).hashCode()
-    }
-
+sealed abstract class Term {
   def size: Int = {
     var result = 0
     def g( term: Term ): Unit =
@@ -105,6 +22,18 @@ class Term( val raw: AnyRef ) extends AnyVal {
       }
     g( this )
     result
+  }
+
+  def fvs: Set[Var] = {
+    val result = Set.newBuilder[Var]
+    def g( t: Term ): Unit =
+      t match {
+        case v: Var   => result += v
+        case _: FnSym =>
+        case f: Fn    => f.foreach( g )
+      }
+    g( this )
+    result.result()
   }
 
   override def toString: String = {
@@ -127,53 +56,96 @@ class Term( val raw: AnyRef ) extends AnyVal {
     p( this )
     out.result()
   }
-
-  def box = new BoxedTerm( this )
-
-}
-object Term {
-  implicit def ofVar( v: Var ): Term = v.toTerm
-  implicit def ofFn( f: Fn ): Term = f.toTerm
-  implicit def ofCon( c: FnSym ): Term = c.toTerm
-  implicit def ofBoxed( t: BoxedTerm ): Term = t.term
 }
 
-class BoxedTerm( val term: Term ) {
-  override val hashCode: Int = term.hash
+case class Var( idx: Int ) extends Term {
+  def +( off: Int ): Var = Var( idx + off )
+}
 
-  override def equals( obj: Any ): Boolean = obj match {
-    case that: BoxedTerm => this.term === that.term
-    case _               => false
+class FnSym(
+    val arity:            Int,
+    val name:             String,
+    val tyLCtx:           LCtx,
+    val retTy:            UOption[Term],
+    val argTys:           Array[UOption[Term]],
+    val extraTyParamArgs: Array[Int],
+    val needToPropagate:  Array[Boolean] ) extends Term with DiscrTree.Label {
+  def ty: UOption[Term] = retTy
+  def isType: Boolean = retTy.isEmpty
+  override def hashCode: Int = 31 * arity.hashCode + name.hashCode
+}
+
+class Fn(
+    val fnSym:          FnSym,
+    private val argArr: Array[Term] ) extends Term {
+  def name: String = fnSym.name
+
+  def arity: Int = argArr.length
+  def apply( i: Int ): Term = argArr( i )
+  def args: IndexedSeq[Term] = argArr
+
+  def map( f: Term => Term ): Fn = {
+    val newArgs = argArr.clone()
+    var i = 0
+    while ( i < newArgs.length ) {
+      newArgs( i ) = f( newArgs( i ) )
+      i += 1
+    }
+    new Fn( fnSym, newArgs )
   }
 
-  override def toString: String = term.toString
+  def updated( i: Int, term: Term ): Term = {
+    val newArgs = argArr.clone()
+    newArgs( i ) = term
+    new Fn( fnSym, newArgs )
+  }
+
+  def forall( f: Term => Boolean ): Boolean =
+    argArr.forall( f )
+  def exists( f: Term => Boolean ): Boolean =
+    argArr.exists( f )
+  def foreach( f: Term => Unit ): Unit =
+    argArr.foreach( f )
+
+  override val hashCode: Int =
+    31 * util.Arrays.hashCode( argArr.asInstanceOf[Array[AnyRef]] ) + fnSym.hashCode
+  override def equals( that: Any ): Boolean =
+    that match {
+      case that: AnyRef if this eq that => true
+      case that: Fn =>
+        this.hashCode == that.hashCode &&
+          this.fnSym == that.fnSym &&
+          this.args == that.args
+      case _ => false
+    }
+}
+
+object Fn {
+  def apply( fnSym: FnSym, args: Iterable[Term] ): Fn =
+    new Fn( fnSym, args.toArray )
+
+  def apply( fnSym: FnSym, args: Term* ): Fn = apply( fnSym, args )
+
+  def unapply( term: Term ): Option[( FnSym, IndexedSeq[Term] )] =
+    term match {
+      case f: Fn => Some( ( f.fnSym, f.args ) )
+      case _     => None
+    }
 }
 
 object IsVar {
   def apply( t: Term ): Boolean =
-    t.raw match {
-      case _: Integer => true
-      case _          => false
+    t match {
+      case _: Var => true
+      case _      => false
     }
-  def unapply( t: Term ): Option[Var] =
-    t.raw match {
-      case i: Integer => Some( Var( i ) )
-      case _          => None
-    }
+  def unapply( t: Var ): Option[Var] = Some( t )
 }
 object IsFn {
-  def unapply( t: Term ): Option[Fn] =
-    t.raw match {
-      case a: Array[AnyRef] => Some( new Fn( a ) )
-      case _                => None
-    }
+  def unapply( t: Fn ): Option[Fn] = Some( t )
 }
 object IsCon {
-  def unapply( t: Term ): Option[FnSym] =
-    t.raw match {
-      case c: FnSym => Some( c )
-      case _        => None
-    }
+  def unapply( t: FnSym ): Some[FnSym] = Some( t )
 }
 
 sealed trait LCtxElem {
@@ -259,13 +231,19 @@ class Subst private (
 
   def occurs( v: Var, off: Int, term: Term ): Boolean =
     term match {
-      case IsVar( v2 ) => v == v2 + off
-      case IsCon( _ )  => false
-      case IsFn( f )   => f.exists( occurs( v, off, _ ) )
+      case IsVar( v2 ) =>
+        val v2_ = v2 + off
+        get( v2_ ) match {
+          case USome( Assg( off_, term_ ) ) =>
+            occurs( v, off_, term_ )
+          case _ => v == v2_
+        }
+      case IsCon( _ ) => false
+      case IsFn( f )  => f.exists( occurs( v, off, _ ) )
     }
 
   def checkTy( offTerm: Int, term: Term,
-               offTy: Int, ty: UOption[Term] ): Boolean =
+               offTy: Int, ty: UOption[Term] )( implicit dummyImplicit: DummyImplicit ): Boolean =
     ty match {
       case USome( ty2 ) => checkTy( offTerm, term, offTy, ty2 )
       case _            => lctx.isTy( term )
@@ -341,9 +319,13 @@ class Subst private (
 
   def apply( v: Var ): Term =
     get( v ) match {
-      case USome( Assg( off, t ) ) => apply( off, t )
-      case _                       => v
+      case USome( Assg( off, t ) ) =>
+        apply( off, t )
+      case _ => v
     }
+
+  override def clone(): Subst =
+    new Subst( lctx, assg.clone() )
 }
 
 object Subst {
@@ -378,6 +360,9 @@ class Ctx( val cx: gapt.proofs.context.mutable.MutableContext ) { ctx =>
       extraTyParamArgs = Array(),
       needToPropagate = Array( true, false ) )
   }
+
+  def allFnSyms: Set[FnSym] =
+    Set.empty ++ baseTys.values ++ fnSyms.values + arrTyFnSym + appFnSym
 
   def internBaseTy( name: String, arity: Int ): FnSym =
     fnSyms.getOrElseUpdate( name -> arity, new FnSym(
@@ -434,7 +419,7 @@ class Ctx( val cx: gapt.proofs.context.mutable.MutableContext ) { ctx =>
           tyVs.getOrElseUpdate( v, lctx.newVar() )
         case expr.TBase( n, ps ) =>
           val fnSym = internBaseTy( n, ps.size )
-          if ( fnSym.arity == 0 ) fnSym.toTerm else {
+          if ( fnSym.arity == 0 ) fnSym else {
             Fn( fnSym, ps.map( intern ) )
           }
         case expr.TArr( a, b ) =>
@@ -447,7 +432,7 @@ class Ctx( val cx: gapt.proofs.context.mutable.MutableContext ) { ctx =>
           vs.getOrElseUpdate( e, lctx.newVar( intern( t ) ) )
         case e @ expr.Apps( expr.Const( n, _, ps ), args ) =>
           val fnSym = internFnSym( n, args.size )
-          if ( fnSym.arity == 0 ) fnSym.toTerm else {
+          if ( fnSym.arity == 0 ) fnSym else {
             Fn( fnSym, args.map( intern ) ++ fnSym.extraTyParamArgs.map {
               case -1 => intern( e.ty )
               case i  => intern( ps( i ) )

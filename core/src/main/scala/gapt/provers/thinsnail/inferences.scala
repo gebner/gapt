@@ -1,6 +1,7 @@
 package gapt.provers.thinsnail
 
 import gapt.proofs._
+import gapt.utils.{ UNone, UOption, USome }
 
 import scala.collection.mutable
 
@@ -54,6 +55,14 @@ case class Pos( is: List[Int] = Nil ) extends AnyVal {
       case ( Nil, _ ) => by
       case ( i :: is_, IsFn( f ) ) =>
         f.updated( i, Pos( is_ ).replace( f( i ), by ) )
+    }
+
+  def apply( t: Term ): UOption[Term] =
+    ( is, t ) match {
+      case ( Nil, _ ) => USome( t )
+      case ( i :: is_, IsFn( f ) ) =>
+        Pos( is_ )( f( i ) )
+      case _ => UNone()
     }
 
   def +( i: Int ): Pos = Pos( i :: is )
@@ -135,8 +144,38 @@ object BackwardSuperpositionIndex extends Index[DiscrTree[( Cls, SequentIndex, T
   def remove( t: I, cs: Set[Cls] ): I = t.filter( e => !cs( e._1 ) )
 }
 
+object clauseSubsumption {
+  def apply( lctx1: LCtx, s1: Sequent[Term], lctx2: LCtx, s2: Sequent[Term] ): UOption[Subst] = {
+    if ( s1.antecedent.size > s2.antecedent.size || s1.succedent.size > s2.succedent.size )
+      return UNone()
+    val subst = Subst()
+    val off1 = subst.lctx.extend( lctx1 )
+    val off2 = subst.lctx.extend( lctx2 )
+    require( off1 == 0 )
+    apply( subst, off1, s1, off2, s2 )
+  }
+
+  def apply(
+    subst: Subst,
+    off1:  Int, s1: Sequent[Term],
+    off2: Int, s2: Sequent[Term] ): UOption[Subst] = {
+    if ( s1.isEmpty ) return USome( subst )
+    val chosenFrom = s1.indices.head
+    for {
+      chosenTo <- s2.indices if chosenTo sameSideAs chosenFrom
+      newSubst = subst.clone()
+      if newSubst.matching( off1, s1( chosenFrom ), off2, s2( chosenTo ) )
+      subsumption <- apply(
+        newSubst,
+        off1, s1 delete chosenFrom,
+        off2, s2 delete chosenTo )
+    } return USome( subsumption )
+    UNone()
+  }
+}
+
 class StandardInferences( state: EscargotState, propositional: Boolean ) {
-  import state.{ DerivedCls, SimpCls, termOrdering, nameGen }
+  import state.{ DerivedCls, SimpCls, termOrdering }
   val eqSym = state.eqFnSym
 
   object Eq {
@@ -161,13 +200,13 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
     if ( propositional ) {
       if ( a isSubMultisetOf b ) Some( Subst( lctx ) )
       else None
-    } else clauseSubsumption( a, b, multisetSubsumption = true )
+    } else clauseSubsumption( lctxA, a, lctxB, b ).toOption
   }
   def unify(
     subst: Subst,
     offA:  Int, a: Term,
     offB: Int, b: Term ): Boolean =
-    if ( propositional ) a === b
+    if ( propositional ) a == b
     else subst.unify( offA, a, offB, b )
   def matching( lctx: LCtx, a: Term, b: Term ): Boolean =
     matching( Subst( lctx ), 0, a, 0, b )
@@ -175,7 +214,7 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
     subst: Subst,
     offA:  Int, a: Term,
     offB: Int, b: Term ): Boolean =
-    if ( propositional ) a === b
+    if ( propositional ) a == b
     else subst.matching( offA, a, offB, b )
 
   //  object Clausification extends Clausifier(
@@ -214,13 +253,17 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
 
   object EqualityResolution extends SimplificationRule {
     def simplify( given: Cls, existing: IndexedClsSet ): Option[( Cls, Set[Int] )] = {
-      val refls = given.clause.antecedent collect { case Eq( t, t_ ) if t == t_ => t }
-      if ( refls.isEmpty ) None
+      val simpd = given.clause.copy( antecedent =
+        given.clause.antecedent.filterNot {
+          case Eq( t, s ) => t == s
+          case _          => false
+        } )
+      if ( simpd.size == given.clause.size ) None
       else Some( SimpCls(
         given,
         ResolutionProof.normalize(
           given.lctx,
-          given.clause diff Sequent( refls, Seq.empty ),
+          simpd,
           given.ass,
           choose( given.proof ) ) ) -> Set() )
     }
@@ -283,30 +326,29 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
 
   object ReflModEqDeletion extends RedundancyRule {
 
-    def canonize( expr: Term, assertion: Set[Int], eqs: ReflModEqIndex.I ): Term = {
-      var e = expr
-      var didRewrite = true
-      while ( didRewrite ) {
-        didRewrite = false
-        for {
-          ( subterm, pos ) <- getFOPositions( e ) if !didRewrite
-          if !IsVar( subterm )
-          ( t_, s_, _, c1 ) <- eqs.generalizations( subterm ) if !didRewrite
-          if c1.ass subsetOf assertion
-          subst <- matching( t_, subterm )
-          if termOrdering.lt( subst( s_ ), subterm, treatVarsAsConsts = true )
-        } {
-          for ( p <- pos ) e = e.replace( p, subst( s_ ) )
-          didRewrite = true
+    def canonize( lctx: LCtx, expr: Term, assertion: Set[Int], eqs: ReflModEqIndex.I ): Term = {
+      val subst = Subst()
+      require( subst.lctx.extend( lctx ) == 0 )
+      def rewrite( t0: Term ): Term = {
+        if ( IsVar( t0 ) ) return t0
+        val t = t0 match {
+          case IsFn( f ) => f.map( rewrite )
+          case _         => t0
         }
+        eqs.generalizations( t ).view.flatMap {
+          case ( t_, s_, ltr, c1 ) =>
+            val off = subst.lctx.extend( c1.lctx )
+            if ( !matching( subst, off, t_, 0, t ) ) None
+            else Some( rewrite( subst( off, s_ ) ) )
+        }.headOption.getOrElse( t )
       }
-      e
+      rewrite( expr )
     }
 
     def isRedundant( given: Cls, existing: IndexedClsSet ): Option[Set[Int]] = {
       val eqs = existing.getIndex( ReflModEqIndex )
       if ( !eqs.isEmpty && given.clause.succedent.exists {
-        case Eq( t, s ) => canonize( t, given.ass, eqs ) == canonize( s, given.ass, eqs )
+        case Eq( t, s ) => canonize( given.lctx, t, given.ass, eqs ) == canonize( given.lctx, s, given.ass, eqs )
         case _          => false
       } ) Some( Set() ) else None
     }
@@ -344,31 +386,36 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
       val unitRwrLhs = existing.getIndex( UnitRwrLhsIndex( eqSym ) )
       if ( unitRwrLhs.isEmpty ) return None
 
-      var p = given.proof
+      val subst = Subst()
+      require( subst.lctx.extend( given.lctx ) == 0 )
       var didRewrite = true
       var reason = Set[Int]()
-      while ( didRewrite ) {
-        didRewrite = false
-        for {
-          i <- p.clause.indices if !didRewrite
-          ( subterm, pos ) <- getFOPositions( p.clause( i ) ) if !didRewrite
-          if !IsVar( subterm )
-          ( t_, s_, leftToRight, c1 ) <- unitRwrLhs.generalizations( subterm ) if !didRewrite
-          if c1.ass subsetOf given.ass // FIXME: large performance difference? e.g. ALG200+1
-          subst <- matching( t_, subterm )
-          if termOrdering.lt( subst( s_ ), subterm )
-        } {
-          p = Paramod( Subst( c1.proof, subst ), Suc( 0 ), leftToRight,
-            p, i, replacementContext( subst( t_.ty ), p.conclusion( i ), pos ) )
-          reason = reason ++ c1.ass
-          didRewrite = true
+      val parents = mutable.Set[ResolutionProof]()
+      def rewrite( t0: Term ): Term = {
+        if ( IsVar( t0 ) ) return t0
+        val t = t0 match {
+          case IsFn( f ) => f.map( rewrite )
+          case _         => t0
         }
+        unitRwrLhs.generalizations( t ).view.flatMap {
+          case ( t_, s_, ltr, c1 ) =>
+            val off = subst.lctx.extend( c1.lctx )
+            if ( !matching( subst, off, t_, 0, t ) ) None else {
+              didRewrite = true
+              reason = reason.union( c1.ass )
+              parents += c1.proof
+              Some( rewrite( subst( off, s_ ) ) )
+            }
+        }.headOption.getOrElse( t )
       }
 
-      if ( p != given.proof ) {
-        Some( SimpCls( given, p ) -> reason )
-      } else {
-        None
+      val simpd = given.clause.map( rewrite )
+      if ( !didRewrite ) None else Some {
+        SimpCls( given, ResolutionProof.normalize(
+          given.lctx,
+          simpd,
+          given.ass.union( reason ),
+          parents.toSeq ) ) -> reason
       }
     }
   }
@@ -471,11 +518,11 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
     // i1.isSuc, c1.clause(i1) == Eq(_, _)
     def apply( c1: Cls, i1: SequentIndex, t_ : Term, s_ : Term, leftToRight: Boolean,
                c2: Cls, i2: SequentIndex, pos2: Seq[Pos] ): Option[Cls] = {
-      val mgu = Subst( LCtx() )
+      val mgu = Subst()
       val off1 = mgu.lctx.extend( c1.lctx )
       val off2 = mgu.lctx.extend( c2.lctx )
       val a2 = c2.clause( i2 )
-      val st2 = a2( pos2.head )
+      val USome( st2 ) = pos2.head( a2 )
       if ( !unify( mgu, off1, t_, off2, st2 ) ) return None
       val t__ = mgu( off1, t_ )
       val s__ = mgu( off1, s_ )
@@ -487,7 +534,7 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
       Some( DerivedCls( c1, c2,
         ResolutionProof.normalize(
           mgu.lctx,
-          ( a2 +: ( mgu( off1, c1.clause.delete( i1 ) ) ++ mgu( off2, c2.clause.delete( i2 ) ) ) ) distinct,
+          ( a2_ +: ( mgu( off1, c1.clause.delete( i1 ) ) ++ mgu( off2, c2.clause.delete( i2 ) ) ) ) distinct,
           c1.ass ++ c2.ass,
           Seq( c1.proof, c2.proof ) ) ) )
     }
@@ -531,12 +578,19 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
 
   object VariableEqualityResolution extends SimplificationRule {
     def simp( p: ResolutionProof ): ResolutionProof =
-      p.conclusion.antecedent.zipWithIndex.collectFirst {
-        case ( Eq( x: Var, t ), i ) if !freeVariables( t ).contains( x ) => ( x, t, i )
-        case ( Eq( t, x: Var ), i ) if !freeVariables( t ).contains( x ) => ( x, t, i )
+      p.clause.antecedent.zipWithIndex.collectFirst {
+        case ( Eq( x: Var, t ), i ) if !t.fvs.contains( x ) => ( x, t, i )
+        case ( Eq( t, x: Var ), i ) if !t.fvs.contains( x ) => ( x, t, i )
       } match {
         case Some( ( x, t, i ) ) =>
-          simp( Resolution( Refl( t ), Suc( 0 ), Subst( p, Subst( x -> t ) ), Ant( i ) ) )
+          val subst = Subst()
+          val off = subst.lctx.extend( p.lctx )
+          require( subst.unify( off, x, off, t ) )
+          simp( ResolutionProof.normalize(
+            subst.lctx,
+            subst( off, p.clause.delete( Ant( i ) ) ),
+            p.assertions,
+            Seq( p ) ) )
         case None => p
       }
 
@@ -546,51 +600,51 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
     }
   }
 
-  object AvatarSplitting extends InferenceRule {
-
-    var componentCache = mutable.Map[Formula, Atom]()
-    def boxComponent( comp: HOLSequent ): AvatarNonGroundComp = {
-      val definition @ All.Block( vs, _ ) = universalClosure( comp.toDisjunction )
-      AvatarNonGroundComp(
-        componentCache.getOrElseUpdate( definition, {
-          val tvs = typeVariables( definition ).toList
-          val c = Const( nameGen.freshWithIndex( "split" ), To, tvs )
-          state.ctx += Definition( c, definition )
-          c.asInstanceOf[Atom]
-        } ), definition, vs )
-    }
-
-    val componentAlreadyDefined = mutable.Set[Atom]()
-    def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
-      val comps = AvatarSplit.getComponents( given.clause )
-
-      if ( comps.size >= 2 ) {
-        val propComps = comps.filter( freeVariables( _ ).isEmpty ).map {
-          case Sequent( Seq( a: Atom ), Seq() ) => AvatarGroundComp( a, Polarity.InAntecedent )
-          case Sequent( Seq(), Seq( a: Atom ) ) => AvatarGroundComp( a, Polarity.InSuccedent )
-        }
-        val nonPropComps =
-          for ( c <- comps if freeVariables( c ).nonEmpty )
-            yield boxComponent( c )
-
-        val split = AvatarSplit( given.proof, nonPropComps ++ propComps )
-        var inferred = Set( DerivedCls( given, split ) )
-        for ( comp <- propComps; if !componentAlreadyDefined( comp.atom ) ) {
-          componentAlreadyDefined += comp.atom
-          for ( pol <- Polarity.values )
-            inferred += DerivedCls( given, AvatarComponent( AvatarGroundComp( comp.atom, pol ) ) )
-        }
-        for ( comp <- nonPropComps if !componentAlreadyDefined( comp.atom ) ) {
-          componentAlreadyDefined += comp.atom
-          inferred += DerivedCls( given, AvatarComponent( comp ) )
-        }
-
-        ( inferred, Set( given -> Set() ) )
-      } else {
-        ( Set(), Set() )
-      }
-    }
-
-  }
+  //  object AvatarSplitting extends InferenceRule {
+  //
+  //    var componentCache = mutable.Map[Formula, Atom]()
+  //    def boxComponent( comp: HOLSequent ): AvatarNonGroundComp = {
+  //      val definition @ All.Block( vs, _ ) = universalClosure( comp.toDisjunction )
+  //      AvatarNonGroundComp(
+  //        componentCache.getOrElseUpdate( definition, {
+  //          val tvs = typeVariables( definition ).toList
+  //          val c = Const( nameGen.freshWithIndex( "split" ), To, tvs )
+  //          state.ctx += Definition( c, definition )
+  //          c.asInstanceOf[Atom]
+  //        } ), definition, vs )
+  //    }
+  //
+  //    val componentAlreadyDefined = mutable.Set[Atom]()
+  //    def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
+  //      val comps = AvatarSplit.getComponents( given.clause )
+  //
+  //      if ( comps.size >= 2 ) {
+  //        val propComps = comps.filter( freeVariables( _ ).isEmpty ).map {
+  //          case Sequent( Seq( a: Atom ), Seq() ) => AvatarGroundComp( a, Polarity.InAntecedent )
+  //          case Sequent( Seq(), Seq( a: Atom ) ) => AvatarGroundComp( a, Polarity.InSuccedent )
+  //        }
+  //        val nonPropComps =
+  //          for ( c <- comps if freeVariables( c ).nonEmpty )
+  //            yield boxComponent( c )
+  //
+  //        val split = AvatarSplit( given.proof, nonPropComps ++ propComps )
+  //        var inferred = Set( DerivedCls( given, split ) )
+  //        for ( comp <- propComps; if !componentAlreadyDefined( comp.atom ) ) {
+  //          componentAlreadyDefined += comp.atom
+  //          for ( pol <- Polarity.values )
+  //            inferred += DerivedCls( given, AvatarComponent( AvatarGroundComp( comp.atom, pol ) ) )
+  //        }
+  //        for ( comp <- nonPropComps if !componentAlreadyDefined( comp.atom ) ) {
+  //          componentAlreadyDefined += comp.atom
+  //          inferred += DerivedCls( given, AvatarComponent( comp ) )
+  //        }
+  //
+  //        ( inferred, Set( given -> Set() ) )
+  //      } else {
+  //        ( Set(), Set() )
+  //      }
+  //    }
+  //
+  //  }
 
 }
