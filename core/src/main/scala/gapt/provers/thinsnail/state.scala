@@ -5,7 +5,8 @@ import gapt.provers.sat.Sat4j
 import gapt.utils.Logger
 import org.sat4j.minisat.SolverFactory
 import Sat4j._
-import gapt.proofs.{ HOLSequent, Sequent, SequentIndex }
+import gapt.expr
+import gapt.proofs.{ HOLSequent, Sequent, SequentIndex, resolution }
 import gapt.proofs.context.mutable.MutableContext
 import gapt.proofs.rup.RupProof
 import org.sat4j.specs.{ ContradictionException, IConstr, ISolverService }
@@ -25,7 +26,7 @@ import scala.collection.mutable
  */
 class Cls(
     val state: EscargotState,
-    val proof: ResolutionProof,
+    val proof: RP,
     val index: Int ) {
   val clause: Sequent[Term] = proof.clause
   def lctx = proof.lctx
@@ -130,7 +131,7 @@ trait Index[T] {
  * but the subsumed clauses in usable are returned as discarded.
  *
  * Avatar splitting: Escargot employs the Avatar splitting regime [2].  Clauses are annotated with
- * propositional assertions, see [[gapt.proofs.resolution.ResolutionProof]] for the syntax.  We always have a propositional
+ * propositional assertions, see [[RP]] for the syntax.  We always have a propositional
  * model (avatarModel), and only consider clauses whose assertions are true in this model (called "active" here).
  * Clauses whose assertions are false in the model are stored in locked.  Whenever we derive an empty clause,
  * we call the SAT solver to obtain a model in which every empty clause has a false assertion.
@@ -153,17 +154,15 @@ class EscargotState( val ctx: MutableContext ) {
     workedOff = workedOff.addIndex( idx )
 
   private var clsIdx = 0
-  def InputCls( clause: HOLSequent ): Cls = InputCls( gapt.proofs.resolution.Input( clause ) )
-  def InputCls( clause: gapt.proofs.resolution.ResolutionProof ): Cls = {
+  def InputCls( clause: HOLSequent ): Cls = {
     val interner = new termCtx.Interner()
-    val ass = clause.assertions.map( interner.intern ).map( atomToSat ).map( -_, identity ).elements.toSet
-    val seq = clause.conclusion.map( interner.intern )
-    InputCls( new ResolutionProof( interner.lctx, seq, ass, Seq.empty ) )
+    val seq = clause.map( interner.intern )
+    InputCls( new Input( interner.lctx, seq, resolution.Input( clause ) ) )
   }
-  def InputCls( proof: ResolutionProof ): Cls = { clsIdx += 1; new Cls( this, proof, clsIdx ) }
-  def SimpCls( parent: Cls, newProof: ResolutionProof ): Cls = new Cls( this, newProof, parent.index )
-  def DerivedCls( parent: Cls, newProof: ResolutionProof ): Cls = { clsIdx += 1; new Cls( this, newProof, clsIdx ) }
-  def DerivedCls( parent1: Cls, parent2: Cls, newProof: ResolutionProof ): Cls = { clsIdx += 1; new Cls( this, newProof, clsIdx ) }
+  def InputCls( proof: RP ): Cls = { clsIdx += 1; new Cls( this, proof, clsIdx ) }
+  def SimpCls( parent: Cls, newProof: RP ): Cls = new Cls( this, newProof, parent.index )
+  def DerivedCls( parent: Cls, newProof: RP ): Cls = { clsIdx += 1; new Cls( this, newProof, clsIdx ) }
+  def DerivedCls( parent1: Cls, parent2: Cls, newProof: RP ): Cls = { clsIdx += 1; new Cls( this, newProof, clsIdx ) }
 
   /** Clauses that have been derived in the current iteration. */
   var newlyDerived = Set[Cls]()
@@ -311,23 +310,24 @@ class EscargotState( val ctx: MutableContext ) {
     }
   }
 
-  def mkSatProof(): ResolutionProof =
-    new ResolutionProof( LCtx(), Sequent(), Set.empty, Seq.empty )
-  //    RupProof( emptyClauses.keys.toSeq.map( cls => RupProof.Input( cls.map( -_ ) ) ) ++ drup :+ RupProof.Rup( Set() ) ).
-  //      toRes.toResolution( satSolverToAtom, cls => {
-  //        val p = emptyClauses( cls.map( -_ ) ).proof
-  //        if ( p.assertions.isEmpty ) p else AvatarContradiction( p )
-  //      } )
+  def mkSatProof(): resolution.ResolutionProof =
+    RupProof( emptyClauses.keys.toSeq.map( cls => RupProof.Input( cls.map( -_ ) ) ) ++ drup :+ RupProof.Rup( Set() ) ).
+      toRes.toResolution(
+        i => termCtx.deinternFor( LCtx() ).toExpr( satSolverToAtom( i ) ).asInstanceOf[expr.Formula],
+        cls => {
+          val p = emptyClauses( cls.map( -_ ) ).proof
+          if ( p.assertions.isEmpty ) p.toResolutionProof( termCtx ) else ??? // AvatarContradiction( p )
+        } )
 
   /** Main inference loop. */
-  def loop(): Option[ResolutionProof] = try {
+  def loop(): Option[resolution.ResolutionProof] = try {
     preprocessing()
     clauseProcessing()
 
     while ( true ) {
       if ( usable exists { _.clause.isEmpty } ) {
         for ( cls <- usable if cls.clause.isEmpty && cls.assertion.isEmpty )
-          return Some( cls.proof )
+          return Some( cls.proof.toResolutionProof( termCtx ) )
         if ( solver.isSatisfiable ) {
           info( s"sat splitting model: ${
             solver.model().filter( _ >= 0 ).map( satToAtom ).

@@ -113,7 +113,7 @@ class Escargot( splitting: Boolean, equality: Boolean, propositional: Boolean ) 
     val cnf_ = cnf.map( state.InputCls )
     state.termOrdering = Escargot.lpoHeuristic( state.termCtx.allFnSyms, state.eqFnSym, state.boolTy )
     state.newlyDerived ++= cnf_
-    state.loop().map( _ => gapt.proofs.resolution.Input( Sequent() ) )
+    state.loop()
   }
 
   //  def getAtomicLKProof( sequent: HOLClause )( implicit ctx0: Maybe[Context] ): Option[LKProof] = {

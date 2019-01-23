@@ -63,13 +63,12 @@ case class Var( idx: Int ) extends Term {
 }
 
 class FnSym(
-    val arity:            Int,
-    val name:             String,
-    val tyLCtx:           LCtx,
-    val retTy:            UOption[Term],
-    val argTys:           Array[UOption[Term]],
-    val extraTyParamArgs: Array[Int],
-    val needToPropagate:  Array[Boolean] ) extends Term with DiscrTree.Label {
+    val arity:           Int,
+    val name:            String,
+    val tyLCtx:          LCtx,
+    val retTy:           UOption[Term],
+    val argTys:          Array[UOption[Term]],
+    val needToPropagate: Array[Boolean] ) extends Term with DiscrTree.Label {
   def ty: UOption[Term] = retTy
   def isType: Boolean = retTy.isEmpty
   override def hashCode: Int = 31 * arity.hashCode + name.hashCode
@@ -191,35 +190,56 @@ class LCtx(
     Var( v )
   }
 
+  def elements: Seq[( Var, LCtxElem )] =
+    for ( ( el, i ) <- tys.zipWithIndex ) yield Var( i ) -> el
+
 }
 
 object LCtx {
   def apply(): LCtx = new LCtx( mutable.ArrayBuffer() )
 }
 
-case class Assg( off: Int, t: Term )
+sealed trait VarInSubst
+case class Assg( off: Int, t: Term ) extends VarInSubst
+case object Fixed extends VarInSubst
 
 class Subst private (
     val lctx:         LCtx,
-    private var assg: Array[Assg] ) {
+    private var assg: Array[VarInSubst] ) {
 
-  def get( v: Var ): UOption[Assg] =
-    if ( v.idx >= assg.length ) UNone[Assg]() else UOption( assg( v.idx ) )
+  def extend( newLctx: LCtx ): Int = lctx.extend( newLctx )
+  def extendFixed( newLctx: LCtx ): Int = {
+    val off1 = lctx.extend( newLctx )
+    val off2 = lctx.length
+    for ( i <- off1 until off2 ) set( Var( i ), Fixed )
+    off1
+  }
 
-  def assign( v: Var, off: Int, t: Term ): Boolean = get( v ) match {
+  def get( v: Var ): UOption[VarInSubst] =
+    if ( v.idx >= assg.length ) UNone[VarInSubst]() else UOption( assg( v.idx ) )
+
+  private def assignable( v: Var ): Boolean =
+    get( v ) != USome( Fixed )
+
+  private def set( v: Var, a: VarInSubst ): Unit = {
+    if ( assg.length <= v.idx ) {
+      val oldAssg = assg
+      assg = new Array( 2 * math.max( lctx.length, v.idx + 1 ) )
+      oldAssg.copyToArray( assg )
+    }
+    assg( v.idx ) = a
+  }
+
+  private def assign( v: Var, off: Int, t: Term ): Boolean = get( v ) match {
     case USome( Assg( off2, t2 ) ) => unify( off, t, off2, t2 )
+    case USome( _ )                => throw new IllegalArgumentException
     case _ =>
       t match { case IsVar( vt ) if v == vt + off => return true case _ => }
       if ( !checkTy( off, t, lctx.get( v ) ) )
         return false
       if ( occurs( v, off, t ) )
         return false
-      if ( assg.length <= v.idx ) {
-        val oldAssg = assg
-        assg = new Array( 2 * math.max( lctx.length, v.idx + 1 ) )
-        oldAssg.copyToArray( assg )
-      }
-      assg( v.idx ) = Assg( off, t )
+      set( v, Assg( off, t ) )
       true
   }
 
@@ -286,26 +306,27 @@ class Subst private (
         f1.fnSym == f2.fnSym &&
           ( 0 until f1.arity ).forall( i =>
             unify( off1, f1( i ), off2, f2( i ) ) )
-      case ( IsVar( v1 ), _ ) =>
+      case ( IsVar( v1 ), IsVar( v2 ) ) if v1 + off1 == v2 + off2 => true
+      case ( IsVar( v1 ), _ ) if assignable( v1 + off1 ) =>
         assign( v1 + off1, off2, t2 )
-      case ( _, IsVar( _ ) ) => unify( off2, t2, off1, t1 )
-      case ( _, _ ) =>
-        false
+      case ( _, IsVar( v2 ) ) if assignable( v2 + off2 ) =>
+        assign( v2 + off2, off1, t1 )
+      case ( _, _ ) => false
     }
 
-  def matching( off1: Int, t1: Term,
-                off2: Int, t2: Term ): Boolean =
-    ( t1, t2 ) match {
-      case ( IsCon( c1 ), IsCon( c2 ) ) => c1 == c2
-      case ( IsFn( f1 ), IsFn( f2 ) ) =>
-        f1.fnSym == f2.fnSym &&
-          ( 0 until f1.arity ).forall( i =>
-            matching( off1, f1( i ), off2, f2( i ) ) )
-      case ( IsVar( v1 ), _ ) =>
-        assign( v1 + off1, off2, t2 )
-      case ( _, _ ) =>
-        false
-    }
+  //  def matching( off1: Int, t1: Term,
+  //                off2: Int, t2: Term ): Boolean =
+  //    ( t1, t2 ) match {
+  //      case ( IsCon( c1 ), IsCon( c2 ) ) => c1 == c2
+  //      case ( IsFn( f1 ), IsFn( f2 ) ) =>
+  //        f1.fnSym == f2.fnSym &&
+  //          ( 0 until f1.arity ).forall( i =>
+  //            matching( off1, f1( i ), off2, f2( i ) ) )
+  //      case ( IsVar( v1 ), _ ) =>
+  //        assign( v1 + off1, off2, t2 )
+  //      case ( _, _ ) =>
+  //        false
+  //    }
 
   def apply( off: Int, t: Sequent[Term] ): Sequent[Term] =
     t.map( apply( off, _ ) )
@@ -338,13 +359,21 @@ class Ctx( val cx: gapt.proofs.context.mutable.MutableContext ) { ctx =>
   val baseTys: mutable.Map[( String, Int ), FnSym] = mutable.Map()
   val fnSyms: mutable.Map[( String, Int ), FnSym] = mutable.Map()
 
+  case class FnSymInfo(
+      extraTyParamArgs: Vector[Int],
+      extraTyParams:    Vector[TVar],
+      realArgs:         Vector[Int],
+      denote:           expr.Expr ) {
+    val hasFreeTyVars: Boolean = expr.typeVariables( denote ).nonEmpty
+  }
+  val fnSymInfo: mutable.Map[FnSym, FnSymInfo] = mutable.Map()
+
   val arrTyFnSym: FnSym = new FnSym(
     arity = 2,
     name = "->:",
     tyLCtx = LCtx(),
     retTy = UNone(),
     argTys = Array( UNone(), UNone() ),
-    extraTyParamArgs = Array(),
     needToPropagate = Array( false, false ) )
 
   val appFnSym: FnSym = {
@@ -357,21 +386,64 @@ class Ctx( val cx: gapt.proofs.context.mutable.MutableContext ) { ctx =>
       tyLCtx = lctx,
       retTy = USome( b ),
       argTys = Array( USome( Fn( arrTyFnSym, a, b ) ), USome( a ) ),
-      extraTyParamArgs = Array(),
       needToPropagate = Array( true, false ) )
   }
 
   def allFnSyms: Set[FnSym] =
     Set.empty ++ baseTys.values ++ fnSyms.values + arrTyFnSym + appFnSym
 
+  def deinternFor( lctx: LCtx ): Deintern = {
+    val nameGen = cx.newNameGenerator
+    val tvMap = mutable.Map[Var, expr.TVar]()
+    val vMap = mutable.Map[Var, expr.Var]()
+    lctx.elements.foreach {
+      case ( v, LCtxElem.IsTy ) =>
+        tvMap( v ) = expr.TVar( nameGen.fresh( "a" ) )
+      case ( v, LCtxElem.HasTy( off, ty ) ) =>
+        vMap( v ) = expr.Var( nameGen.fresh( "x" ), new Deintern( tvMap, vMap ).toType( off, ty ) )
+    }
+    new Deintern( tvMap, vMap )
+  }
+
+  class Deintern( tvMap: Var => expr.TVar, vMap: Var => expr.Var ) {
+    def toType( t: Term ): expr.Ty = toType( 0, t )
+    def toType( off: Int, t: Term ): expr.Ty =
+      t match {
+        case v: Var   => tvMap( v + off )
+        case c: FnSym => expr.TBase( c.name )
+        case f: Fn if f.fnSym == arrTyFnSym =>
+          expr.TArr( toType( off, f( 0 ) ), toType( off, f( 1 ) ) )
+        case f: Fn =>
+          expr.TBase( f.fnSym.name, f.args.map( toType( off, _ ) ).toList )
+      }
+
+    def toExpr( t: Term ): expr.Expr = toExpr( 0, t )
+    def toExpr( off: Int, t: Term ): expr.Expr =
+      t match {
+        case v: Var   => vMap( v + off )
+        case c: FnSym => fnSymInfo( c ).denote
+        case f: Fn if f.fnSym == appFnSym =>
+          toExpr( off, f( 0 ) )( toExpr( off, f( 1 ) ) )
+        case f: Fn =>
+          val info = fnSymInfo( f.fnSym )
+          val args = info.realArgs.map( i => toExpr( off, f( i ) ) )
+          if ( !info.hasFreeTyVars ) info.denote( args ) else {
+            val expr.FunctionType( _, argTys ) = info.denote.ty
+            val Some( subst ) = expr.syntacticMatching(
+              argTys.zip( args.map( _.ty ) ) ++
+                info.extraTyParams.zip( info.extraTyParamArgs.map( i => toType( off, f( i ) ) ) ) )
+            ( subst( info.denote ): expr.Expr )( args )
+          }
+      }
+  }
+
   def internBaseTy( name: String, arity: Int ): FnSym =
-    fnSyms.getOrElseUpdate( name -> arity, new FnSym(
+    baseTys.getOrElseUpdate( name -> arity, new FnSym(
       arity = arity,
       name = name,
       tyLCtx = LCtx(),
       retTy = UNone(),
       argTys = ( 0 until arity ).map( _ => UNone(): UOption[Term] ).toArray,
-      extraTyParamArgs = Array(),
       needToPropagate = ( 0 until arity ).map( _ => false ).toArray ) )
 
   private def etaExpand( const: expr.Const, arity: Int ): expr.Const = {
@@ -392,20 +464,24 @@ class Ctx( val cx: gapt.proofs.context.mutable.MutableContext ) { ctx =>
       val needExplicitly = expr.typeVariables( decl.params ).
         diff( expr.typeVariables( argTys ) ).toVector
       val interner = new Interner
-      new FnSym(
+      val fnSym = new FnSym(
         arity = arity + needExplicitly.size,
         name = name,
         tyLCtx = interner.lctx,
         retTy = USome( interner.intern( retTy ) ),
         argTys = ( argTys.view.map( interner.intern ).map( USome( _ ) ) ++
           needExplicitly.map( _ => UNone[Term]() ) ).toArray,
-        extraTyParamArgs = needExplicitly.view.map( v => decl.params.indexOf( v ) ).toArray,
         needToPropagate = {
           val idxs = expr.typeVariables( retTy ).map( v =>
             if ( needExplicitly.contains( v ) ) arity + needExplicitly.indexOf( v )
             else argTys.indexWhere( expr.typeVariables( _ ).contains( v ) ) )
           ( 0 until ( arity + needExplicitly.size ) ).map( idxs.contains ).toArray
         } )
+      fnSymInfo( fnSym ) = FnSymInfo(
+        needExplicitly.view.map( v => decl.params.indexOf( v ) ).toVector,
+        needExplicitly,
+        0 until arity toVector, decl )
+      fnSym
     } )
 
   class Interner {
@@ -433,7 +509,7 @@ class Ctx( val cx: gapt.proofs.context.mutable.MutableContext ) { ctx =>
         case e @ expr.Apps( expr.Const( n, _, ps ), args ) =>
           val fnSym = internFnSym( n, args.size )
           if ( fnSym.arity == 0 ) fnSym else {
-            Fn( fnSym, args.map( intern ) ++ fnSym.extraTyParamArgs.map {
+            Fn( fnSym, args.map( intern ) ++ fnSymInfo( fnSym ).extraTyParamArgs.map {
               case -1 => intern( e.ty )
               case i  => intern( ps( i ) )
             } )

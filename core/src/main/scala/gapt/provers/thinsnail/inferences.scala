@@ -71,21 +71,21 @@ case class Pos( is: List[Int] = Nil ) extends AnyVal {
 object getFOPositions {
   def apply( exp: Term ): Map[Term, Seq[Pos]] = {
     val poss = mutable.Map[Term, Seq[Pos]]().withDefaultValue( Seq() )
-    def walk( exp: Term, pos: Pos ): Unit = {
-      poss( exp ) :+= pos
+    def walk( exp: Term, pos: List[Int] ): Unit = {
+      poss( exp ) :+= Pos( pos.reverse )
       exp match {
         case IsVar( _ ) | IsCon( _ ) =>
         case IsFn( f ) =>
           for ( i <- 0 until f.arity )
-            walk( f( i ), pos + i )
+            walk( f( i ), i :: pos )
       }
     }
-    walk( exp, Pos() )
+    walk( exp, Nil )
     poss.toMap
   }
 }
 
-case class UnitRwrLhsIndex( eqSym: FnSym ) extends Index[DiscrTree[( Term, Term, Boolean, Cls )]] {
+case class UnitRwrLhsIndex( eqSym: FnSym ) extends Index[DiscrTree[( Term, Term, Boolean, Boolean, Cls )]] {
   def empty: I = DiscrTree()
   private def choose[T]( ts: T* ): Seq[T] = ts
   def add( index: I, c: Cls ): I =
@@ -95,10 +95,10 @@ case class UnitRwrLhsIndex( eqSym: FnSym ) extends Index[DiscrTree[( Term, Term,
           ( t_, s_, ltr ) <- choose( ( t, s, true ), ( s, t, false ) )
           if !IsVar( t_ )
           if !c.state.termOrdering.lt( t_, s_ )
-        } yield t_ -> ( t_, s_, ltr, c )
+        } yield t_ -> ( t_, s_, ltr, c.state.termOrdering.lt( s_, t_ ), c )
       case _ => Seq.empty
     } )
-  def remove( t: I, cs: Set[Cls] ): I = t.filter( e => !cs( e._4 ) )
+  def remove( t: I, cs: Set[Cls] ): I = t.filter( e => !cs( e._5 ) )
 }
 
 object MaxPosLitIndex extends Index[DiscrTree[( Cls, SequentIndex )]] {
@@ -149,8 +149,8 @@ object clauseSubsumption {
     if ( s1.antecedent.size > s2.antecedent.size || s1.succedent.size > s2.succedent.size )
       return UNone()
     val subst = Subst()
-    val off1 = subst.lctx.extend( lctx1 )
-    val off2 = subst.lctx.extend( lctx2 )
+    val off1 = subst.extendFixed( lctx1 )
+    val off2 = subst.extend( lctx2 )
     require( off1 == 0 )
     apply( subst, off1, s1, off2, s2 )
   }
@@ -164,7 +164,7 @@ object clauseSubsumption {
     for {
       chosenTo <- s2.indices if chosenTo sameSideAs chosenFrom
       newSubst = subst.clone()
-      if newSubst.matching( off1, s1( chosenFrom ), off2, s2( chosenTo ) )
+      if newSubst.unify( off1, s1( chosenFrom ), off2, s2( chosenTo ) )
       subsumption <- apply(
         newSubst,
         off1, s1 delete chosenFrom,
@@ -208,14 +208,18 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
     offB: Int, b: Term ): Boolean =
     if ( propositional ) a == b
     else subst.unify( offA, a, offB, b )
-  def matching( lctx: LCtx, a: Term, b: Term ): Boolean =
-    matching( Subst( lctx ), 0, a, 0, b )
-  def matching(
-    subst: Subst,
-    offA:  Int, a: Term,
-    offB: Int, b: Term ): Boolean =
-    if ( propositional ) a == b
-    else subst.matching( offA, a, offB, b )
+  def matching( lctx: LCtx, a: Term, b: Term ): Boolean = {
+    val subst = Subst()
+    val off1 = subst.lctx.extend( lctx )
+    val off2 = subst.extendFixed( lctx )
+    subst.unify( off1, a, off2, b )
+  }
+  //  def matching(
+  //    subst: Subst,
+  //    offA:  Int, a: Term,
+  //    offB: Int, b: Term ): Boolean =
+  //    if ( propositional ) a == b
+  //    else subst.matching( offA, a, offB, b )
 
   //  object Clausification extends Clausifier(
   //    propositional,
@@ -261,11 +265,11 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
       if ( simpd.size == given.clause.size ) None
       else Some( SimpCls(
         given,
-        ResolutionProof.normalize(
+        General(
           given.lctx,
           simpd,
           given.ass,
-          choose( given.proof ) ) ) -> Set() )
+          choose( given.proof ), "EqualityResolution" ) ) -> Set() )
     }
   }
 
@@ -289,7 +293,7 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
       if ( !didFlip ) {
         None
       } else {
-        Some( SimpCls( given, ResolutionProof.normalize( given.lctx, flipped, given.ass, choose( given.proof ) ) ) -> Set() )
+        Some( SimpCls( given, General( given.lctx, flipped, given.ass, choose( given.proof ), "OrderEquations" ) ) -> Set() )
       }
     }
   }
@@ -298,7 +302,7 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
     def simplify( given: Cls, existing: IndexedClsSet ): Option[( Cls, Set[Int] )] = {
       val factored = given.clause.distinct
       if ( given.clause == factored ) None
-      else Some( SimpCls( given, ResolutionProof.normalize( given.lctx, factored, given.ass, choose( given.proof ) ) ) -> Set() )
+      else Some( SimpCls( given, General( given.lctx, factored, given.ass, choose( given.proof ), "ClauseFactoring" ) ) -> Set() )
     }
   }
 
@@ -328,7 +332,7 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
 
     def canonize( lctx: LCtx, expr: Term, assertion: Set[Int], eqs: ReflModEqIndex.I ): Term = {
       val subst = Subst()
-      require( subst.lctx.extend( lctx ) == 0 )
+      require( subst.extendFixed( lctx ) == 0 )
       def rewrite( t0: Term ): Term = {
         if ( IsVar( t0 ) ) return t0
         val t = t0 match {
@@ -337,8 +341,8 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
         }
         eqs.generalizations( t ).view.flatMap {
           case ( t_, s_, ltr, c1 ) =>
-            val off = subst.lctx.extend( c1.lctx )
-            if ( !matching( subst, off, t_, 0, t ) ) None
+            val off = subst.extend( c1.lctx )
+            if ( !unify( subst, off, t_, 0, t ) ) None
             else Some( rewrite( subst( off, s_ ) ) )
         }.headOption.getOrElse( t )
       }
@@ -387,10 +391,10 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
       if ( unitRwrLhs.isEmpty ) return None
 
       val subst = Subst()
-      require( subst.lctx.extend( given.lctx ) == 0 )
-      var didRewrite = true
+      require( subst.extendFixed( given.lctx ) == 0 )
+      var didRewrite = false
       var reason = Set[Int]()
-      val parents = mutable.Set[ResolutionProof]()
+      val parents = mutable.Set[RP]( given.proof )
       def rewrite( t0: Term ): Term = {
         if ( IsVar( t0 ) ) return t0
         val t = t0 match {
@@ -398,24 +402,30 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
           case _         => t0
         }
         unitRwrLhs.generalizations( t ).view.flatMap {
-          case ( t_, s_, ltr, c1 ) =>
-            val off = subst.lctx.extend( c1.lctx )
-            if ( !matching( subst, off, t_, 0, t ) ) None else {
-              didRewrite = true
-              reason = reason.union( c1.ass )
-              parents += c1.proof
-              Some( rewrite( subst( off, s_ ) ) )
+          case ( t_, s_, ltr, isLt, c1 ) =>
+            val off = subst.extend( c1.lctx )
+            if ( c1 == given || !unify( subst, off, t_, 0, t ) ) None else {
+              val s__ = subst( off, s_ )
+              if ( !isLt && !termOrdering.lt( s__, t ) ) None else {
+                didRewrite = true
+                reason = reason.union( c1.ass )
+                parents += c1.proof
+                Some( s__ )
+              }
             }
-        }.headOption.getOrElse( t )
+        }.headOption match {
+          case None       => t
+          case Some( t_ ) => rewrite( t_ )
+        }
       }
 
       val simpd = given.clause.map( rewrite )
       if ( !didRewrite ) None else Some {
-        SimpCls( given, ResolutionProof.normalize(
+        SimpCls( given, General(
           given.lctx,
           simpd,
           given.ass.union( reason ),
-          parents.toSeq ) ) -> reason
+          parents.toSeq, "ForwardUnitRewriting" ) ) -> reason
       }
     }
   }
@@ -469,11 +479,9 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
       if ( c2.maximal.exists( i2_ => i2_ != i2 &&
         termOrdering.lt( mgu( off2, c2.clause( i2 ) ), mgu( off2, c2.clause( i2_ ) ) ) ) ) return None
       Some( DerivedCls( c1, c2,
-        ResolutionProof.normalize(
+        Resolution( c2.proof, i2, c1.proof, i1,
           mgu.lctx,
-          mgu( off1, c1.clause.delete( i1 ) ) ++ mgu( off2, c2.clause.delete( i2 ) ) distinct,
-          c1.ass union c2.ass,
-          Seq( c1.proof, c2.proof ) ) ) )
+          mgu( off1, c1.clause.delete( i1 ) ) ++ mgu( off2, c2.clause.delete( i2 ) ) distinct ) ) )
     }
   }
 
@@ -531,12 +539,14 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
       if ( pos2_.isEmpty ) return None
       if ( !eligible( c2, off2, c2.clause, mgu, i2 ) ) return None
       val a2_ = pos2_.foldRight( mgu( off2, a2 ) )( _.replace( _, s__ ) )
+      val c3 = mgu( off1, c1.clause.delete( i1 ) ) ++ mgu( off2, c2.clause.delete( i2 ) )
+      val c3_ = if ( i2.isAnt ) a2_ +: c3 else c3 :+ a2_
       Some( DerivedCls( c1, c2,
-        ResolutionProof.normalize(
+        General(
           mgu.lctx,
-          ( a2_ +: ( mgu( off1, c1.clause.delete( i1 ) ) ++ mgu( off2, c2.clause.delete( i2 ) ) ) ) distinct,
+          c3_.distinct,
           c1.ass ++ c2.ass,
-          Seq( c1.proof, c2.proof ) ) ) )
+          Seq( c1.proof, c2.proof ), "Superposition" ) ) )
     }
   }
 
@@ -549,11 +559,11 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
           mgu = Subst( LCtx() )
           off = mgu.lctx.extend( given.lctx )
           if unify( mgu, off, given.clause( i ), off, given.clause( j ) )
-        } yield DerivedCls( given, ResolutionProof.normalize(
+        } yield DerivedCls( given, General(
           mgu.lctx,
           mgu( off, given.clause.delete( i ) ),
           given.ass,
-          Seq( given.proof ) ) )
+          Seq( given.proof ), "Factoring" ) )
       ( inferred.toSet, Set() )
     }
   }
@@ -567,17 +577,17 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
           mgu = Subst()
           off = mgu.lctx.extend( given.lctx )
           if unify( mgu, off, t, off, s )
-        } yield DerivedCls( given, ResolutionProof.normalize(
+        } yield DerivedCls( given, General(
           mgu.lctx,
           mgu( off, given.clause.delete( i ) ),
           given.ass,
-          Seq( given.proof ) ) )
+          Seq( given.proof ), "UnifyingEqualityResolution" ) )
       ( inferred.toSet, Set() )
     }
   }
 
   object VariableEqualityResolution extends SimplificationRule {
-    def simp( p: ResolutionProof ): ResolutionProof =
+    def simp( p: RP ): RP =
       p.clause.antecedent.zipWithIndex.collectFirst {
         case ( Eq( x: Var, t ), i ) if !t.fvs.contains( x ) => ( x, t, i )
         case ( Eq( t, x: Var ), i ) if !t.fvs.contains( x ) => ( x, t, i )
@@ -586,11 +596,11 @@ class StandardInferences( state: EscargotState, propositional: Boolean ) {
           val subst = Subst()
           val off = subst.lctx.extend( p.lctx )
           require( subst.unify( off, x, off, t ) )
-          simp( ResolutionProof.normalize(
+          simp( General(
             subst.lctx,
             subst( off, p.clause.delete( Ant( i ) ) ),
             p.assertions,
-            Seq( p ) ) )
+            Seq( p ), "VariableEqualityResolution" ) )
         case None => p
       }
 

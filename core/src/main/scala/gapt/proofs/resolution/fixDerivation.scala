@@ -63,7 +63,8 @@ object fixDerivation {
         orElse( findFirstSome( cs )( tryDeriveBySubsumptionModEq( cls, _ ) ) ).
         orElse( tryDeriveViaResolution( cls, cs ) ).
         getOrElse {
-          throw new IllegalArgumentException( s"Could not derive $cls from\n${cs mkString "\n"}" )
+          throw new IllegalArgumentException(
+            s"Could not derive $cls from\n${cs mkString "\n"}" )
         }
     }
 
