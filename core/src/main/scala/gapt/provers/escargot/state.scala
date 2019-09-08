@@ -1,7 +1,7 @@
 package gapt.provers.escargot.impl
 
 import gapt.expr.formula.hol.universalClosure
-import gapt.proofs.{ ContextSection, HOLClause, HOLSequent, Sequent }
+import gapt.proofs.{ ContextSection, HOLClause, HOLSequent, Sequent, SequentIndex }
 import gapt.proofs.resolution._
 import gapt.provers.escargot.{ LPO, TermOrdering }
 import gapt.provers.viper.spin._
@@ -42,10 +42,11 @@ class Cls( val state: EscargotState, val proof: ResolutionProof, val index: Int 
 
   val maximal = for {
     ( a, i ) <- clause.zipWithIndex.elements
+    //    if state.selectable( a )
     if !clause.elements.exists { x => a != x && state.termOrdering.lt( a, x ) }
   } yield i
 
-  val selected = ( maximal.filter { _.isAnt } ++ clause.indicesSequent.antecedent ).take( 1 )
+  val selected = state.select( clause, maximal )
 
   val weight = clause.elements.map { expressionSize( _ ) }.sum
 
@@ -225,6 +226,10 @@ class EscargotState( val ctx: MutableContext ) {
     for ( a <- assertion ) trySetAvatarAtom( if ( value ) a else -a )
   def trySetAvatarAtom( atom: Int ) =
     if ( !avatarModel( -atom ) ) avatarModel += atom
+
+  def select( clause: HOLSequent, maximal: Vector[SequentIndex] ): Vector[SequentIndex] =
+    ( maximal.filter( _.isAnt ) ++ clause.indicesSequent.antecedent ).take( 1 )
+  def selectable( a: Formula ): Boolean = true
 
   /** Moves clauses from newlyDerived into usable and locked. */
   def clauseProcessing() = {
