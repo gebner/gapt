@@ -45,11 +45,11 @@ class IntuitRuleInference( state: EscargotState, rules: Set[Rule], assumptionSks
   import state._
   //  import gapt.provers.sat.Sat4j._
 
-  val proofs: mutable.Map[HOLSequent, LKProof] = mutable.Map()
+  val proofs: mutable.Map[Formula, LKProof] = mutable.Map()
 
-  def getProof(sequent: HOLSequent): LKProof = proofs.getOrElseUpdate(sequent, {
-    ResolutionToExpansionProof
-  })
+  //  def getProof(sequent: HOLSequent): LKProof = proofs.getOrElseUpdate(sequent, {
+  //    ResolutionToExpansionProof
+  //  })
 
   override def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
     //    for {
