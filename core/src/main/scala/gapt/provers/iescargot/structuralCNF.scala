@@ -155,6 +155,8 @@ class Clausifier(
     rules += EndRule( cA.asInstanceOf[PropAtom] )
   }
 
+  private val alreadyHandledPred = mutable.Set[Const]()
+
   // If we interpret the sequents in this set as a disjunction, their conjunction is equivalent to the original formula.
 
   // In each step we simplify the sequents in this set and make them more like clauses.
@@ -206,42 +208,51 @@ class Clausifier(
 
       case ( Imp( a, b ), i: Ant ) =>
         val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
-        val fvsA = freeVariables( a ).toList
-        val fvsB = freeVariables( b ).toList
-        val cA = addPredicateDef( Abs( fvsA, a ) )
-        val cB = addPredicateDef( Abs( fvsB, b ) )
-        expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
-        expand( defnClause( cB, fvsB, Polarity.InAntecedent ) )
-        assumptionConsts += cA
-        assumptionConsts += cB
-        rules += ImpRule( cA( fvsA ).asInstanceOf[Atom], cB( fvsB ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
+        if ( !alreadyHandledPred( const ) ) {
+          alreadyHandledPred += const
+          val fvsA = freeVariables( a ).toList
+          val fvsB = freeVariables( b ).toList
+          val cA = addPredicateDef( Abs( fvsA, a ) )
+          val cB = addPredicateDef( Abs( fvsB, b ) )
+          expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
+          expand( defnClause( cB, fvsB, Polarity.InAntecedent ) )
+          assumptionConsts += cA
+          assumptionConsts += cB
+          rules += ImpRule( cA( fvsA ).asInstanceOf[Atom], cB( fvsB ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
+        }
         defIntro
 
       case ( a @ All.Block( xs, b ), i: Ant ) if xs.nonEmpty =>
         val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
-        val cA = addPredicateDef( Abs( fvs, a ) )
-        assumptionConsts += cA
-        val dc = defnClause( cA, fvs, Polarity.InAntecedent )
-        def go( p: ResolutionProof ): Unit =
-          p.conclusion.antecedent( 0 ) match {
-            case f @ All( x, _ ) =>
-              val ( skolemTerm @ Apps( skC: Const, _ ), _ ) = getSkolemInfo( f, x )
-              assumptionSks += skC
-              go( AllL( p, i, skolemTerm ) )
-            case _ =>
-              expand( p )
-          }
-        go( p )
-        rules += AllRule( cA( fvs ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
+        if ( !alreadyHandledPred( const ) ) {
+          alreadyHandledPred += const
+          val cA = addPredicateDef( Abs( fvs, a ) )
+          assumptionConsts += cA
+          val dc = defnClause( cA, fvs, Polarity.InAntecedent )
+          def go( p: ResolutionProof ): Unit =
+            p.conclusion.antecedent( 0 ) match {
+              case f @ All( x, _ ) =>
+                val ( skolemTerm @ Apps( skC: Const, _ ), _ ) = getSkolemInfo( f, x )
+                assumptionSks += skC
+                go( AllL( p, Ant( 0 ), skolemTerm ) )
+              case _ =>
+                expand( p )
+            }
+          go( dc )
+          rules += AllRule( cA( fvs ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
+        }
         defIntro
 
       case ( Neg( a ), i: Ant ) =>
         val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
-        val fvsA = freeVariables( a ).toList
-        val cA = addPredicateDef( Abs( fvsA, a ) )
-        assumptionConsts += cA
-        expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
-        rules += NegRule( cA( fvsA ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
+        if ( !alreadyHandledPred( const ) ) {
+          alreadyHandledPred += const
+          val fvsA = freeVariables( a ).toList
+          val cA = addPredicateDef( Abs( fvsA, a ) )
+          assumptionConsts += cA
+          expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
+          rules += NegRule( cA( fvsA ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
+        }
         defIntro
 
     } match {
