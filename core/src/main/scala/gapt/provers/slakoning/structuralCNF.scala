@@ -1,4 +1,4 @@
-package gapt.provers.iescargot
+package gapt.provers.slakoning
 
 import gapt.expr._
 import gapt.expr.formula.All

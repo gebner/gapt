@@ -1,10 +1,9 @@
-package gapt.provers.iescargot
+package gapt.provers.slakoning
 
 import gapt.expr._
 import gapt.formats.tptp.{ TptpImporter, TptpProblemToResolution, resolutionToTptp, sequentProofToTptp }
 import gapt.proofs._
 import gapt.proofs.lk.LKProof
-import gapt.proofs.resolution._
 import gapt.provers.{ OneShotProver, ResolutionProver, groundFreeVariables }
 import gapt.provers.escargot.impl._
 import gapt.utils.{ LogHandler, Maybe }
@@ -24,13 +23,13 @@ import gapt.proofs.context.facet.Definitions
 import gapt.proofs.context.mutable.MutableContext
 import gapt.proofs.lk.rules.{ ForallRightRule, ImpRightRule, NegRightRule }
 import gapt.proofs.lk.rules.macros.WeakeningContractionMacroRule
+import gapt.proofs.resolution.Input
 import gapt.provers.escargot.LPO
 import gapt.provers.viper.aip.axioms.Axiom
-import gapt.provers.viper.spin.SuperpositionInductionProver
 
 import scala.collection.mutable
 
-class IEscargotState( _ctx: MutableContext ) extends EscargotState( _ctx ) {
+class SlakoningState( _ctx: MutableContext ) extends EscargotState( _ctx ) {
   val assumptionConsts: mutable.Set[Const] = mutable.Set()
   override def selectable( a: Formula ): Boolean =
     a match {
@@ -100,8 +99,8 @@ class IntuitRuleInference( state: EscargotState, rules: Set[Rule], assumptionSks
   }
 }
 
-object IEscargot extends IEscargot( splitting = false, equality = true, propositional = false ) {
-  def lpoHeuristic( cnf: Traversable[HOLSequent], extraConsts: Iterable[Const], assumptionConsts: Iterable[Const] ): LPO = {
+object Slakoning extends Slakoning( splitting = false, equality = true, propositional = false ) {
+  def lpoHeuristic( cnf: Iterable[HOLSequent], extraConsts: Iterable[Const], assumptionConsts: Iterable[Const] ): LPO = {
     val consts = constants( cnf flatMap { _.elements } ) ++ extraConsts
 
     val boolOnTermLevel = consts exists { case Const( _, FunctionType( _, from ), _ ) => from contains To }
@@ -192,10 +191,10 @@ object IEscargot extends IEscargot( splitting = false, equality = true, proposit
     }
   }
 }
-object NonSplittingIEscargot extends IEscargot( splitting = false, equality = true, propositional = false )
-object QfUfIEscargot extends IEscargot( splitting = true, propositional = true, equality = true )
+object NonSplittingSlakoning extends Slakoning( splitting = false, equality = true, propositional = false )
+object QfUfSlakoning extends Slakoning( splitting = true, propositional = true, equality = true )
 
-class IEscargot( splitting: Boolean, equality: Boolean, propositional: Boolean ) extends OneShotProver {
+class Slakoning( splitting: Boolean, equality: Boolean, propositional: Boolean ) extends OneShotProver {
   override def getLKProof( sequent: HOLSequent )( implicit ctx0: Maybe[MutableContext] ): Option[LKProof] = {
     implicit val ctx: MutableContext = ctx0.getOrElse( MutableContext.guess( sequent ) )
     if ( sequent.succedent.size == 1 ) {
@@ -235,11 +234,11 @@ class IEscargot( splitting: Boolean, equality: Boolean, propositional: Boolean )
     sequent.antecedent.foreach( clausifier.expandAnt )
     sequent.succedent.foreach( clausifier.expandSuc )
 
-    val state = new IEscargotState( ctx )
-    IEscargot.setupDefaults( state, splitting, hasEquality, isPropositional )
+    val state = new SlakoningState( ctx )
+    Slakoning.setupDefaults( state, splitting, hasEquality, isPropositional )
     state.assumptionConsts ++= clausifier.assumptionConsts
     state.nameGen = nameGen
-    state.termOrdering = IEscargot.lpoHeuristic( clausifier.cnf.map( _.conclusion ), ctx.constants, clausifier.assumptionConsts )
+    state.termOrdering = Slakoning.lpoHeuristic( clausifier.cnf.map( _.conclusion ), ctx.constants, clausifier.assumptionConsts )
     state.newlyDerived ++= clausifier.cnf.map( state.InputCls )
     val intuitInferences = new IntuitRuleInference( state, clausifier.rules.toSet, clausifier.assumptionSks.toSet )
     for ( c <- state.newlyDerived ) EscargotLogger.info( c )
