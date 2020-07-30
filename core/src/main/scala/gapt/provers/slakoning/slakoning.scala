@@ -29,6 +29,7 @@ import scala.collection.mutable
 
 class SlakoningState( _ctx: MutableContext ) extends EscargotState( _ctx ) {
   val assumptionConsts: mutable.Set[Const] = mutable.Set()
+  val rules: mutable.Set[Rule] = mutable.Set()
   override def selectable( a: Formula ): Boolean =
     a match {
       case Apps( p: Const, _ ) => !assumptionConsts.contains( p )
@@ -349,7 +350,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
       case _ => false
     }
 
-  case class IntuitRuleInference( rules: Set[Rule] ) extends InferenceRule {
+  object IntuitRuleInference extends InferenceRule {
 
     override def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
       //    for {
@@ -359,7 +360,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
       if ( !isCEmptyCls( given ) ) return Set.empty[Cls] -> Set.empty
       val sequent = given.clause
       val fvs = freeVariables( sequent )
-      rules.map( _.renameDisjoint( fvs ) ).flatMap {
+      rules.view.map( _.renameDisjoint( fvs ) ).flatMap {
         case rule @ PiRule( left, right, eigenVars, freeVars, concl ) =>
           syntacticMGU( sequent.succedent.map( ( right, _ ) ) ) match {
             case Some( subst0 ) =>
@@ -428,7 +429,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
             Set( DerivedCls( given, EndR( given.proof, rule ) ) )
           else
             Set()
-      } -> Set()
+      }.toSet -> Set()
     }
   }
 
@@ -633,6 +634,7 @@ class Slakoning( splitting: Boolean, equality: Boolean, propositional: Boolean )
 
     val state = new SlakoningState( ctx )
     state.assumptionConsts ++= clausifier.assumptionConsts
+    state.rules ++= clausifier.rules
     Slakoning.setupDefaults( state, splitting, hasEquality, isPropositional )
     state.nameGen = nameGen
     state.termOrdering = Slakoning.lpoHeuristic( clausifier.cnf.map( _.conclusion ), ctx.constants, clausifier.assumptionConsts )
@@ -641,9 +643,9 @@ class Slakoning( splitting: Boolean, equality: Boolean, propositional: Boolean )
     val intuitInferences = new IntuitInferences( state, propositional )
     for ( c <- state.newlyDerived ) EscargotLogger.info( c )
     EscargotLogger.info( ctx.get[Definitions] )
-    for ( r <- clausifier.rules ) EscargotLogger.info( r )
+    for ( r <- state.rules ) EscargotLogger.info( r )
     state.inferences :+= intuitInferences.IntuitFactoring
-    state.inferences :+= intuitInferences.IntuitRuleInference( clausifier.rules.toSet )
+    state.inferences :+= intuitInferences.IntuitRuleInference
     state.loop().map { proof =>
       val nd = resToND( ctx.normalizer )( proof, Substitution() )
       nd
