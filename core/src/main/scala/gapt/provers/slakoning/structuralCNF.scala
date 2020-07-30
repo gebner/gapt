@@ -17,7 +17,6 @@ import gapt.expr.subst.Substitution
 import gapt.expr.util.freeVariables
 import gapt.expr.util.rename
 import gapt.logic.Polarity
-import gapt.logic.hol.SkolemFunctions
 import gapt.proofs._
 import gapt.proofs.context.mutable.MutableContext
 import gapt.proofs.context.update.Definition
@@ -61,26 +60,61 @@ object structuralCNF {
 sealed trait Rule {
   def renameDisjoint( fvs: Set[Var] ): Rule
 }
-case class ImpRule( lhs: Atom, rhs: Atom, concl: Atom ) extends Rule {
-  override def renameDisjoint( fvs: Set[Var] ): Rule = {
-    val renaming = Substitution( rename( freeVariables( concl ), fvs ) )
-    copy( renaming( lhs ).asInstanceOf[Atom], renaming( rhs ).asInstanceOf[Atom], renaming( concl ).asInstanceOf[Atom] )
-  }
+case class PiRule( left: Atom, right: Atom, eigenVars: List[Var], freeVars: Set[Var], concl: HOLSequent ) extends Rule {
+  require( eigenVars.toSet.intersect( freeVars ).isEmpty )
+  override def renameDisjoint( fvs: Set[Var] ): PiRule =
+    Substitution( rename( freeVariables( concl ), fvs ) )( this )
 }
-case class AllRule( premise: Atom, concl: Atom ) extends Rule {
-  override def renameDisjoint( fvs: Set[Var] ): Rule = {
-    val renaming = Substitution( rename( freeVariables( concl ), fvs ) )
-    copy( renaming( premise ).asInstanceOf[Atom], renaming( concl ).asInstanceOf[Atom] )
-  }
+object PiRule {
+  implicit val closedUnderSub: ClosedUnderSub[PiRule] = ( sub, rule ) =>
+    PiRule(
+      sub( rule.left ).asInstanceOf[Atom],
+      sub( rule.right ).asInstanceOf[Atom],
+      rule.eigenVars.map( sub( _ ).asInstanceOf[Var] ),
+      freeVariables( sub( rule.freeVars ) ),
+      sub( rule.concl ) )
 }
-case class NegRule( premise: Atom, concl: Atom ) extends Rule {
-  override def renameDisjoint( fvs: Set[Var] ): Rule = {
-    val renaming = Substitution( rename( freeVariables( concl ), fvs ) )
-    copy( renaming( premise ).asInstanceOf[Atom], renaming( concl ).asInstanceOf[Atom] )
-  }
+case class OrRule( left: Atom, right: Atom, concl: HOLSequent ) extends Rule {
+  override def renameDisjoint( fvs: Set[Var] ): OrRule =
+    Substitution( rename( freeVariables( concl ), fvs ) )( this )
+}
+object OrRule {
+  implicit val closedUnderSub: ClosedUnderSub[OrRule] = ( sub, rule ) =>
+    OrRule(
+      sub( rule.left ).asInstanceOf[Atom],
+      sub( rule.right ).asInstanceOf[Atom],
+      sub( rule.concl ) )
+}
+case class ExistsRule( premise: Atom, eigenVars: List[Var], freeVars: Set[Var], concl: HOLSequent ) extends Rule {
+  require( eigenVars.toSet.intersect( freeVars ).isEmpty )
+  override def renameDisjoint( fvs: Set[Var] ): ExistsRule =
+    Substitution( rename( freeVariables( concl ), fvs ) )( this )
+}
+object ExistsRule {
+  implicit val closedUnderSub: ClosedUnderSub[ExistsRule] = ( sub, rule ) =>
+    ExistsRule(
+      sub( rule.premise ).asInstanceOf[Atom],
+      rule.eigenVars.map( sub( _ ).asInstanceOf[Var] ),
+      freeVariables( sub( rule.freeVars ) ),
+      sub( rule.concl ) )
 }
 case class EndRule( propAtom: PropAtom ) extends Rule {
   override def renameDisjoint( fvs: Set[Var] ): Rule = this
+}
+
+object Pi {
+  def unapply( e: Expr ): Some[( List[Var], List[Expr], Expr )] =
+    e match {
+      case All( x, Pi( xs, as, b ) ) =>
+        // TODO: rename x
+        Some( ( x :: xs, as, b ) )
+      case Neg( a ) =>
+        Some( ( Nil, a :: Nil, Bottom() ) )
+      case Imp( a, Pi( xs, as, b ) ) =>
+        Some( ( xs, a :: as, b ) )
+      case b =>
+        Some( ( Nil, Nil, b ) )
+    }
 }
 
 class Clausifier(
@@ -93,17 +127,8 @@ class Clausifier(
   val skConsts = mutable.Map[Expr, Const]()
   val rules: mutable.Set[Rule] = mutable.Set()
   val assumptionConsts: mutable.Set[Const] = mutable.Set()
-  val assumptionSks: mutable.Set[Const] = mutable.Set()
 
-  def mkSkolemSym() = nameGen.freshWithIndex( "s" )
   def mkAbbrevSym() = nameGen.freshWithIndex( "D" )
-
-  def getSkolemInfo( f: Formula, x: Var ): ( Expr, Expr ) = {
-    val fvs = freeVariables( f ).toSeq
-    val skolemizedFormula = Abs( fvs, f )
-    val skolemConst = skConsts.getOrElseUpdate( skolemizedFormula, ctx.addSkolemSym( skolemizedFormula, mkSkolemSym(), reuse = false ) )
-    ( skolemConst( fvs: _* ), skolemizedFormula )
-  }
 
   val subExprs: mutable.Map[Expr, Int] = mutable.Map()
   val commonSubExprs: mutable.Set[Expr] = mutable.Set()
@@ -152,6 +177,7 @@ class Clausifier(
     require( freeVariables( fml ).isEmpty )
     val cA = addPredicateDef( fml )
     expand( defnClause( cA, Nil, Polarity.InAntecedent ) )
+    assumptionConsts += cA
     rules += EndRule( cA.asInstanceOf[PropAtom] )
   }
 
@@ -171,32 +197,21 @@ class Clausifier(
         ExL( p, i, rename( x, freeVariables( p.conclusion ) ) )
       case ( All( x, a ), i: Suc ) if p.conclusion.succedent.size == 1 && !propositional =>
         AllR( p, i, rename( x, freeVariables( p.conclusion ) ) )
-      //      case ( f @ All( x, a ), i: Ant ) if !propositional =>
-      //        val ( skolemTerm, _ ) = getSkolemInfo( f, x )
-      //        AllL( p, i, skolemTerm )
-      case ( f @ Ex( x, a ), i: Suc ) if p.conclusion.succedent.size == 1 && !propositional =>
-        // TODO: restrictions???
-        val ( skolemTerm @ Apps( skC: Const, _ ), _ ) = getSkolemInfo( f, x )
-        assumptionSks += skC
-        ExR( p, i, skolemTerm )
 
       case ( Top(), i: Ant ) => TopL( p, i )
       case ( Bottom(), i: Suc ) => BottomR( p, i )
       case ( Top(), i: Suc ) => return
       case ( Bottom(), i: Ant ) => return
 
-      //      case ( Neg( a ), i: Ant ) => NegL( p, i )
       case ( Neg( a ), i: Suc ) if p.conclusion.succedent.size == 1 => NegR( p, i )
 
       case ( And( a, b ), i: Ant ) => AndL( p, i )
       case ( Imp( a, b ), i: Suc ) if p.conclusion.succedent.size == 1 => ImpR( p, i )
-      case ( Or( a, b ), i: Suc ) => OrR( p, i )
 
       case ( And( Top(), _ ), i: Suc ) => AndR2( p, i )
       case ( And( _, Top() ), i: Suc ) => AndR1( p, i )
       case ( Or( _, Bottom() ), i: Ant ) => OrL1( p, i )
       case ( Or( Bottom(), _ ), i: Ant ) => OrL2( p, i )
-      //      case ( Imp( _, Bottom() ), i: Ant ) => ImpL1( p, i )
       case ( Imp( Top(), _ ), i: Ant ) => ImpL2( p, i )
 
       case ( And( Bottom(), _ ), i: Suc ) => AndR1( p, i )
@@ -206,7 +221,54 @@ class Clausifier(
       //      case ( Imp( Bottom(), _ ), i: Ant ) => ImpL1( p, i ) FIXME
       case ( Imp( _, Top() ), i: Ant ) => ImpL2( p, i )
 
-      case ( Imp( a, b ), i: Ant ) =>
+    } match {
+      case Some( p_ ) => expand( p_ )
+      case None =>
+        if ( !p.conclusion.isTaut ) intuit( Factor( p ) )
+    }
+  }
+
+  def intuit( p: ResolutionProof ): Unit = {
+    p.conclusion.zipWithIndex.elements.collectFirst {
+      case ( f @ Pi( xs, as, b ), i: Ant ) if xs.nonEmpty || as.nonEmpty =>
+        require( xs.distinct == xs ) // TODO
+        val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
+        if ( !alreadyHandledPred( const ) ) {
+          alreadyHandledPred += const
+          val fvsA = freeVariables( as ).toList
+          val fvsB = freeVariables( b ).toList
+          val cA = addPredicateDef( Abs( fvsA, And( as ) ) )
+          val cB = addPredicateDef( Abs( fvsB, b ) )
+          expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
+          expand( defnClause( cB, fvsB, Polarity.InAntecedent ) )
+          assumptionConsts += cA
+          assumptionConsts += cB
+          rules += PiRule(
+            cA( fvsA ).asInstanceOf[Atom],
+            cB( fvsB ).asInstanceOf[Atom],
+            xs,
+            freeVariables( f ),
+            Sequent() :+ const( fvs ).asInstanceOf[Atom] )
+        }
+        defIntro
+
+      case ( f @ Ex.Block( xs, a ), i: Suc ) if xs.nonEmpty =>
+        val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
+        if ( !alreadyHandledPred( const ) ) {
+          alreadyHandledPred += const
+          val fvsA = freeVariables( a ).toList
+          val cA = addPredicateDef( Abs( fvsA, a ) )
+          expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
+          assumptionConsts += cA
+          rules += ExistsRule(
+            cA( fvsA ).asInstanceOf[Atom],
+            xs,
+            freeVariables( f ),
+            const( fvs ).asInstanceOf[Atom] +: Sequent() )
+        }
+        defIntro
+
+      case ( Or( a, b ), i: Suc ) =>
         val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
         if ( !alreadyHandledPred( const ) ) {
           alreadyHandledPred += const
@@ -215,48 +277,18 @@ class Clausifier(
           val cA = addPredicateDef( Abs( fvsA, a ) )
           val cB = addPredicateDef( Abs( fvsB, b ) )
           expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
-          expand( defnClause( cB, fvsB, Polarity.InAntecedent ) )
+          expand( defnClause( cB, fvsB, Polarity.InSuccedent ) )
           assumptionConsts += cA
           assumptionConsts += cB
-          rules += ImpRule( cA( fvsA ).asInstanceOf[Atom], cB( fvsB ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
-        }
-        defIntro
-
-      case ( a @ All.Block( xs, b ), i: Ant ) if xs.nonEmpty =>
-        val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
-        if ( !alreadyHandledPred( const ) ) {
-          alreadyHandledPred += const
-          val cA = addPredicateDef( Abs( fvs, a ) )
-          assumptionConsts += cA
-          val dc = defnClause( cA, fvs, Polarity.InAntecedent )
-          def go( p: ResolutionProof ): Unit =
-            p.conclusion.antecedent( 0 ) match {
-              case f @ All( x, _ ) =>
-                val ( skolemTerm @ Apps( skC: Const, _ ), _ ) = getSkolemInfo( f, x )
-                assumptionSks += skC
-                go( AllL( p, Ant( 0 ), skolemTerm ) )
-              case _ =>
-                expand( p )
-            }
-          go( dc )
-          rules += AllRule( cA( fvs ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
-        }
-        defIntro
-
-      case ( Neg( a ), i: Ant ) =>
-        val ( defIntro, ( const, fvs, pol ) ) = abbrevCore( p, i )
-        if ( !alreadyHandledPred( const ) ) {
-          alreadyHandledPred += const
-          val fvsA = freeVariables( a ).toList
-          val cA = addPredicateDef( Abs( fvsA, a ) )
-          assumptionConsts += cA
-          expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
-          rules += NegRule( cA( fvsA ).asInstanceOf[Atom], const( fvs ).asInstanceOf[Atom] )
+          rules += OrRule(
+            cA( fvsA ).asInstanceOf[Atom],
+            cB( fvsB ).asInstanceOf[Atom],
+            const( fvs ).asInstanceOf[Atom] +: Sequent() )
         }
         defIntro
 
     } match {
-      case Some( p_ ) => expand( p_ )
+      case Some( p_ ) => intuit( Factor( p_ ) )
       case None =>
         if ( !p.conclusion.isTaut ) split( Factor( p ) )
     }
@@ -293,9 +325,6 @@ class Clausifier(
       case ( Or( a, b ), i: Ant ) =>
         splitAt( OrL1( p, i ), Ant( 0 ) )
         splitAt( OrL2( p, i ), Ant( 0 ) )
-      //      case ( Imp( a, b ), i: Ant ) =>
-      //        splitAt( ImpL1( p, i ), Suc( p.conclusion.succedent.size ) )
-      //        splitAt( ImpL2( p, i ), Ant( 0 ) )
       case _ => expand( p )
     }
 

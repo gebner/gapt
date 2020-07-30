@@ -42,7 +42,7 @@ class Cls( val state: EscargotState, val proof: ResolutionProof, val index: Int 
 
   val maximal = for {
     ( a, i ) <- clause.zipWithIndex.elements
-    //    if state.selectable( a )
+    if state.selectable( a )
     if !clause.elements.exists { x => a != x && state.termOrdering.lt( a, x ) }
   } yield i
 
