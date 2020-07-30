@@ -324,24 +324,23 @@ case class resToND( defs: Normalizer ) {
   }
 }
 
-class IntuitFactoring( state: SlakoningState, assumptionsConsts: Set[Const] ) extends InferenceRule {
-  def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
-    val inferred =
-      for {
-        ( Apps( c: Const, _ ), i ) <- given.clause.zipWithIndex.elements
-        ( Apps( d: Const, _ ), j ) <- given.clause.zipWithIndex.elements
-        if i < j && i.sameSideAs( j )
-        if assumptionsConsts( c )
-        if assumptionsConsts( d )
-        mgu <- syntacticMGU( given.clause( i ), given.clause( j ) )
-      } yield state.DerivedCls( given, Subst( given.proof, mgu ) )
-    ( inferred.toSet, Set() )
-  }
-}
-
-class IntuitRuleInference( state: EscargotState, rules: Set[Rule], assumptionConsts: Set[Const] ) extends InferenceRule {
+class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends StandardInferences( state, propositional ) {
   import state._
-  //  import gapt.provers.sat.Sat4j._
+
+  object IntuitFactoring extends InferenceRule {
+    def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
+      val inferred =
+        for {
+          ( Apps( c: Const, _ ), i ) <- given.clause.zipWithIndex.elements
+          ( Apps( d: Const, _ ), j ) <- given.clause.zipWithIndex.elements
+          if i < j && i.sameSideAs( j )
+          if assumptionConsts( c )
+          if assumptionConsts( d )
+          mgu <- unify( given.clause( i ), given.clause( j ) )
+        } yield state.DerivedCls( given, Subst( given.proof, mgu ) )
+      ( inferred.toSet, Set() )
+    }
+  }
 
   def isCEmptyCls( cls: Cls ): Boolean = isCEmptyCls( cls.clause )
   def isCEmptyCls( sequent: HOLSequent ): Boolean =
@@ -350,146 +349,149 @@ class IntuitRuleInference( state: EscargotState, rules: Set[Rule], assumptionCon
       case _ => false
     }
 
-  override def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
-    //    for {
-    //      EndRule( atom ) <- rules
-    //      if !solver.isSatisfiable( Seq( -intern( atom ) ) )
-    //    } return Set( DerivedCls( given, Input( Sequent() ) ) ) -> Set()
-    if ( !isCEmptyCls( given ) ) return Set.empty[Cls] -> Set.empty
-    val sequent = given.clause
-    val fvs = freeVariables( sequent )
-    rules.map( _.renameDisjoint( fvs ) ).flatMap {
-      case rule @ PiRule( left, right, eigenVars, freeVars, concl ) =>
-        syntacticMGU( sequent.succedent.map( ( right, _ ) ) ) match {
-          case Some( subst0 ) =>
-            val sequentWoSucc = sequent.copy( succedent = Vector() )
-            val derived = ( subst0, sequentWoSucc, None ) +: ( for {
-              ( a, i ) <- sequent.zipWithIndex.antecedent
-              subst <- syntacticMGU( left, a, subst0 )
-            } yield ( subst, sequentWoSucc.delete( i ), Some( i ) ) )
-            derived.filter {
-              case ( subst, der, i ) =>
-                val sevs = subst( eigenVars )
-                sevs.forall( _.isInstanceOf[Var] ) &&
-                  sevs == sevs.distinct &&
-                  freeVariables( der ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty &&
-                  freeVariables( subst( freeVars ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
-            }.map {
-              case ( subst, _, Some( i ) ) =>
-                DerivedCls( given, PiR( Subst( given.proof, subst ), i, subst( rule ) ) )
-              case ( subst, _, None ) =>
-                DerivedCls( given, PiR2( Subst( given.proof, subst ), subst( rule ) ) )
-            }.toSet
-          case None =>
-            Set.empty[Cls]
+  case class IntuitRuleInference( rules: Set[Rule] ) extends InferenceRule {
+
+    override def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
+      //    for {
+      //      EndRule( atom ) <- rules
+      //      if !solver.isSatisfiable( Seq( -intern( atom ) ) )
+      //    } return Set( DerivedCls( given, Input( Sequent() ) ) ) -> Set()
+      if ( !isCEmptyCls( given ) ) return Set.empty[Cls] -> Set.empty
+      val sequent = given.clause
+      val fvs = freeVariables( sequent )
+      rules.map( _.renameDisjoint( fvs ) ).flatMap {
+        case rule @ PiRule( left, right, eigenVars, freeVars, concl ) =>
+          syntacticMGU( sequent.succedent.map( ( right, _ ) ) ) match {
+            case Some( subst0 ) =>
+              val sequentWoSucc = sequent.copy( succedent = Vector() )
+              val derived = ( subst0, sequentWoSucc, None ) +: ( for {
+                ( a, i ) <- sequent.zipWithIndex.antecedent
+                subst <- syntacticMGU( left, a, subst0 )
+              } yield ( subst, sequentWoSucc.delete( i ), Some( i ) ) )
+              derived.filter {
+                case ( subst, der, i ) =>
+                  val sevs = subst( eigenVars )
+                  sevs.forall( _.isInstanceOf[Var] ) &&
+                    sevs == sevs.distinct &&
+                    freeVariables( der ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty &&
+                    freeVariables( subst( freeVars ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
+              }.map {
+                case ( subst, _, Some( i ) ) =>
+                  DerivedCls( given, PiR( Subst( given.proof, subst ), i, subst( rule ) ) )
+                case ( subst, _, None ) =>
+                  DerivedCls( given, PiR2( Subst( given.proof, subst ), subst( rule ) ) )
+              }.toSet
+            case None =>
+              Set.empty[Cls]
+          }
+
+        case rule @ ExistsRule( left, eigenVars, freeVars, concl ) =>
+          ( for {
+            ( a, i ) <- sequent.zipWithIndex.antecedent
+            subst <- syntacticMGU( left, a )
+            sevs = subst( eigenVars )
+            if sevs.forall( _.isInstanceOf[Var] )
+            if sevs == sevs.distinct
+            if freeVariables( subst( sequent.delete( i ) ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
+            if freeVariables( subst( freeVars ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
+          } yield DerivedCls( given, ExistsR( Subst( given.proof, subst ), i, subst( rule ) ) ) ).toSet
+
+        case rule @ OrRule( left, right, concl ) =>
+          val result1 = for {
+            ( a, i ) <- sequent.zipWithIndex.antecedent
+            subst0 <- syntacticMGU( a, left ).toSet[Substitution]
+            old0 <- existing.clauses
+            if isCEmptyCls( old0 )
+            old = Subst(
+              old0.proof,
+              Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
+            ( b, j ) <- old.conclusion.zipWithIndex.antecedent
+            subst <- syntacticMGU( b, right, subst0 )
+            if ( Set() ++ subst( old.conclusion.succedent ) ++ subst( given.clause.succedent ) ).size <= 1
+          } yield DerivedCls( given, OrR( Subst( given.proof, subst ), i, Subst( old, subst ), j, subst( rule ) ) )
+          val result2 = for {
+            ( a, i ) <- sequent.zipWithIndex.antecedent
+            subst0 <- syntacticMGU( a, right ).toSet[Substitution]
+            old0 <- existing.clauses
+            if isCEmptyCls( old0 )
+            old = Subst(
+              old0.proof,
+              Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
+            ( b, j ) <- old.conclusion.zipWithIndex.antecedent
+            subst <- syntacticMGU( b, left, subst0 )
+            if ( Set() ++ subst( old.conclusion.succedent ) ++ subst( given.clause.succedent ) ).size <= 1
+          } yield DerivedCls( given, OrR( Subst( old, subst ), j, Subst( given.proof, subst ), i, subst( rule ) ) )
+          ( result1 ++ result2 ).toSet
+
+        case rule @ EndRule( goal ) =>
+          if ( sequent == ( Sequent() :+ goal ) && given.assertion.isEmpty )
+            Set( DerivedCls( given, EndR( given.proof, rule ) ) )
+          else
+            Set()
+      } -> Set()
+    }
+  }
+
+  object Splitting extends InferenceRule {
+
+    var componentCache = mutable.Map[Formula, Atom]()
+    def boxComponent( comp: HOLSequent ): AvatarNonGroundComp = {
+      val definition @ All.Block( vs, _ ) = universalClosure( comp.toDisjunction )
+      AvatarNonGroundComp(
+        componentCache.getOrElseUpdate( definition, {
+          val tvs = typeVariables( definition ).toList
+          val c = Const( nameGen.freshWithIndex( "split" ), To, tvs )
+          state.ctx += Definition( c, definition )
+          c.asInstanceOf[Atom]
+        } ), definition, vs )
+    }
+
+    def getComponents( clause: HOLSequent ): List[HOLSequent] = {
+      def findComp( c: HOLSequent ): HOLSequent = {
+        val fvs = freeVariables( c )
+        val c_ = clause.filter( freeVariables( _ ) intersect fvs nonEmpty )
+        if ( c_ isSubsetOf c ) c else findComp( c ++ c_ distinct )
+      }
+
+      if ( clause.isEmpty ) {
+        Nil
+      } else {
+        val c = findComp( clause.map( _ +: Clause(), Clause() :+ _ ).elements.head )
+        c :: getComponents( clause diff c )
+      }
+    }
+
+    val componentAlreadyDefined = mutable.Set[Atom]()
+    def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
+      val comps = getComponents( given.clause )
+
+      if ( comps.size >= 2 ) {
+        val propComps = comps.filter( freeVariables( _ ).isEmpty ).map {
+          case Sequent( Seq( a: Atom ), Seq() ) => AvatarGroundComp( a, Polarity.InAntecedent )
+          case Sequent( Seq(), Seq( a: Atom ) ) => AvatarGroundComp( a, Polarity.InSuccedent )
+        }
+        val nonPropComps =
+          for ( c <- comps if freeVariables( c ).nonEmpty )
+            yield boxComponent( c )
+
+        val split = AvatarSplit( given.proof, nonPropComps ++ propComps )
+        var inferred = Set( DerivedCls( given, split ) )
+        for ( comp <- propComps; if !componentAlreadyDefined( comp.atom ) ) {
+          componentAlreadyDefined += comp.atom
+          for ( pol <- Polarity.values )
+            inferred += DerivedCls( given, AvatarComponent( AvatarGroundComp( comp.atom, pol ) ) )
+        }
+        for ( comp <- nonPropComps if !componentAlreadyDefined( comp.atom ) ) {
+          componentAlreadyDefined += comp.atom
+          inferred += DerivedCls( given, AvatarComponent( comp ) )
         }
 
-      case rule @ ExistsRule( left, eigenVars, freeVars, concl ) =>
-        ( for {
-          ( a, i ) <- sequent.zipWithIndex.antecedent
-          subst <- syntacticMGU( left, a )
-          sevs = subst( eigenVars )
-          if sevs.forall( _.isInstanceOf[Var] )
-          if sevs == sevs.distinct
-          if freeVariables( subst( sequent.delete( i ) ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
-          if freeVariables( subst( freeVars ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
-        } yield DerivedCls( given, ExistsR( Subst( given.proof, subst ), i, subst( rule ) ) ) ).toSet
-
-      case rule @ OrRule( left, right, concl ) =>
-        val result1 = for {
-          ( a, i ) <- sequent.zipWithIndex.antecedent
-          subst0 <- syntacticMGU( a, left ).toSet[Substitution]
-          old0 <- existing.clauses
-          if isCEmptyCls( old0 )
-          old = Subst(
-            old0.proof,
-            Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
-          ( b, j ) <- old.conclusion.zipWithIndex.antecedent
-          subst <- syntacticMGU( b, right, subst0 )
-          if ( Set() ++ subst( old.conclusion.succedent ) ++ subst( given.clause.succedent ) ).size <= 1
-        } yield DerivedCls( given, OrR( Subst( given.proof, subst ), i, Subst( old, subst ), j, subst( rule ) ) )
-        val result2 = for {
-          ( a, i ) <- sequent.zipWithIndex.antecedent
-          subst0 <- syntacticMGU( a, right ).toSet[Substitution]
-          old0 <- existing.clauses
-          if isCEmptyCls( old0 )
-          old = Subst(
-            old0.proof,
-            Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
-          ( b, j ) <- old.conclusion.zipWithIndex.antecedent
-          subst <- syntacticMGU( b, left, subst0 )
-          if ( Set() ++ subst( old.conclusion.succedent ) ++ subst( given.clause.succedent ) ).size <= 1
-        } yield DerivedCls( given, OrR( Subst( old, subst ), j, Subst( given.proof, subst ), i, subst( rule ) ) )
-        ( result1 ++ result2 ).toSet
-
-      case rule @ EndRule( goal ) =>
-        if ( sequent == ( Sequent() :+ goal ) && given.assertion.isEmpty )
-          Set( DerivedCls( given, EndR( given.proof, rule ) ) )
-        else
-          Set()
-    } -> Set()
-  }
-}
-
-case class AvatarSplitting( state: SlakoningState ) extends InferenceRule {
-  import state._
-
-  var componentCache = mutable.Map[Formula, Atom]()
-  def boxComponent( comp: HOLSequent ): AvatarNonGroundComp = {
-    val definition @ All.Block( vs, _ ) = universalClosure( comp.toDisjunction )
-    AvatarNonGroundComp(
-      componentCache.getOrElseUpdate( definition, {
-        val tvs = typeVariables( definition ).toList
-        val c = Const( nameGen.freshWithIndex( "split" ), To, tvs )
-        state.ctx += Definition( c, definition )
-        c.asInstanceOf[Atom]
-      } ), definition, vs )
-  }
-
-  def getComponents( clause: HOLSequent ): List[HOLSequent] = {
-    def findComp( c: HOLSequent ): HOLSequent = {
-      val fvs = freeVariables( c )
-      val c_ = clause.filter( freeVariables( _ ) intersect fvs nonEmpty )
-      if ( c_ isSubsetOf c ) c else findComp( c ++ c_ distinct )
+        ( inferred, Set( given -> Set() ) )
+      } else {
+        ( Set(), Set() )
+      }
     }
 
-    if ( clause.isEmpty ) {
-      Nil
-    } else {
-      val c = findComp( clause.map( _ +: Clause(), Clause() :+ _ ).elements.head )
-      c :: getComponents( clause diff c )
-    }
-  }
-
-  val componentAlreadyDefined = mutable.Set[Atom]()
-  def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
-    val comps = getComponents( given.clause )
-
-    if ( comps.size >= 2 ) {
-      val propComps = comps.filter( freeVariables( _ ).isEmpty ).map {
-        case Sequent( Seq( a: Atom ), Seq() ) => AvatarGroundComp( a, Polarity.InAntecedent )
-        case Sequent( Seq(), Seq( a: Atom ) ) => AvatarGroundComp( a, Polarity.InSuccedent )
-      }
-      val nonPropComps =
-        for ( c <- comps if freeVariables( c ).nonEmpty )
-          yield boxComponent( c )
-
-      val split = AvatarSplit( given.proof, nonPropComps ++ propComps )
-      var inferred = Set( DerivedCls( given, split ) )
-      for ( comp <- propComps; if !componentAlreadyDefined( comp.atom ) ) {
-        componentAlreadyDefined += comp.atom
-        for ( pol <- Polarity.values )
-          inferred += DerivedCls( given, AvatarComponent( AvatarGroundComp( comp.atom, pol ) ) )
-      }
-      for ( comp <- nonPropComps if !componentAlreadyDefined( comp.atom ) ) {
-        componentAlreadyDefined += comp.atom
-        inferred += DerivedCls( given, AvatarComponent( comp ) )
-      }
-
-      ( inferred, Set( given -> Set() ) )
-    } else {
-      ( Set(), Set() )
-    }
   }
 
 }
@@ -636,15 +638,12 @@ class Slakoning( splitting: Boolean, equality: Boolean, propositional: Boolean )
     state.termOrdering = Slakoning.lpoHeuristic( clausifier.cnf.map( _.conclusion ), ctx.constants, clausifier.assumptionConsts )
     EscargotLogger.info( state.assumptionConsts )
     state.newlyDerived ++= clausifier.cnf.map( state.InputCls )
-    val intuitInferences = List(
-      new IntuitRuleInference(
-        state,
-        clausifier.rules.toSet, clausifier.assumptionConsts.toSet ),
-      new IntuitFactoring( state, clausifier.assumptionConsts.toSet ) )
+    val intuitInferences = new IntuitInferences( state, propositional )
     for ( c <- state.newlyDerived ) EscargotLogger.info( c )
     EscargotLogger.info( ctx.get[Definitions] )
     for ( r <- clausifier.rules ) EscargotLogger.info( r )
-    state.inferences :++= intuitInferences
+    state.inferences :+= intuitInferences.IntuitFactoring
+    state.inferences :+= intuitInferences.IntuitRuleInference( clausifier.rules.toSet )
     state.loop().map { proof =>
       val nd = resToND( ctx.normalizer )( proof, Substitution() )
       nd
