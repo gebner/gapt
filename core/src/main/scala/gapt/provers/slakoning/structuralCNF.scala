@@ -129,6 +129,7 @@ class Clausifier(
   val assumptionConsts: mutable.Set[Const] = mutable.Set()
 
   def mkAbbrevSym() = nameGen.freshWithIndex( "D" )
+  def mkIntuitSym() = nameGen.freshWithIndex( "I" )
 
   val subExprs: mutable.Map[Expr, Int] = mutable.Map()
   val commonSubExprs: mutable.Set[Expr] = mutable.Set()
@@ -237,8 +238,8 @@ class Clausifier(
           alreadyHandledPred += const
           val fvsA = freeVariables( as ).toList
           val fvsB = freeVariables( b ).toList
-          val cA = addPredicateDef( Abs( fvsA, And( as ) ) )
-          val cB = addPredicateDef( Abs( fvsB, b ) )
+          val cA = addPredicateDefI( Abs( fvsA, And( as ) ) )
+          val cB = addPredicateDefI( Abs( fvsB, b ) )
           expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
           expand( defnClause( cB, fvsB, Polarity.InAntecedent ) )
           assumptionConsts += cA
@@ -257,7 +258,7 @@ class Clausifier(
         if ( !alreadyHandledPred( const ) ) {
           alreadyHandledPred += const
           val fvsA = freeVariables( a ).toList
-          val cA = addPredicateDef( Abs( fvsA, a ) )
+          val cA = addPredicateDefI( Abs( fvsA, a ) )
           expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
           assumptionConsts += cA
           rules += ExistsRule(
@@ -274,8 +275,8 @@ class Clausifier(
           alreadyHandledPred += const
           val fvsA = freeVariables( a ).toList
           val fvsB = freeVariables( b ).toList
-          val cA = addPredicateDef( Abs( fvsA, a ) )
-          val cB = addPredicateDef( Abs( fvsB, b ) )
+          val cA = addPredicateDefI( Abs( fvsA, a ) )
+          val cB = addPredicateDefI( Abs( fvsB, b ) )
           expand( defnClause( cA, fvsA, Polarity.InSuccedent ) )
           expand( defnClause( cB, fvsB, Polarity.InSuccedent ) )
           assumptionConsts += cA
@@ -346,6 +347,9 @@ class Clausifier(
 
   def addPredicateDef( absFml: Expr ): HOLAtomConst =
     ctx.addDefinition( absFml, mkAbbrevSym(), reuse = false ).asInstanceOf[HOLAtomConst]
+
+  def addPredicateDefI( absFml: Expr ): HOLAtomConst =
+    ctx.addDefinition( absFml, mkIntuitSym(), reuse = false ).asInstanceOf[HOLAtomConst]
 
   def defnClause( const: HOLAtomConst, fvs: List[Var], pol: Polarity ): ResolutionProof = {
     val defn = fvs.foldLeft[ResolutionProof]( Defn( const, ctx.definition( const ).get ) )( AllR( _, Suc( 0 ), _ ) )

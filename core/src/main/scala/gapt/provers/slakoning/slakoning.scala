@@ -7,22 +7,21 @@ import gapt.provers.{ OneShotProver, slakoning }
 import gapt.provers.escargot.impl._
 import gapt.utils.{ LogHandler, Maybe }
 import ammonite.ops._
-import gapt.expr.formula.{ All, And, Atom, Bottom, Eq, Ex, Formula, Iff, Imp, Neg, Or, Top }
+import gapt.expr.formula._
 import gapt.expr.formula.constants.EqC
-import gapt.expr.formula.hol.{ instantiate, universalClosure }
+import gapt.expr.formula.hol.instantiate
 import gapt.expr.subst.Substitution
 import gapt.expr.ty.FunctionType
 import gapt.expr.ty.To
 import gapt.expr.ty.arity
 import gapt.expr.ty.baseTypes
-import gapt.expr.util.{ constants, freeVariables, rename, syntacticMGU, typeVariables }
+import gapt.expr.util.{ constants, freeVariables, rename, syntacticMGU }
 import gapt.logic.Polarity
 import gapt.proofs.context.facet.Definitions
 import gapt.proofs.context.mutable.MutableContext
-import gapt.proofs.context.update.Definition
 import gapt.proofs.lk.LKProof
 import gapt.proofs.nd._
-import gapt.proofs.resolution.{ AvatarComponent, AvatarGroundComp, AvatarNonGroundComp, AvatarSplit, LocalResolutionRule, ResolutionProof, Subst }
+import gapt.proofs.resolution.{ Factor, LocalResolutionRule, ResolutionProof }
 import gapt.provers.escargot.LPO
 
 import scala.collection.mutable
@@ -335,11 +334,16 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
           ( Apps( c: Const, _ ), i ) <- given.clause.zipWithIndex.elements
           ( Apps( d: Const, _ ), j ) <- given.clause.zipWithIndex.elements
           if i < j && i.sameSideAs( j )
+          if c == d
           if assumptionConsts( c )
-          if assumptionConsts( d )
           mgu <- unify( given.clause( i ), given.clause( j ) )
-        } yield state.DerivedCls( given, Subst( given.proof, mgu ) )
-      ( inferred.toSet, Set() )
+          cls = state.DerivedCls( given, Factor( Subst( given.proof, mgu ) ) )
+          if !cls.clause.isTaut
+        } yield cls
+      inferred.find( i => subsume( i, given ).nonEmpty ) match {
+        case Some( simpld ) => ( Set( simpld ), Set( given -> Set.empty ) )
+        case None           => ( inferred.toSet, Set.empty )
+      }
     }
   }
 
@@ -353,10 +357,6 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
   object IntuitRuleInference extends InferenceRule {
 
     override def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
-      //    for {
-      //      EndRule( atom ) <- rules
-      //      if !solver.isSatisfiable( Seq( -intern( atom ) ) )
-      //    } return Set( DerivedCls( given, Input( Sequent() ) ) ) -> Set()
       if ( !isCEmptyCls( given ) ) return Set.empty[Cls] -> Set.empty
       val sequent = given.clause
       val fvs = freeVariables( sequent )
@@ -407,8 +407,9 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
               old0.proof,
               Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
             ( b, j ) <- old.conclusion.zipWithIndex.antecedent
-            subst <- syntacticMGU( b, right, subst0 )
-            if ( Set() ++ subst( old.conclusion.succedent ) ++ subst( given.clause.succedent ) ).size <= 1
+            subst1 <- syntacticMGU( b, right, subst0 )
+            subst <- if ( old.conclusion.succedent.isEmpty || given.clause.succedent.isEmpty ) Some( subst1 ) else
+              syntacticMGU( old.conclusion.succedent.head, given.clause.succedent.head, subst1 )
           } yield DerivedCls( given, OrR( Subst( given.proof, subst ), i, Subst( old, subst ), j, subst( rule ) ) )
           val result2 = for {
             ( a, i ) <- sequent.zipWithIndex.antecedent
@@ -419,8 +420,9 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
               old0.proof,
               Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
             ( b, j ) <- old.conclusion.zipWithIndex.antecedent
-            subst <- syntacticMGU( b, left, subst0 )
-            if ( Set() ++ subst( old.conclusion.succedent ) ++ subst( given.clause.succedent ) ).size <= 1
+            subst1 <- syntacticMGU( b, left, subst0 )
+            subst <- if ( old.conclusion.succedent.isEmpty || given.clause.succedent.isEmpty ) Some( subst1 ) else
+              syntacticMGU( old.conclusion.succedent.head, given.clause.succedent.head, subst1 )
           } yield DerivedCls( given, OrR( Subst( old, subst ), j, Subst( given.proof, subst ), i, subst( rule ) ) )
           ( result1 ++ result2 ).toSet
 
@@ -433,71 +435,9 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
     }
   }
 
-  object Splitting extends InferenceRule {
-
-    var componentCache = mutable.Map[Formula, Atom]()
-    def boxComponent( comp: HOLSequent ): AvatarNonGroundComp = {
-      val definition @ All.Block( vs, _ ) = universalClosure( comp.toDisjunction )
-      AvatarNonGroundComp(
-        componentCache.getOrElseUpdate( definition, {
-          val tvs = typeVariables( definition ).toList
-          val c = Const( nameGen.freshWithIndex( "split" ), To, tvs )
-          state.ctx += Definition( c, definition )
-          c.asInstanceOf[Atom]
-        } ), definition, vs )
-    }
-
-    def getComponents( clause: HOLSequent ): List[HOLSequent] = {
-      def findComp( c: HOLSequent ): HOLSequent = {
-        val fvs = freeVariables( c )
-        val c_ = clause.filter( freeVariables( _ ) intersect fvs nonEmpty )
-        if ( c_ isSubsetOf c ) c else findComp( c ++ c_ distinct )
-      }
-
-      if ( clause.isEmpty ) {
-        Nil
-      } else {
-        val c = findComp( clause.map( _ +: Clause(), Clause() :+ _ ).elements.head )
-        c :: getComponents( clause diff c )
-      }
-    }
-
-    val componentAlreadyDefined = mutable.Set[Atom]()
-    def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
-      val comps = getComponents( given.clause )
-
-      if ( comps.size >= 2 ) {
-        val propComps = comps.filter( freeVariables( _ ).isEmpty ).map {
-          case Sequent( Seq( a: Atom ), Seq() ) => AvatarGroundComp( a, Polarity.InAntecedent )
-          case Sequent( Seq(), Seq( a: Atom ) ) => AvatarGroundComp( a, Polarity.InSuccedent )
-        }
-        val nonPropComps =
-          for ( c <- comps if freeVariables( c ).nonEmpty )
-            yield boxComponent( c )
-
-        val split = AvatarSplit( given.proof, nonPropComps ++ propComps )
-        var inferred = Set( DerivedCls( given, split ) )
-        for ( comp <- propComps; if !componentAlreadyDefined( comp.atom ) ) {
-          componentAlreadyDefined += comp.atom
-          for ( pol <- Polarity.values )
-            inferred += DerivedCls( given, AvatarComponent( AvatarGroundComp( comp.atom, pol ) ) )
-        }
-        for ( comp <- nonPropComps if !componentAlreadyDefined( comp.atom ) ) {
-          componentAlreadyDefined += comp.atom
-          inferred += DerivedCls( given, AvatarComponent( comp ) )
-        }
-
-        ( inferred, Set( given -> Set() ) )
-      } else {
-        ( Set(), Set() )
-      }
-    }
-
-  }
-
 }
 
-object Slakoning extends Slakoning( splitting = true, equality = true, propositional = false ) {
+object Slakoning extends Slakoning( equality = true, propositional = false ) {
   def lpoHeuristic( cnf: Iterable[HOLSequent], extraConsts: Iterable[Const], assumptionConsts: Iterable[Const] ): LPO = {
     val consts = constants( cnf flatMap { _.elements } ) ++ extraConsts
 
@@ -517,9 +457,9 @@ object Slakoning extends Slakoning( splitting = true, equality = true, propositi
   }
 
   def setupDefaults(
-    state:     SlakoningState,
-    splitting: Boolean, equality: Boolean, propositional: Boolean ) = {
-    val standardInferences = new StandardInferences( state, propositional )
+    state:    SlakoningState,
+    equality: Boolean, propositional: Boolean ) = {
+    val standardInferences = new IntuitInferences( state, propositional )
     import standardInferences._
 
     // Preprocessing rules
@@ -534,9 +474,11 @@ object Slakoning extends Slakoning( splitting = true, equality = true, propositi
     }
     state.preprocessingRules :+= TautologyDeletion
     state.preprocessingRules :+= ClauseFactoring
+    state.preprocessingRules :+= IntuitFactoring
     state.preprocessingRules :+= DuplicateDeletion
     state.preprocessingRules :+= SubsumptionInterreduction
     state.preprocessingRules :+= ForwardSubsumption
+    state.preprocessingRules :+= IntuitRuleInference
 
     // Inference rules
     state.inferences :+= ForwardSubsumption
@@ -549,11 +491,11 @@ object Slakoning extends Slakoning( splitting = true, equality = true, propositi
       state.inferences :+= ForwardUnitRewriting
       state.inferences :+= BackwardUnitRewriting
     }
-    //    if ( splitting ) state.inferences :+= slakoning.AvatarSplitting(state)
     state.addIndex( MaxPosLitIndex )
     state.addIndex( SelectedLitIndex )
     state.inferences :+= OrderedResolution
     state.inferences :+= Factoring
+    state.inferences :+= IntuitFactoring
     if ( equality ) {
       state.addIndex( ForwardSuperpositionIndex )
       state.addIndex( BackwardSuperpositionIndex )
@@ -589,10 +531,9 @@ object Slakoning extends Slakoning( splitting = true, equality = true, propositi
     }
   }
 }
-object NonSplittingSlakoning extends Slakoning( splitting = false, equality = true, propositional = false )
-object QfUfSlakoning extends Slakoning( splitting = true, propositional = true, equality = true )
+object QfUfSlakoning extends Slakoning( propositional = true, equality = true )
 
-class Slakoning( splitting: Boolean, equality: Boolean, propositional: Boolean ) extends OneShotProver {
+class Slakoning( equality: Boolean, propositional: Boolean ) extends OneShotProver {
   def getNDProof( sequent: HOLSequent )( implicit ctx0: Maybe[MutableContext] ): Option[NDProof] = {
     implicit val ctx: MutableContext = ctx0.getOrElse( MutableContext.guess( sequent ) )
     if ( sequent.succedent.size == 1 ) {
@@ -635,21 +576,15 @@ class Slakoning( splitting: Boolean, equality: Boolean, propositional: Boolean )
     val state = new SlakoningState( ctx )
     state.assumptionConsts ++= clausifier.assumptionConsts
     state.rules ++= clausifier.rules
-    Slakoning.setupDefaults( state, splitting, hasEquality, isPropositional )
+    Slakoning.setupDefaults( state, hasEquality, isPropositional )
     state.nameGen = nameGen
     state.termOrdering = Slakoning.lpoHeuristic( clausifier.cnf.map( _.conclusion ), ctx.constants, clausifier.assumptionConsts )
     EscargotLogger.info( state.assumptionConsts )
     state.newlyDerived ++= clausifier.cnf.map( state.InputCls )
-    val intuitInferences = new IntuitInferences( state, propositional )
     for ( c <- state.newlyDerived ) EscargotLogger.info( c )
     EscargotLogger.info( ctx.get[Definitions] )
     for ( r <- state.rules ) EscargotLogger.info( r )
-    state.inferences :+= intuitInferences.IntuitFactoring
-    state.inferences :+= intuitInferences.IntuitRuleInference
-    state.loop().map { proof =>
-      val nd = resToND( ctx.normalizer )( proof, Substitution() )
-      nd
-    }
+    state.loop().map( proof => resToND( ctx.normalizer )( proof, Substitution() ) )
   }
 
   override def getLKProof( seq: HOLSequent )( implicit ctx: Maybe[MutableContext] ): Option[LKProof] =
