@@ -63,7 +63,7 @@ sealed trait Rule {
 case class PiRule( left: Atom, right: Atom, eigenVars: List[Var], freeVars: Set[Var], concl: HOLSequent ) extends Rule {
   require( eigenVars.toSet.intersect( freeVars ).isEmpty )
   override def renameDisjoint( fvs: Set[Var] ): PiRule =
-    Substitution( rename( freeVariables( concl ), fvs ) )( this )
+    Substitution( rename( freeVars ++ eigenVars, fvs ) )( this )
 }
 object PiRule {
   implicit val closedUnderSub: ClosedUnderSub[PiRule] = ( sub, rule ) =>
