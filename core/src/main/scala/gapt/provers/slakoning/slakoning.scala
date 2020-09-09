@@ -374,7 +374,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
                   val sevs = subst( eigenVars )
                   sevs.forall( _.isInstanceOf[Var] ) &&
                     sevs == sevs.distinct &&
-                    freeVariables( der ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty &&
+                    freeVariables( subst( der ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty &&
                     freeVariables( subst( freeVars ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
               }.map {
                 case ( subst, _, Some( i ) ) =>
