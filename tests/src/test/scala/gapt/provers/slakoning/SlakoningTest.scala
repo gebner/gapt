@@ -23,4 +23,8 @@ class SlakoningTest extends Specification {
           """ ) must beSome
   }
 
+  "quant alt" in {
+    Slakoning.getNDProof( hos":- !y ?x (p x & q y) <-> ?x !y (p x & q y)" ) must beSome
+  }
+
 }

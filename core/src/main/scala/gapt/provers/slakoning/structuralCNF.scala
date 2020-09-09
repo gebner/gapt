@@ -88,7 +88,7 @@ object OrRule {
 case class ExistsRule( premise: Atom, eigenVars: List[Var], freeVars: Set[Var], concl: HOLSequent ) extends Rule {
   require( eigenVars.toSet.intersect( freeVars ).isEmpty )
   override def renameDisjoint( fvs: Set[Var] ): ExistsRule =
-    Substitution( rename( freeVariables( concl ), fvs ) )( this )
+    Substitution( rename( freeVariables( premise ), fvs ) )( this )
 }
 object ExistsRule {
   implicit val closedUnderSub: ClosedUnderSub[ExistsRule] = ( sub, rule ) =>
