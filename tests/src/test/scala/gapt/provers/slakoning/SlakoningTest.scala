@@ -31,4 +31,13 @@ class SlakoningTest extends Specification {
     Slakoning.getNDProof( hos":- ?x !y ?z (p x & q y & r z) <-> ?z !y ?x (p x & q y & r z)" ) must beSome
   }
 
+  "php" in {
+    Slakoning.getNDProof(
+      hos"""
+            o11 | o12,
+            o21 | o22,
+            o31 | o32
+            :- (o11 & o21) | (o11 & o31) | (o21 & o31) | (o12 & o22) | (o12 & o32) | (o22 & o32)
+        """ ) must beSome
+  }
 }

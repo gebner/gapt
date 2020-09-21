@@ -397,12 +397,31 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
             if freeVariables( subst( freeVars ) ).intersect( sevs.asInstanceOf[List[Var]].toSet ).isEmpty
           } yield DerivedCls( given, ExistsR( Subst( given.proof, subst ), i, subst( rule ) ) ) ).toSet
 
+        case _: OrRule =>
+          Set()
+
+        case rule @ EndRule( goal ) =>
+          if ( sequent == ( Sequent() :+ goal ) && given.assertion.isEmpty )
+            Set( DerivedCls( given, EndR( given.proof, rule ) ) )
+          else
+            Set()
+      }.toSet -> Set()
+    }
+  }
+
+  object IntuitBinaryRuleInference extends InferenceRule {
+
+    override def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
+      if ( !isCEmptyCls( given ) ) return Set.empty[Cls] -> Set.empty
+      val sequent = given.clause
+      val fvs = freeVariables( sequent )
+      val existing_ = for ( old <- existing.clauses if isCEmptyCls( old ) ) yield old
+      rules.view.map( _.renameDisjoint( fvs ) ).flatMap {
         case rule @ OrRule( left, right, concl ) =>
           val result1 = for {
             ( a, i ) <- sequent.zipWithIndex.antecedent
             subst0 <- syntacticMGU( a, left ).toSet[Substitution]
-            old0 <- existing.clauses
-            if isCEmptyCls( old0 )
+            old0 <- existing_
             old = Subst(
               old0.proof,
               Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
@@ -414,8 +433,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
           val result2 = for {
             ( a, i ) <- sequent.zipWithIndex.antecedent
             subst0 <- syntacticMGU( a, right ).toSet[Substitution]
-            old0 <- existing.clauses
-            if isCEmptyCls( old0 )
+            old0 <- existing_
             old = Subst(
               old0.proof,
               Substitution( rename( freeVariables( old0.clause ), fvs ++ freeVariables( concl ) ) ) )
@@ -426,11 +444,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
           } yield DerivedCls( given, OrR( Subst( old, subst ), j, Subst( given.proof, subst ), i, subst( rule ) ) )
           ( result1 ++ result2 ).toSet
 
-        case rule @ EndRule( goal ) =>
-          if ( sequent == ( Sequent() :+ goal ) && given.assertion.isEmpty )
-            Set( DerivedCls( given, EndR( given.proof, rule ) ) )
-          else
-            Set()
+        case _ => Set()
       }.toSet -> Set()
     }
   }
@@ -496,6 +510,7 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
     state.inferences :+= OrderedResolution
     state.inferences :+= Factoring
     state.inferences :+= IntuitFactoring
+    state.inferences :+= IntuitBinaryRuleInference
     if ( equality ) {
       state.addIndex( ForwardSuperpositionIndex )
       state.addIndex( BackwardSuperpositionIndex )
