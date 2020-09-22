@@ -455,7 +455,7 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
   def lpoHeuristic( cnf: Iterable[HOLSequent], extraConsts: Iterable[Const], assumptionConsts: Iterable[Const] ): LPO = {
     val consts = constants( cnf flatMap { _.elements } ) ++ extraConsts
 
-    val boolOnTermLevel = consts exists { case Const( _, FunctionType( _, from ), _ ) => from contains To }
+    val boolOnTermLevel = false //consts exists { case Const( _, FunctionType( _, from ), _ ) => from contains To }
     val types = consts flatMap { c => baseTypes( c.ty ) }
 
     val atoms = for ( c <- consts; FunctionType( to, _ ) = c.ty if to == To ) yield c
@@ -467,7 +467,7 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
 
     val namePrec = precedence.map( _.name ).distinct
     EscargotLogger.info( s"precedence: ${namePrec.mkString( ", " )}" )
-    LPO( namePrec, ( _, t ) => !boolOnTermLevel && t == To )
+    LPO( namePrec, ( s, t ) => !boolOnTermLevel && t == To && s != To )
   }
 
   def setupDefaults(
