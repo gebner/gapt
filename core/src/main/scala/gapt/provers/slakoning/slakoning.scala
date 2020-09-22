@@ -550,6 +550,7 @@ object QfUfSlakoning extends Slakoning( propositional = true, equality = true )
 
 class Slakoning( equality: Boolean, propositional: Boolean ) extends OneShotProver {
   def getNDProof( sequent: HOLSequent )( implicit ctx0: Maybe[MutableContext] ): Option[NDProof] = {
+    require( freeVariables( sequent ).isEmpty )
     implicit val ctx: MutableContext = ctx0.getOrElse( MutableContext.guess( sequent ) )
     if ( sequent.succedent.size == 1 ) {
       sequent( Suc( 0 ) ) match {
