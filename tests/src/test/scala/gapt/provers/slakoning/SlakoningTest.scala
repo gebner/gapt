@@ -40,4 +40,12 @@ class SlakoningTest extends Specification {
             :- (o11 & o21) | (o11 & o31) | (o21 & o31) | (o12 & o22) | (o12 & o32) | (o22 & o32)
         """ ) must beSome
   }
+
+  "syn074mwe" in {
+    Slakoning.getNDProof(
+      hos"""
+            !x !y (bigf x y -> y = b)
+            :- ?x ?w !y (bigf x y -> y = w)
+        """ ) must beSome
+  }
 }

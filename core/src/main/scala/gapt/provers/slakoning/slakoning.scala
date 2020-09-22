@@ -481,7 +481,7 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
     if ( equality ) {
       state.addIndex( UnitRwrLhsIndex )
       state.preprocessingRules :+= ForwardUnitRewriting
-      state.preprocessingRules :+= VariableEqualityResolution
+      // state.preprocessingRules :+= VariableEqualityResolution  // TODO: incomplete? see syn074mwe
       state.preprocessingRules :+= OrderEquations
       state.preprocessingRules :+= EqualityResolution
       state.preprocessingRules :+= ReflexivityDeletion
