@@ -493,7 +493,7 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
     state.preprocessingRules :+= SubsumptionInterreduction
     state.preprocessingRules :+= ForwardSubsumption
     state.preprocessingRules :+= IntuitRuleInference
-    if (equality) {
+    if ( equality ) {
       state.preprocessingRules :+= ReflexivityDeletion
     }
 
