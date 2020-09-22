@@ -524,7 +524,7 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
 
     val tptpInputFile = args.toSeq match {
       case Seq() =>
-        println( "Usage: escargot [-v] tptp-problem.p" )
+        println( "Usage: slakoning [-v] tptp-problem.p" )
         sys.exit( 1 )
       case Seq( "-v", file ) =>
         LogHandler.verbosity.value = LogHandler.verbosity.value.increase( Seq( EscargotLogger ), 2 )
