@@ -48,4 +48,13 @@ class SlakoningTest extends Specification {
             :- ?x ?w !y (bigf x y -> y = w)
         """ ) must beSome
   }
+
+  "syn415mwe" in {
+    Slakoning.getNDProof(
+      hos""" :-
+             ?u !v (f v -> u = v) ->
+             true & !y !z (f y & f z -> y = z)
+        """ ) must beSome
+  }
+
 }

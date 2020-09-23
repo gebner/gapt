@@ -15,14 +15,15 @@ import gapt.expr.ty.FunctionType
 import gapt.expr.ty.To
 import gapt.expr.ty.arity
 import gapt.expr.ty.baseTypes
-import gapt.expr.util.{ constants, freeVariables, rename, syntacticMGU }
+import gapt.expr.util.{ LambdaPosition, constants, freeVariables, rename, syntacticMGU }
 import gapt.logic.Polarity
 import gapt.proofs.context.facet.Definitions
 import gapt.proofs.context.mutable.MutableContext
 import gapt.proofs.lk.LKProof
 import gapt.proofs.nd._
-import gapt.proofs.resolution.{ Factor, LocalResolutionRule, ResolutionProof }
+import gapt.proofs.resolution.{ Factor, Flip, LocalResolutionRule, Resolution, ResolutionProof }
 import gapt.provers.escargot.LPO
+import gapt.provers.escargot.impl.BackwardSuperpositionIndex.I
 
 import scala.collection.mutable
 
@@ -178,6 +179,14 @@ case class resToND( defs: Normalizer ) {
       case Factor( p, i, j ) => apply( p, subst )
       case Taut( f ) =>
         LogicalAxiom( defs.normalize( subst( f ) ).asInstanceOf[Formula] )
+      case BottomR( p, i ) => apply( p, subst )
+      case TopL( p, i ) =>
+        val p_ = apply( p, subst )
+        p_.conclusion.indexOfOption( Top(), Polarity.InAntecedent ) match {
+          case None => p_
+          case Some( i_ ) =>
+            ImpElimRule( ImpIntroRule( p_, i_ ), TopIntroRule )
+        }
       case AndR1( p, i ) => AndElim1Rule( apply( p, subst ) )
       case AndR2( p, i ) => AndElim2Rule( apply( p, subst ) )
       case Input( Sequent( Seq(), Seq( ant ) ) ) =>
@@ -449,6 +458,51 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
     }
   }
 
+  object BackwardIntuitVariableSuperpositionIndex
+    extends Index[DiscrTree[( Cls, SequentIndex, Expr, Seq[LambdaPosition] )]] {
+    def empty: I = DiscrTree()
+    def add( t: I, c: Cls ): I = {
+      val iVars = c.clause.elements.flatMap {
+        case f @ Apps( p: Const, _ ) if assumptionConsts.contains( p ) =>
+          freeVariables( f )
+        case _ => Set.empty
+      }
+
+      if ( iVars.isEmpty ) t else t.insert( for {
+        i <- if ( c.selected.nonEmpty ) c.selected else c.maximal
+        a = c.clause( i )
+        ( st, pos ) <- getFOPositions( a )
+        if iVars.contains( st )
+      } yield st -> ( c, i, st, pos ) )
+    }
+
+    def remove( t: I, cs: Set[Cls] ): I = t.filter( e => !cs( e._1 ) )
+  }
+
+  // syn415mwe
+  object IntuitVariableSuperposition extends InferenceRule {
+    def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
+      val givenSet = IndexedClsSet( state ).
+        addIndex( ForwardSuperpositionIndex ).
+        addIndex( BackwardIntuitVariableSuperpositionIndex ) +
+        given
+      val existingPlusGiven = existing + given
+      val inferred1 =
+        for {
+          ( c1, i1, t1, s1, ltr ) <- givenSet.getIndex( ForwardSuperpositionIndex ).elements
+          ( c2, i2, _, pos2 ) <- existingPlusGiven.getIndex( BackwardIntuitVariableSuperpositionIndex ).unifiable( t1 )
+          cn <- Superposition.apply( c1, i1, t1, s1, ltr, c2, i2, pos2 )
+        } yield cn
+      val inferred2 =
+        for {
+          ( c2, i2, st2, pos2 ) <- givenSet.getIndex( BackwardIntuitVariableSuperpositionIndex ).elements
+          ( c1, i1, t1, s1, ltr ) <- existing.getIndex( ForwardSuperpositionIndex ).unifiable( st2 )
+          cn <- Superposition.apply( c1, i1, t1, s1, ltr, c2, i2, pos2 )
+        } yield cn
+
+      ( Set() ++ inferred1 ++ inferred2, Set() )
+    }
+  }
 }
 
 object Slakoning extends Slakoning( equality = true, propositional = false ) {
@@ -514,11 +568,14 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
     state.inferences :+= Factoring
     state.inferences :+= IntuitFactoring
     state.inferences :+= IntuitBinaryRuleInference
+    state.inferences :+= IntuitRuleInference
     if ( equality ) {
       state.addIndex( ForwardSuperpositionIndex )
       state.addIndex( BackwardSuperpositionIndex )
+      state.addIndex( BackwardIntuitVariableSuperpositionIndex )
       state.inferences :+= Superposition
       state.inferences :+= UnifyingEqualityResolution
+      state.inferences :+= IntuitVariableSuperposition
     }
   }
 
