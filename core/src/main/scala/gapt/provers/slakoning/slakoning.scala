@@ -458,6 +458,36 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
     }
   }
 
+  object IntuitEigenvarCheck extends RedundancyRule {
+    def isViolated( hd: Expr, as: List[Expr], eigenVars: List[Var], cls: Cls ): Boolean = {
+      val evs = eigenVars.toSet[Expr]
+      val evPos = ( for ( ( a, i ) <- as.view.zipWithIndex if evs( a ) ) yield i ).toSet
+      cls.clause.exists {
+        case Apps( `hd`, args2 ) =>
+          evPos.exists( i =>
+            args2( i ) match {
+              case a2i: Var =>
+                freeVariables( args2.patch( i, Nil, 1 ) ).contains( a2i )
+              case _ => true
+            } )
+        case _ => false
+      }
+    }
+
+    override def isRedundant( given: Cls, existing: IndexedClsSet ): Option[Set[Int]] = {
+      val violatesEV = rules.exists {
+        case OrRule( _, _, _ ) => false
+        case EndRule( _ )      => false
+        case PiRule( Apps( left, largs ), Apps( right, rargs ), eigenVars, _, _ ) =>
+          isViolated( left, largs, eigenVars, given ) ||
+            isViolated( right, rargs, eigenVars, given )
+        case ExistsRule( Apps( p, args ), eigenVars, _, _ ) =>
+          isViolated( p, args, eigenVars, given )
+      }
+      if ( violatesEV ) Some( Set.empty ) else None
+    }
+  }
+
   object BackwardIntuitVariableSuperpositionIndex
     extends Index[DiscrTree[( Cls, SequentIndex, Expr, Seq[LambdaPosition] )]] {
     def empty: I = DiscrTree()
@@ -531,6 +561,7 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
     import standardInferences._
 
     // Preprocessing rules
+    state.preprocessingRules :+= IntuitEigenvarCheck
     state.preprocessingRules :+= DuplicateDeletion
     if ( equality ) {
       state.addIndex( UnitRwrLhsIndex )
@@ -601,8 +632,8 @@ object Slakoning extends Slakoning( equality = true, propositional = false ) {
         print( sequentProofToTptp( proof ) )
         println( "% SZS output end Proof" )
       case None =>
-        println( "% SZS status Unknown" )
-        println( "% hopefully not a theorem" )
+        println( "% SZS status Non-Theorem" )
+        println( "% (fingers crossed)" )
     }
   }
 }
