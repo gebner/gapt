@@ -660,7 +660,11 @@ class Slakoning( equality: Boolean, propositional: Boolean ) extends OneShotProv
     for ( c <- state.newlyDerived ) EscargotLogger.info( c )
     EscargotLogger.info( ctx.get[Definitions] )
     for ( r <- state.rules ) EscargotLogger.info( r )
-    state.loop().map( proof => resToND( ctx.normalizer )( proof, Substitution() ) )
+    state.loop().map( proof => {
+      EscargotLogger.info( "proof found" )
+      EscargotLogger.info( "SZS status Theorem" )
+      resToND( ctx.normalizer )( proof, Substitution() )
+    } )
   }
 
   override def getLKProof( seq: HOLSequent )( implicit ctx: Maybe[MutableContext] ): Option[LKProof] =
