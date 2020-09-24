@@ -493,8 +493,17 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
     def empty: I = DiscrTree()
     def add( t: I, c: Cls ): I = {
       val iVars = c.clause.elements.flatMap {
-        case f @ Apps( p: Const, _ ) if assumptionConsts.contains( p ) =>
-          freeVariables( f )
+        case f @ Apps( p: Const, args ) if assumptionConsts.contains( p ) =>
+          def getEvArgs( as: List[Expr], evsL: List[Var] ): List[Expr] = {
+            val evs = evsL.toSet[Expr]
+            for ( ( a, b ) <- as.zip( args ) if evs( a ) ) yield b
+          }
+          rules.view.flatMap {
+            case PiRule( Apps( `p`, as ), _, evsL, _, _ )  => getEvArgs( as, evsL )
+            case PiRule( _, Apps( `p`, as ), evsL, _, _ )  => getEvArgs( as, evsL )
+            case ExistsRule( Apps( `p`, as ), evsL, _, _ ) => getEvArgs( as, evsL )
+            case _                                         => Nil
+          }.toSet
         case _ => Set.empty
       }
 
@@ -510,6 +519,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
   }
 
   // syn415mwe
+  // for completeness assume that all non-ev substitutions in the ground sequent are minimal/reduced
   object IntuitVariableSuperposition extends InferenceRule {
     def apply( given: Cls, existing: IndexedClsSet ): ( Set[Cls], Set[( Cls, Set[Int] )] ) = {
       val givenSet = IndexedClsSet( state ).
@@ -519,14 +529,14 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
       val existingPlusGiven = existing + given
       val inferred1 =
         for {
-          ( c1, i1, t1, s1, ltr ) <- givenSet.getIndex( ForwardSuperpositionIndex ).elements
+          ( c1, i1, t1: Var, s1: Var, ltr ) <- givenSet.getIndex( ForwardSuperpositionIndex ).elements
           ( c2, i2, _, pos2 ) <- existingPlusGiven.getIndex( BackwardIntuitVariableSuperpositionIndex ).unifiable( t1 )
           cn <- Superposition.apply( c1, i1, t1, s1, ltr, c2, i2, pos2 )
         } yield cn
       val inferred2 =
         for {
           ( c2, i2, st2, pos2 ) <- givenSet.getIndex( BackwardIntuitVariableSuperpositionIndex ).elements
-          ( c1, i1, t1, s1, ltr ) <- existing.getIndex( ForwardSuperpositionIndex ).unifiable( st2 )
+          ( c1, i1, t1: Var, s1: Var, ltr ) <- existing.getIndex( ForwardSuperpositionIndex ).unifiable( st2 )
           cn <- Superposition.apply( c1, i1, t1, s1, ltr, c2, i2, pos2 )
         } yield cn
 
