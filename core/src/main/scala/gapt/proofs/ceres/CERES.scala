@@ -23,11 +23,10 @@ import gapt.expr.ty.Ti
 import gapt.expr.util.freeVariables
 import gapt.logic.clauseSubsumption
 import gapt.proofs.context.Context
+import gapt.proofs.context.mutable.MutableContext
 import gapt.proofs.expansion.{ ExpansionProof, ExpansionSequent }
 import gapt.proofs.lk.rules.macros.WeakeningContractionMacroRule
-import gapt.proofs.lk.transformations.LKToExpansionProof
-import gapt.proofs.lk.transformations.cleanStructuralRules
-import gapt.proofs.lk.transformations.skolemizeLK
+import gapt.proofs.lk.transformations.{ LKToExpansionProof, cleanStructuralRules, eliminateDefinitions, indexCutAtoms, skolemizeLK }
 import gapt.proofs.lk.util.AtomicExpansion
 import gapt.proofs.lk.util.groundFreeVarsLK
 import gapt.proofs.lk.util.regularize
@@ -104,6 +103,47 @@ class CERES {
           TptpFOLExporter( tapecl ) )
       case Some( rp ) =>
         cleanStructuralRules( apply( es, proj, eliminateSplitting( rp ) ) )
+    }
+  }
+
+  def indexed( p: LKProof, pred: Formula => Boolean = CERES.skipNothing, prover: ResolutionProver = Escargot ): LKProof = groundFreeVarsLK.wrap( p ) { p =>
+    implicit val ctx: MutableContext = MutableContext.guess( p )
+    val es = p.endSequent
+
+    val p_ = regularize( indexCutAtoms( skolemizeLK( AtomicExpansion( p ) ) ) )
+    val cs = CharacteristicClauseSet( StructCreators.extract( p_, pred )( Context() ) )
+
+    val proj = Projections( p_, pred )
+    val ccs = subsumedClausesRemoval( deleteTautologies( cs ).toList )
+
+    prover.getResolutionProof( ccs ) match {
+      case None => throw new Exception(
+        "The characteristic clause set could not be refuted:\n" +
+          TptpFOLExporter( ccs ) )
+      case Some( rp ) =>
+        cleanStructuralRules( indexCutAtoms.undo( eliminateDefinitions(
+          apply( es, proj, eliminateSplitting( rp ) ) ) ) )
+    }
+  }
+
+  def indexedExpansionProof(
+    p:      LKProof,
+    skip:   Formula => Boolean = CERES.skipNothing,
+    prover: ResolutionProver   = Escargot ): ExpansionProof = groundFreeVarsLK.wrap( p ) { p =>
+    implicit val ctx: MutableContext = MutableContext.guess( p )
+    val es = p.endSequent
+    val p_ = regularize( indexCutAtoms( AtomicExpansion( skolemizeLK( p ) ) ) )
+    val cs = CharacteristicClauseSet( StructCreators.extract( p_, CERES.skipNothing )( Context() ) )
+
+    val proj = Projections( p_, CERES.skipNothing )
+    val ccs = subsumedClausesRemoval( deleteTautologies( cs ).toList )
+
+    prover.getResolutionProof( ccs ) match {
+      case None => throw new Exception(
+        "The characteristic clause set could not be refuted:\n" +
+          TptpFOLExporter( ccs ) )
+      case Some( rp ) =>
+        ResolutionToExpansionProof( eliminateSplitting( rp ), findPartialExpansionSequent( es, proj ) )
     }
   }
 
