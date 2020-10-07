@@ -15,6 +15,18 @@ object indexCutAtoms {
   def apply( p: LKProof )( implicit ctx: Maybe[MutableContext] ): LKProof =
     apply( p, p.endSequent )( ctx.getOrElse( MutableContext.guess( p ) ) )
 
+  def undo( p: LKProof ): LKProof =
+    new LKVisitor[Unit] {
+      override def visitProofLink( proof: ProofLink, otherArg: Unit ): ( LKProof, SequentConnector ) = {
+        val ( q, sc ) = super.visitProofLink( proof, otherArg )
+        q.endSequent match {
+          case HOLSequent( Seq( a ), Seq( b ) ) if a == b =>
+            ( LogicalAxiom( a ), sc )
+          case _ => ( q, sc )
+        }
+      }
+    }.apply( p, () )
+
   def rename( f: Formula )( implicit ctx: MutableContext ): Formula = f match {
     case f @ Atom( c: Const, args ) =>
       Atom( ctx.addDefinition( c, ctx.newNameGenerator.freshWithIndex( c.name ), reuse = false ), args )
