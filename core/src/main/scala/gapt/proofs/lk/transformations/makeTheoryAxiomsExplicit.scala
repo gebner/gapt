@@ -49,7 +49,10 @@ object makeTheoryAxiomsExplicit {
     withSequentConnector( formulas: _* )( proof )._1
 
   def apply( proof: LKProof )( implicit ctx: Context ): LKProof =
-    apply( ctx.get[ProofNames].sequents.toSeq map { s => universalClosure( s.toFormula ) }: _* )( proof )
+    apply( ctx.get[ProofNames].sequents.view
+      .map( s => universalClosure( s.toFormula ) )
+      .filter( f => isPrenex( f ) && !containsStrongQuantifier( f, Polarity.InAntecedent ) )
+      .toSeq: _* )( proof )
 
   private object explicitTheoryAxiomsVisitor extends LKVisitor[Seq[Formula]] {
 

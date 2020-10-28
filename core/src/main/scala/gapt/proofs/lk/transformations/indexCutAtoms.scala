@@ -6,11 +6,43 @@ import gapt.proofs.context.mutable.MutableContext
 import gapt.proofs.lk._
 import gapt.proofs.lk.rules._
 import gapt.expr.formula._
-import gapt.expr.formula.hol.instantiate
+import gapt.expr.formula.hol.{ HOLAtomConst, instantiate }
 import gapt.expr.subst.Substitution
+import gapt.expr.ty.To
+import gapt.expr.util.freeVariables
+import gapt.proofs.context.update.ProofDeclaration
 import gapt.utils.Maybe
 
-object indexCutAtoms {
+object indexCutAtoms extends indexCutAtoms( false ) {
+  private class removeEqInfsVisitor( implicit ctx: Maybe[MutableContext] ) extends LKVisitor[Unit] {
+    def mkLink( p: LKProof ): ProofLink = ctx match {
+      case Maybe.Some( ctx ) =>
+        val fvs = freeVariables( p.endSequent ).toList
+        val f = HOLAtomConst( ctx.newNameGenerator.freshWithIndex( "equality" ), fvs.map( _.ty ): _* )
+        ctx += f
+        val decl = ProofDeclaration( f( fvs ), p )
+        ctx += decl
+        decl.link
+      case Maybe.None =>
+        ProofLink( Const( "equality", To ), p.endSequent )
+    }
+    override def visitEqualityLeft( proof: EqualityLeftRule, otherArg: Unit ): ( LKProof, SequentConnector ) =
+      withIdentitySequentConnector( mkLink( proof ) )
+    override def visitEqualityRight( proof: EqualityRightRule, otherArg: Unit ): ( LKProof, SequentConnector ) =
+      withIdentitySequentConnector( mkLink( proof ) )
+    override def visitReflexivityAxiom( proof: ReflexivityAxiom, otherArg: Unit ): ( LKProof, SequentConnector ) =
+      withIdentitySequentConnector( mkLink( proof ) )
+  }
+  def removeEqInfs( p: LKProof )( implicit ctx: Maybe[MutableContext] ): LKProof =
+    new removeEqInfsVisitor().apply( p, () )
+
+  def removingEquality( p: LKProof )( implicit ctx: Maybe[MutableContext] ): LKProof = {
+    val q = pushEqualityInferencesToLeaves2( p )
+    new indexCutAtoms( true ).apply( removeEqInfs( q ) )
+  }
+}
+
+class indexCutAtoms( renameEquality: Boolean ) {
 
   def apply( p: LKProof )( implicit ctx: Maybe[MutableContext] ): LKProof =
     apply( p, p.endSequent )( ctx.getOrElse( MutableContext.guess( p ) ) )
@@ -28,6 +60,7 @@ object indexCutAtoms {
     }.apply( p, () )
 
   def rename( f: Formula )( implicit ctx: MutableContext ): Formula = f match {
+    case Eq( _, _ ) if !renameEquality => f
     case f @ Atom( c: Const, args ) =>
       Atom( ctx.addDefinition( c, ctx.newNameGenerator.freshWithIndex( c.name ), reuse = false ), args )
     case Iff( a, b )      => Iff( rename( a ), rename( b ) )
@@ -38,7 +71,6 @@ object indexCutAtoms {
     case All( x, a )      => All( x, rename( a ) )
     case Ex( x, a )       => Ex( x, rename( a ) )
     case Top() | Bottom() => f
-    case Eq( _, _ )       => f
   }
 
   def apply( p: LKProof, es: HOLSequent )( implicit ctx: MutableContext ): LKProof = p match {

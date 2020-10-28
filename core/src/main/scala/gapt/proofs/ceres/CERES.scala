@@ -106,11 +106,17 @@ class CERES {
     }
   }
 
-  def indexed( p: LKProof, pred: Formula => Boolean = CERES.skipNothing, prover: ResolutionProver = Escargot ): LKProof = groundFreeVarsLK.wrap( p ) { p =>
+  def indexed(
+    p:              LKProof,
+    pred:           Formula => Boolean = CERES.skipNothing,
+    prover:         ResolutionProver   = Escargot,
+    renameEquality: Boolean            = false ): LKProof = groundFreeVarsLK.wrap( p ) { p =>
     implicit val ctx: MutableContext = MutableContext.guess( p )
     val es = p.endSequent
 
-    val p_ = regularize( indexCutAtoms( skolemizeLK( AtomicExpansion( p ) ) ) )
+    val p1 = skolemizeLK( AtomicExpansion( p ) )
+    val p2 = if ( !renameEquality ) indexCutAtoms( p1 ) else indexCutAtoms.removingEquality( p1 )
+    val p_ = regularize( p2 )
     val cs = CharacteristicClauseSet( StructCreators.extract( p_, pred )( Context() ) )
 
     val proj = Projections( p_, pred )
