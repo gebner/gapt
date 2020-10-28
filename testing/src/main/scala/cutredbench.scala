@@ -19,11 +19,7 @@ import gapt.proofs.lk.{ LKProof, normalizeLKt }
 import gapt.proofs.lkt.{ LKToLKt, LKt, LocalCtx }
 import gapt.proofs.resolution.ResolutionToLKProof
 import gapt.provers.escargot.Escargot
-import sequence.FactorialFunctionEqualityExampleProof
-import sequence.LinearCutExampleProof
-import sequence.LinearEqExampleProof
-import sequence.LinearExampleProof
-import sequence.SquareDiagonalExampleProof
+import sequence.{ FactorialFunctionEqualityExampleProof, LinearCutExampleProof, LinearEqExampleProof, LinearExampleProof, LinearRightCutExampleProof, SquareDiagonalExampleProof }
 
 import scala.concurrent.duration._
 
@@ -60,7 +56,9 @@ object CutReductionBenchmarkTools {
   }
   case object LKReductive extends LKMethod { def eliminate( p: LKProof ): Unit = cutNormal( p ) }
   case object LKCERES extends LKMethod { def eliminate( p: LKProof ): Unit = CERES( p ) }
+  case object LKCERESI extends LKMethod { def eliminate( p: LKProof ): Unit = CERES.indexed( p ) }
   case object CERESEXP extends LKMethod { def eliminate( p: LKProof ): Unit = CERES.expansionProof( p ) }
+  case object CERESIEXP extends LKMethod { def eliminate( p: LKProof ): Unit = CERES.indexedExpansionProof( p ) }
   case object BogoElim extends Method {
     type P = HOLSequent
     def convert( p: LKProof ): P = p.endSequent
@@ -79,7 +77,12 @@ object CutReductionBenchmarkTools {
   case object LKtNorm extends AbstractLKtNorm
   case object LKtNormA extends AbstractLKtNorm( isAtom( _ ) )
   case object LKtNormP extends AbstractLKtNorm( !containsQuantifierOnLogicalLevel( _ ) )
-  val methods = List( LKReductive, LKCERES, CERESEXP, BogoElim, ExpCutElim, LKtNorm, LKtNormA, LKtNormP )
+  val methods = List(
+    LKReductive,
+    LKCERES, LKCERESI, CERESEXP, CERESIEXP,
+    BogoElim,
+    ExpCutElim,
+    LKtNorm, LKtNormA, LKtNormP )
 }
 
 object cutReductionBenchmark extends Script {
@@ -122,6 +125,7 @@ object cutReductionBenchmark extends Script {
     bench( "linearacnf", n, lk )
   }
 
+  for ( n <- 0 to 8 ) bench( "linear2", n, LinearRightCutExampleProof( n ) )
   for ( n <- 0 to 8 ) bench( "linear", n, LinearCutExampleProof( n ) )
 }
 
