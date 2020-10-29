@@ -10,50 +10,9 @@ import gapt.proofs.lk.transformations.eliminateDefinitions
 import gapt.proofs.lk.transformations.skolemizeLK
 import gapt.proofs.lk.normalizeLKt
 import gapt.proofs.lkt._
+import gapt.utils.{ Multiset, ZZMPolynomial }
 
 object furstenbergWitness {
-  case class Multiset[T]( countingMap: Map[T, Int] = Map[T, Int]() ) extends ( T => Int ) {
-    for ( ( _, v ) <- countingMap ) require( v > 0 )
-    def apply( t: T ): Int = countingMap.getOrElse( t, 0 )
-    def +( that: Multiset[T] ): Multiset[T] =
-      Multiset( Map() ++
-        ( this.countingMap.keySet union that.countingMap.keySet ).view.
-        map( k => k -> ( this( k ) + that( k ) ) ) )
-
-    def toSeq: Seq[T] =
-      countingMap.view.flatMap {
-        case ( t, n ) => List.fill( n )( t )
-      }.toList
-
-    override def toString(): String =
-      countingMap.map {
-        case ( k, 1 ) => k.toString
-        case ( k, n ) => s"$k^$n"
-      }.mkString( "{", ",", "}" )
-  }
-  case class ZZMPolynomial[V] private ( coeffsMap: Map[Multiset[V], Int] ) {
-    def coeff( v: Multiset[V] ): Int = coeffsMap.getOrElse( v, 0 )
-    def +( that: ZZMPolynomial[V] ): ZZMPolynomial[V] = ZZMPolynomial {
-      for ( m <- this.coeffsMap.keySet union that.coeffsMap.keySet )
-        yield m -> ( this.coeff( m ) + that.coeff( m ) )
-    }
-    def *( that: ZZMPolynomial[V] ): ZZMPolynomial[V] = ZZMPolynomial {
-      for ( ( m1, c1 ) <- this.coeffsMap.view; ( m2, c2 ) <- that.coeffsMap.view )
-        yield ( m1 + m2 ) -> ( c1 * c2 )
-    }
-  }
-  object ZZMPolynomial {
-    implicit def fromScalar[V]( n: Int ): ZZMPolynomial[V] =
-      ZZMPolynomial( Map( Multiset[V]() -> n ) )
-    implicit def fromVariable[V]( v: V ): ZZMPolynomial[V] =
-      ZZMPolynomial( Map( Multiset[V]( Map( v -> 1 ) ) -> 1 ) )
-    def apply[V]( coeffs: Iterable[( Multiset[V], Int )] ): ZZMPolynomial[V] =
-      new ZZMPolynomial( ( Map() ++ coeffs.view.
-        groupBy( _._1 ).
-        view.mapValues( _.map( _._2 ).sum ) ).
-        filter( _._2 != 0 ) )
-  }
-
   def apply( n: Int ): ( Expr, ImmutableContext ) = {
     val primeInst = furstenberg( n )
     implicit val ctx = primeInst.ctx.newMutable
