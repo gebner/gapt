@@ -547,7 +547,7 @@ class IntuitInferences( state: SlakoningState, propositional: Boolean ) extends 
 
 object Slakoning extends Slakoning( equality = true, propositional = false ) {
   def lpoHeuristic( cnf: Iterable[HOLSequent], extraConsts: Iterable[Const], assumptionConsts: Iterable[Const] ): LPO = {
-    val consts = constants( cnf flatMap { _.elements } ) ++ extraConsts
+    val consts = constants.nonLogical( cnf flatMap { _.elements } ) ++ extraConsts
 
     val boolOnTermLevel = false //consts exists { case Const( _, FunctionType( _, from ), _ ) => from contains To }
     val types = consts flatMap { c => baseTypes( c.ty ) }
@@ -681,7 +681,7 @@ class Slakoning( equality: Boolean, propositional: Boolean ) extends OneShotProv
         case _ =>
       }
     }
-    val hasEquality = equality && constants( sequent ).exists { case EqC( _ ) => true; case _ => false }
+    val hasEquality = equality && constants.all( sequent.toFormula ).exists { case EqC( _ ) => true; case _ => false }
     val isPropositional = propositional
     val nameGen = ctx.newNameGenerator
     val clausifier = new Clausifier(
